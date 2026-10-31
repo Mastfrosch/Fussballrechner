@@ -1,14 +1,16 @@
 *{box-sizing:border-box}
 :root{--bg:#f4f5f4;--card:#fff;--line:#e3e5e3;--head:#e9ebe9;--text:#222;--muted:#777;--green:#1d6b45;
---z-meister:#f7f1d9;--z-auf:#e3ebf5;--z-ab:#f6e3e1;--z-bar-ab:#d9534f;--z-bar-auf:#4a78b5;--z-bar-m:#d4b44a}
+--z-meister:#f8f1d4;--z-cl:#e7f0fa;--z-el:#fbead6;--z-ecl:#e4eee6;--z-auf:#e5f6e8;--z-ab:#fbeceb;
+--z-bar-m:#d4b44a;--z-bar-cl:#6d93c4;--z-bar-el:#e0a15a;--z-bar-ecl:#3d6b4a;--z-bar-auf:#5aaa72;--z-bar-ab:#d97872}
 body{margin:0;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:var(--text);background:var(--bg)}
 #app{display:flex;min-height:100vh}
-#sidebar{width:230px;flex:0 0 230px;background:#fff;border-right:1px solid var(--line);padding:12px 0;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column}
+#sidebar{width:268px;flex:0 0 268px;background:#fff;border-right:1px solid var(--line);padding:12px 0;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column}
 .brand{font-weight:700;font-size:16px;padding:0 14px 10px;color:var(--green)}
 #leagueNav{flex:1}
 .nav-group{margin:6px 0}
 .nav-group-title{font-size:11px;text-transform:uppercase;color:var(--muted);padding:6px 14px 2px;letter-spacing:.04em}
-.nav-item{display:block;padding:4px 14px 4px 20px;color:var(--text);text-decoration:none;cursor:pointer;border-left:3px solid transparent}
+.nav-item{display:block;padding:5px 14px;color:var(--text);text-decoration:none;cursor:pointer;border-left:3px solid transparent;line-height:1.3}
+.nav-extra{margin-top:8px;border-top:1px solid var(--line);padding-top:10px}
 .nav-item:hover{background:#f2f4f2}
 .nav-item.active{border-left-color:var(--green);background:#eef4f0;font-weight:600}
 .nav-item .cnt{color:var(--muted);font-size:11px;float:right}
@@ -33,7 +35,7 @@ select{padding:5px 8px;border:1px solid #ccc;border-radius:4px;background:#fff}
 .btn.danger{color:#a33;border-color:#dbb}
 .btn.small{font-size:12px;padding:4px 8px}
 .btn:disabled{opacity:.5;cursor:default}
-.split{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr);gap:18px;align-items:start}
+.split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(460px,1fr);gap:18px;align-items:start}
 @media (max-width:1150px){.split{grid-template-columns:1fr}}
 @media (max-width:800px){#sidebar{display:none}.mobile-nav{display:block}#main{padding:10px}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:4px;overflow:hidden}
@@ -43,13 +45,20 @@ table.tbl{width:100%;border-collapse:collapse}
 .tbl th.l,.tbl td.l{text-align:left}
 .tbl td{padding:4px;text-align:center;border-top:1px solid var(--line);white-space:nowrap}
 .tbl tr.z-meister td{background:var(--z-meister)}
+.tbl tr.z-cl td{background:var(--z-cl)}
+.tbl tr.z-el td{background:var(--z-el)}
+.tbl tr.z-ecl td{background:var(--z-ecl)}
 .tbl tr.z-auf td{background:var(--z-auf)}
 .tbl tr.z-ab td{background:var(--z-ab)}
 .tbl tr.z-meister td:first-child{box-shadow:inset 3px 0 var(--z-bar-m)}
+.tbl tr.z-cl td:first-child{box-shadow:inset 3px 0 var(--z-bar-cl)}
+.tbl tr.z-el td:first-child{box-shadow:inset 3px 0 var(--z-bar-el)}
+.tbl tr.z-ecl td:first-child{box-shadow:inset 3px 0 var(--z-bar-ecl)}
 .tbl tr.z-auf td:first-child{box-shadow:inset 3px 0 var(--z-bar-auf)}
 .tbl tr.z-ab td:first-child{box-shadow:inset 3px 0 var(--z-bar-ab)}
 .club{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0}
 .club img{width:24px;height:24px;object-fit:contain;flex:0 0 24px}
+.club .txt{min-width:0}
 .club .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
 .club .mk{color:var(--muted);font-size:11px;margin-left:4px}
@@ -59,20 +68,26 @@ table.tbl{width:100%;border-collapse:collapse}
 .form span{width:16px;height:16px;line-height:16px;font-size:10px;color:#fff;border-radius:2px;font-weight:700}
 .f-S{background:#3c9a5f}.f-U{background:#a3a3a3}.f-N{background:#d0574f}
 .legend{display:flex;gap:16px;flex-wrap:wrap;padding:8px 10px;font-size:11.5px;color:#555;border-top:1px solid var(--line)}
-.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:4px}
+.legend i.sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:4px;border:1px solid rgba(0,0,0,.08)}
+.sw-meister{background:var(--z-meister)}.sw-cl{background:var(--z-cl)}.sw-el{background:var(--z-el)}.sw-ecl{background:var(--z-ecl)}.sw-auf{background:var(--z-auf)}.sw-ab{background:var(--z-ab)}
 /* Spielplan */
 .md-nav{display:flex;align-items:center;gap:6px}
 .md-nav select{padding:3px 6px}
 .md-nav .btn{padding:2px 9px}
-.match{display:grid;grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr) 22px;align-items:center;gap:6px;padding:5px 8px;border-top:1px solid var(--line)}
+.match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) 18px;align-items:center;gap:8px;padding:6px 8px;border-top:1px solid var(--line)}
+.match .home,.match .away{display:flex;min-width:0}
 .match .home{justify-content:flex-end;text-align:right}
-.match .home .club{flex-direction:row-reverse}
-.match .club .nm{font-size:12.5px;white-space:nowrap}
-.score{display:flex;align-items:center;justify-content:center;gap:3px}
-.score input{width:34px;height:28px;text-align:center;border:1px solid #c8c8c8;border-radius:3px;font-size:14px;font-weight:600}
-.score input:focus{outline:2px solid var(--green);border-color:var(--green)}
-.match.done .score input{background:#eef6f0;border-color:#9cc6ab}
-.match.partial .score input{background:#fff7e0}
+.match .home .club{justify-content:flex-end}
+.match .home .txt{text-align:right}
+.match .club .nm{font-size:12.5px;white-space:normal;line-height:1.2}
+.score{display:flex;align-items:center;justify-content:center;gap:5px}
+.scoreline{display:flex;align-items:center;justify-content:center;gap:1px;min-width:2.4em}
+.score b{font-weight:700}
+.goals{min-width:.7em;text-align:center;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.stepper{display:flex;flex-direction:column;gap:1px}
+.stepper button{width:20px;height:16px;padding:0;line-height:14px;border:1px solid #ccc;background:#fafafa;border-radius:2px;cursor:pointer;font-size:13px;color:#333;user-select:none}
+.stepper button:hover{background:#eef4f0;border-color:var(--green)}
+.match.done .goals{color:#145c38}
 .del{border:none;background:none;color:#b55;cursor:pointer;font-size:15px;visibility:hidden}
 .match.done .del{visibility:visible}
 .sp-tools{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);flex-wrap:wrap;align-items:center}
