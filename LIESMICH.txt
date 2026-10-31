@@ -1,0 +1,14 @@
+Fußballrechner – Kurzanleitung
+==============================
+Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
+
+- Links die Ligen wählen (nach Ebene gruppiert), oben rechts die Saison.
+- Tab "Tabelle": links die Tabelle, rechts der Spielplan des aktuellen Spieltags.
+  Ergebnisse einfach eintippen (Heimtore, Gasttore), Enter/Pfeil runter = nächstes Spiel.
+  Wird automatisch gespeichert. Felder leeren oder × löscht ein Ergebnis.
+  "Auto-Weiter" springt nach einer Ziffer weiter – für zweistellige Ergebnisse ausschalten.
+- "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
+  danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
+- Gespeichert wird im Browser (localStorage). Bitte regelmäßig "Spielstand exportieren" (JSON-Datei) als Backup!
+  Achtung: Ein anderer Browser oder ein anderer Speicherort des Ordners sieht den Spielstand nicht – dann einfach importieren.
+- Regeln: Link "Regeln & Auf-/Abstieg" in jeder Liga.
