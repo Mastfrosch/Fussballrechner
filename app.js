@@ -1011,16 +1011,15 @@ function cupMatchHTML(s, m, key, ri, i, ed){
   else if (km!=null) meta=km+' km';
   if (played && !draw && ed) meta+=(meta?'<br>':'')+'<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+(m.et?' checked':'')+'> i.V.</label>';
   else if (played && !draw && m.et) meta+=(meta?' · ':'')+'i.V.';
+  let above='';
   if (draw){
     const hasPen=m.peh!=null && m.pea!=null && m.peh!==m.pea;
     const label=hasPen ? m.peh+':'+m.pea+' i.E.' : 'i.E.';
-    meta+=(meta?'<br>':'');
-    if (ed) meta+='<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">'+label+'</button>';
-    else if (hasPen) meta+=label;
+    if (ed) above='<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">'+label+'</button>';
+    else if (hasPen) above='<span class="ie-link ie-static">'+label+'</span>';
   }
-  const score=played?m.hg+':'+m.ag:'-:-';
   return '<div class="match cup'+(win?' done':'')+'" data-mi="'+i+'"><div class="home"><span class="liga-edge" title="'+esc(ligaEdge(s,m.h))+'">'+esc(ligaEdge(s,m.h))+'</span>'+clubHTML(m.h,{crestRight:true})+'</div>'+
-    '<div class="scorecol"><div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+ (played?m.hg:'-') +'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+
+    '<div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+ (played?m.hg:'-') +'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+
     '<div class="meta">'+meta+'</div></div>'+
     '<div class="away">'+clubHTML(m.a)+'<span class="liga-edge" title="'+esc(ligaEdge(s,m.a))+'">'+esc(ligaEdge(s,m.a))+'</span></div>'+
     (ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>')+'</div>';
