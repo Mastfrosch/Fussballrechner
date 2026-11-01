@@ -6,6 +6,8 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
 - Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand steht die Entfernung, die Anstoßzeit steht in der Gruppenüberschrift.
   Zuerst „Spieltage 1–4 terminieren“. Weitere Viererblöcke folgen automatisch und enden an Hin- und Rückrunde.
 - Tab "Terminierung": immer ein Viererblock, mit Pfeilen vor und zurück. Darunter die Vereine nach Tabellenplatz.
+  Die letzten zwei Spieltage jeder Liga finden alle gleichzeitig zur Samstags-Konferenzzeit statt.
+  Ein Topspiel zweier unterer Vereine gibt es erst ab etwa 70 % der Saison, und nur als enges Abstiegsduell.
 - "Ansehen": Rangliste aus den letzten 25 Jahren. Die jüngsten 10 Saisons zählen 1,5-fach. Abgeschlossene Saisons im Rechner hängen ab der Trennlinie „Start Fußballrechner“ an.
   Tore mit + und −. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
