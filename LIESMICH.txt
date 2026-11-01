@@ -16,7 +16,7 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
 - Tab "Karte": Vereinswappen am Spielort. Mausrad zoomt, Ziehen verschiebt, „Ansicht zurücksetzen“ holt die ganze Karte. Regionalliga und Oberliga zeigen nur ihre Bundesländer.
 - In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Unter der Legende stehen die Plätze, die niemand mehr ändern kann, als Wappen. Bei möglicher Punktgleichheit bleibt die Zeile normal.
-- "Saison simulieren" füllt alle offenen Spiele aller Ligen und die Pokale (leicht nach Ansehen und Stärke), auch offene Entscheidungsspiele. Im Spielplan: "Spieltag simulieren" und "Block simulieren".
+- "Saison simulieren" füllt alle offenen Spiele und Pokale, wählt die Aufsteiger aus der Amateurliga automatisch und startet die nächste Saison. Im Spielplan: "Spieltag simulieren" und "Block simulieren".
 - "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
   danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
   Regionalliga und Oberliga bleiben in ihrer Region. Kommen mehr Absteiger von oben, steigen dort mehr Vereine ab.
