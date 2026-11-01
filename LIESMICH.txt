@@ -3,7 +3,9 @@ Fußballrechner – Kurzanleitung
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
 - Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
-- Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand stehen Entfernung und Anstoßzeit, Spiele sind nach Termin (Fr/Sa/So) gruppiert.
+- Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand steht die Entfernung, die Anstoßzeit steht in der Gruppenüberschrift.
+  Zuerst „Spieltage 1–4 terminieren“. Weitere Viererblöcke folgen automatisch und enden an Hin- und Rückrunde.
+- Tab "Terminierung": Blöcke und je Verein die Ansetzungen.
   Tore mit + und −. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
 - Tab "Karte": Deutschland mit Vereinswappen am Spielort.
