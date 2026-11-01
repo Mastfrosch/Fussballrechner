@@ -2,10 +2,11 @@ Fußballrechner – Kurzanleitung
 ==============================
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
-- Links die Ligen wählen (von der Bundesliga abwärts), darunter den Pokal. Oben rechts die Saison.
-- Tab "Tabelle": links die Tabelle, rechts der Spielplan des aktuellen Spieltags.
-  Tore mit + und − neben dem Spielstand. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
-  Bei 0:0 setzen − oder × das Spiel wieder auf -:-. Wird automatisch gespeichert.
+- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
+- Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand stehen Entfernung und Anstoßzeit, Spiele sind nach Termin (Fr/Sa/So) gruppiert.
+  Tore mit + und −. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
+  Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
+- Tab "Karte": Deutschland mit Vereinswappen am Spielort.
 - "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
   danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
 - Gespeichert wird im Browser (localStorage). Bitte regelmäßig "Spielstand exportieren" (JSON-Datei) als Backup!
