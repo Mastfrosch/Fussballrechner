@@ -16,15 +16,6 @@ const AREA_BY_BL = {
 };
 const RL_BY_AREA = {NS:'RLN',NN:'RLN',ON:'RLO',OS:'RLO',BY:'RLS',BW:'RLS',NRW:'RLW',SW:'RLW'};
 
-// ungefähre Mittelpunkte der Bundesländer (für den Ausgleich der Staffelgrößen)
-const GEO = {'Schleswig-Holstein':[54.2,9.8],'Hamburg':[53.55,10.0],'Mecklenburg-Vorpommern':[53.8,12.6],'Bremen':[53.1,8.8],'Niedersachsen':[52.6,9.5],
-  'Berlin':[52.5,13.4],'Brandenburg':[52.2,13.5],'Sachsen-Anhalt':[51.9,11.7],'Sachsen':[51.0,13.3],'Thüringen':[50.9,11.0],'Nordrhein-Westfalen':[51.5,7.5],
-  'Hessen':[50.6,9.0],'Rheinland-Pfalz':[49.9,7.4],'Saarland':[49.4,6.9],'Baden-Württemberg':[48.6,9.0],'Bayern':[48.9,11.4]};
-function leagueCenter(lid){ const bls=Object.keys(AREA_BY_BL).filter(bl=>{ const a=AREA_BY_BL[bl], rl=RL_BY_AREA[a];
-  return lid==='OL'+a || lid===rl; });
-  return [bls.reduce((x,b)=>x+GEO[b][0],0)/bls.length, bls.reduce((x,b)=>x+GEO[b][1],0)/bls.length]; }
-function distTo(id, lid){ const g=GEO[TEAMS[id].bl]||[51,10], c=leagueCenter(lid); return Math.hypot((g[0]-c[0])*111,(g[1]-c[1])*70); }
-
 // level, size, up, down, upTo
 const LEAGUES = [
   {id:'BL',  name:'Bundesliga',            short:'BL',      level:1, size:20, up:0, down:3},
@@ -158,12 +149,34 @@ function certaintyFromEnv(env, up, down){
 }
 function certaintyMap(season, lid){
   const lg=L[lid]; if(!lg) return {};
-  return certaintyFromEnv(pointsEnvelope(season, lid), lg.up||0, lg.down||0);
+  return certaintyFromEnv(pointsEnvelope(season, lid), lg.up||0, relegationProfile(season, lid).down||0);
+}
+// Abstiegszahl dieser Saison. National fest. In Regionalliga und Oberliga so, dass die Staffel
+// nach den tatsächlich ankommenden Absteigern von oben wieder auf Sollgröße kommt.
+// relOut = Ankömmlinge + 1, weil ein Meister geht und zwei Aufsteiger von unten kommen.
+function relegationProfile(season, lid){
+  const lg=L[lid];
+  if (!lg) return {down:0, nominal:0, incoming:[], reason:''};
+  const nominal=lg.down||0;
+  if (lg.level<=4) return {down:nominal, nominal, incoming:[], reason:''};
+  const parent = lg.level===5 ? 'L4' : lg.upTo;
+  const parentDown = lg.level===5 ? (L.L4.down||0) : relegationProfile(season, parent).down;
+  const incoming = leagueTable(season, parent).slice(-parentDown).map(r=>r.id).filter(id=>homeLeague(id, lg.level)===lid);
+  const down = incoming.length+1;
+  const names = incoming.map(id=>TEAMS[id].name).join(', ');
+  const from = lg.level===5 ? 'der 4. Liga' : ('der '+L[parent].name);
+  const arrive = incoming.length===0 ? 'kommt niemand' : (incoming.length===1 ? 'kommt '+names : 'kommen '+incoming.length+' Vereine ('+names+')');
+  const refill = lg.level===5
+    ? 'Der Meister steigt in die 4. Liga auf, die beiden Oberligameister rücken nach.'
+    : 'Der Meister steigt auf, zwei Vereine kommen aus der Amateurliga nach.';
+  const abText = down===1 ? 'steigt eine Mannschaft ab' : 'steigen '+down+' Mannschaften ab';
+  const reason = 'Aus '+from+' '+arrive+' in diese Staffel. '+refill+' Damit es bei '+lg.size+' Vereinen bleibt, '+abText+'.';
+  return {down, nominal, incoming, reason};
 }
 // Abstiegskampf: noch nicht sicher gerettet und noch nicht rechnerisch abgestiegen.
 // Sicher erst, wenn mindestens so viele Teams dahinter stehen, wie absteigen, und die auch im besten Fall nicht mehr herankommen.
 function relegationBattle(season, lid, mi){
-  const spec=L[lid], down=spec&&spec.down||0, lg=season.leagues[lid], n=lg.teams.length;
+  const down=relegationProfile(season, lid).down||0, lg=season.leagues[lid], n=lg.teams.length;
   const table=mi>0 ? tableBefore(season, lid, mi) : leagueTable(season, lid);
   const env=pointsEnvelope(season, lid);
   const out={};
@@ -184,86 +197,90 @@ function relegationBattle(season, lid, mi){
   return out;
 }
 
-// Spielplan: Berger/Kreis, Hinrunde mit höchstens zwei Heim- oder Auswärtsspielen in Folge,
-// Rückrunde ist das exakte Spiegelbild (Spieltag k ↔ Spieltag k+N, Heim/Auswärts getauscht).
-function circlePairs(n){
-  // Stärkste Vereine liegen sich gegenüber: Spieltag 1 paart 1–2, 3–4, … statt 1–Letzter.
-  const t=Array(n);
-  for (let i=0;i<n/2;i++){ t[i]=i*2; t[n-1-i]=i*2+1; }
+// Spielplan: Kreis/Berger mit kanonischem Heimrecht.
+// Die Hinrunde hat insgesamt n-2 Breaks, je Verein höchstens einen.
+// Die Rückrunde ist dieselbe Kreisrunde rückwärts, um zwei Spieltage versetzt, Heimrecht getauscht.
+// Damit bleibt auch die Rückrunde bei n-2 Breaks, niemand spielt denselben Gegner zweimal hintereinander,
+// und über die ganze Saison einschließlich des Übergangs hat kein Verein mehr als zwei Breaks.
+// Zufall nur über die Zuordnung Verein → Position, nicht über die Spieltagsreihenfolge.
+function bergerRounds(n){
+  let t=Array.from({length:n},(_,i)=>i);
   const rounds=[];
   for (let r=0;r<n-1;r++){
     const pairs=[];
-    for (let i=0;i<n/2;i++) pairs.push([t[i], t[n-1-i]]);
+    for (let i=0;i<n/2;i++){
+      let a=t[i], b=t[n-1-i];
+      const homeLeft = i===0 ? r%2===0 : i%2===1;
+      if (!homeLeft) [a,b]=[b,a];
+      pairs.push([a,b]);
+    }
     rounds.push(pairs);
-    const rest=t.slice(1); rest.unshift(rest.pop());
-    t.splice(0, n, t[0], ...rest);
+    const rest=t.slice(1);
+    rest.push(rest.shift());
+    t=[t[0], ...rest];
   }
   return rounds;
 }
-function orientHinrunde(n, pairs){
-  const last=Array.from({length:n},()=>[]);
-  const out=[];
-  const ok=(team,ha)=>{ const s=last[team]; return !(s.length>=2 && s[s.length-1]===ha && s[s.length-2]===ha); };
-  function rec(r){
-    if (r===pairs.length) return true;
-    const ps=pairs[r], m=ps.length, opts=[];
-    for (let mask=0; mask<(1<<m); mask++){
-      let good=true, cost=0; const ori=[];
-      for (let i=0;i<m;i++){
-        let [a,b]=ps[i];
-        if ((mask>>i)&1) [a,b]=[b,a];
-        if (!ok(a,'H')||!ok(b,'A')){ good=false; break; }
-        if (last[a].length && last[a][last[a].length-1]==='H') cost+=2;
-        if (last[b].length && last[b][last[b].length-1]==='A') cost+=2;
-        ori.push([a,b]);
-      }
-      if (good) opts.push({cost, ori});
-    }
-    opts.sort((a,b)=>a.cost-b.cost);
-    const prev=last.map(s=>s.slice());
-    for (const o of opts.slice(0,4)){
-      o.ori.forEach(([h,a])=>{ last[h].push('H'); last[a].push('A'); if (last[h].length>2) last[h].shift(); if (last[a].length>2) last[a].shift(); });
-      out[r]=o.ori.map(([h,a])=>[h,a,null,null]);
-      if (rec(r+1)) return true;
-      for (let i=0;i<n;i++) last[i]=prev[i].slice();
-    }
-    return false;
-  }
-  return rec(0)?out:null;
+function returnRoundOrder(n){
+  const m=n-1, order=[];
+  for (let r=m-3;r>=0;r--) order.push(r);
+  order.push(m-1, m-2);
+  return order;
 }
+function breakCount(str){ let b=0; for (let i=1;i<str.length;i++) if (str[i]===str[i-1]) b++; return b; }
 function validateFixtures(md){
   const issues=[];
-  if (!md||!md.length) return {ok:false, issues:['leer']};
-  const n=md[0].length*2, half=md.length/2;
-  if (md.length!==(n-1)*2) issues.push('Spielfolgenlänge');
-  for (let r=0;r<half;r++){
-    const a=md[r], b=md[r+half];
-    if (!b || a.length!==b.length){ issues.push('Spiegel '+ (r+1)); continue; }
-    for (let i=0;i<a.length;i++) if (a[i][0]!==b[i][1]||a[i][1]!==b[i][0]) issues.push('Spiegel Spieltag '+(r+1));
-  }
+  if (!md||!md.length||!md[0]) return {ok:false, issues:['leer'], maxBreaks:0, halfBreaks:[0,0]};
+  const n=md[0].length*2, half=n-1;
+  if (md.length!==half*2) issues.push('Spielfolgenlänge');
+  const pairKey=(h,a)=>h<a?h+'-'+a:a+'-'+h;
+  const directed=new Set();
   for (const part of [0,1]){
-    const seq=Array.from({length:n},()=>'');
     const seenPairs=new Set();
-    for (let r=part*half;r<(part+1)*half;r++){
+    for (let r=part*half; r<(part+1)*half && r<md.length; r++){
       const seen=new Set();
       md[r].forEach(m=>{
-        seq[m[0]]+='H'; seq[m[1]]+='A';
         if (seen.has(m[0])||seen.has(m[1])) issues.push('doppelt am Spieltag '+(r+1));
         seen.add(m[0]); seen.add(m[1]);
-        const key=(m[0]<m[1]?m[0]+'-'+m[1]:m[1]+'-'+m[0]);
+        const key=pairKey(m[0],m[1]);
         if (seenPairs.has(key)) issues.push('Paarung doppelt');
         seenPairs.add(key);
+        const dir=m[0]+'>'+m[1];
+        if (directed.has(dir)) issues.push('Heimrichtung doppelt');
+        directed.add(dir);
       });
       if (seen.size!==n) issues.push('unvollständig '+(r+1));
     }
-    seq.forEach((s,i)=>{ if (/HHH|AAA/.test(s)) issues.push((part?'Rückrunde':'Hinrunde')+' Serie bei '+i); });
   }
-  return {ok:issues.length===0, issues};
+  for (let t=0;t<n;t++){
+    let prev=-1;
+    for (let r=0;r<md.length;r++){
+      const m=md[r].find(x=>x[0]===t||x[1]===t);
+      if (!m){ issues.push('fehlt Spieltag '+(r+1)); break; }
+      const opp=m[0]===t?m[1]:m[0];
+      if (opp===prev) issues.push('gleicher Gegner am Stück');
+      prev=opp;
+    }
+  }
+  const seq=Array.from({length:n},()=>'');
+  const halfSeq=[Array.from({length:n},()=>''), Array.from({length:n},()=>'')];
+  md.forEach((round,r)=>round.forEach(m=>{
+    seq[m[0]]+='H'; seq[m[1]]+='A';
+    const part=r<half?0:1;
+    halfSeq[part][m[0]]+='H'; halfSeq[part][m[1]]+='A';
+  }));
+  const breaks=seq.map(breakCount);
+  seq.forEach((s,i)=>{ if (/HHH|AAA/.test(s)) issues.push('Serie bei '+i); });
+  const maxBreaks=breaks.length?Math.max(...breaks):0;
+  if (maxBreaks>2) issues.push('Breaks max '+maxBreaks);
+  const halfBreaks=[0,1].map(p=>halfSeq[p].reduce((a,s)=>a+breakCount(s),0));
+  return {ok:issues.length===0, issues, maxBreaks, breaks, halfBreaks};
 }
 function makeSchedule(n){
-  const hin=orientHinrunde(n, circlePairs(n));
-  if (!hin) return circlePairs(n).map(ps=>ps.map(([a,b])=>[a,b,null,null])).concat([]);
-  const rueck=hin.map(md=>md.map(m=>[m[1],m[0],null,null]));
+  const rounds=bergerRounds(n);
+  const perm=shuffle(Array.from({length:n},(_,i)=>i));
+  const hin=rounds.map(ps=>ps.map(([h,a])=>[perm[h],perm[a],null,null]));
+  const rueck=returnRoundOrder(n).map(r=>rounds[r].map(([h,a])=>[perm[a],perm[h],null,null]));
   const all=hin.concat(rueck);
   const v=validateFixtures(all);
   if (!v.ok) console.warn('Spielplan-Prüfung', v.issues.slice(0,8));
@@ -349,8 +366,9 @@ function leagueProgress(season, lid){
   let done=0,total=0; season.leagues[lid].md.forEach(md=>md.forEach(m=>{total++; if(m[2]!=null&&m[3]!=null) done++;})); return {done,total};
 }
 function seasonProgress(season){ let d=0,t=0; LEAGUES.forEach(l=>{const p=leagueProgress(season,l.id); d+=p.done; t+=p.total;}); return {done:d,total:t}; }
-function zoneOf(lg, pl, n){
+function zoneOf(lg, pl, n, down){
   if (!lg) return '';
+  const d = down==null ? (lg.down||0) : down;
   if (lg.id==='BL'){
     if (pl>n-lg.down) return 'ab';
     if (pl===1) return 'meister';
@@ -359,16 +377,21 @@ function zoneOf(lg, pl, n){
     if (pl===7) return 'ecl';
     return '';
   }
-  if (pl===1) return 'champ';
   if (lg.up && pl<=lg.up) return 'auf';
-  if (lg.down && pl>n-lg.down) return 'ab';
+  if (d && pl>n-d) return 'ab';
   return '';
 }
 
 // ---------- Simulation (optional) ----------
 function poisson(l){ const L0=Math.exp(-l); let k=0,p=1; do{k++;p*=Math.random();}while(p>L0); return k-1; }
+function simStrength(id){
+  const base=TEAMS[id].schnitt??50;
+  const an=ansehenValue(id);
+  if (an==null || !isFinite(an)) return base;
+  return base*0.8+an*0.2;
+}
 function simMatch(h,a){
-  const sh=TEAMS[h].schnitt??5, sa=TEAMS[a].schnitt??5, d=(sh-sa)/10;
+  const sh=simStrength(h), sa=simStrength(a), d=(sh-sa)/10;
   return [Math.min(9,poisson(Math.max(.25,1.5*Math.exp(.25*d)))), Math.min(9,poisson(Math.max(.2,1.15*Math.exp(-.25*d))))];
 }
 function simLeague(season, lid, mdIdx){
@@ -384,60 +407,56 @@ function simLeague(season, lid, mdIdx){
   }
   return c;
 }
+function simSeason(season){
+  let c=0;
+  LEAGUES.forEach(l=>{ c+=simLeague(season, l.id); });
+  return c;
+}
+function blockRangeOf(n, mi){
+  let from=0;
+  while (from< (n-1)*2){
+    const range=nextBlockRange(n, from);
+    if (!range) return null;
+    if (mi>=range[0] && mi<=range[1]) return range;
+    from=range[1]+1;
+  }
+  return null;
+}
+function simBlock(season, lid){
+  const lg=season.leagues[lid]; if(!lg) return 0;
+  const n=lg.teams.length;
+  const mi=currentMd(season, lid);
+  if (!isScheduled(season, lid, mi)){
+    if (mi!==lastScheduled(season, lid)+1) return 0;
+    scheduleNextBlock(season, lid);
+    if (!isScheduled(season, lid, mi)) return 0;
+  }
+  const range=blockRangeOf(n, mi); if(!range) return 0;
+  let c=0;
+  for (let i=range[0];i<=range[1];i++) c+=simLeague(season, lid, i);
+  return c;
+}
 
 // ---------- Saisonabschluss ----------
 function computeTransition(season){
-  const tables={}, moves=[], notes=[], newT={};
-  LEAGUES.forEach(l => { newT[l.id]=[]; });
+  const tables={}, moves=[], notes=[], newT={}, prof={}, downOf={};
+  LEAGUES.forEach(l => { newT[l.id]=[]; prof[l.id]=relegationProfile(season, l.id); downOf[l.id]=prof[l.id].down; });
   const pools={}; POOLS.forEach(p=>pools[p.id]=[...season.pools[p.id]]);
   LEAGUES.forEach(l => {
     const t = leagueTable(season, l.id, 'all');
     tables[l.id] = t.map(r=>({id:r.id,pl:r.pl,sp:r.sp,s:r.s,u:r.u,n:r.n,tg:r.tg,gt:r.gt,pkt:r.pkt}));
-    const ids=t.map(r=>r.id), n=ids.length;
+    const ids=t.map(r=>r.id), n=ids.length, down=downOf[l.id];
     ids.forEach((id,k)=>{
       const pl=k+1;
       if (l.up && pl<=l.up){ newT[l.upTo].push(id); moves.push({id,from:l.id,to:l.upTo,type:'auf',pl}); }
-      else if (pl>n-l.down){ const to=homeLeague(id,l.level+1); (L[to]?newT[to]:pools[to]).push(id); moves.push({id,from:l.id,to,type:'ab',pl}); }
+      else if (down && pl>n-down){ const to=homeLeague(id,l.level+1); (L[to]?newT[to]:pools[to]).push(id); moves.push({id,from:l.id,to,type:'ab',pl}); }
       else newT[l.id].push(id);
     });
+    if (l.level>=5 && down!==l.down) notes.push(l.name+': '+down+' Absteiger statt '+l.down+'. '+prof[l.id].reason);
   });
-  // Ausgleich bei Staffelgrößen (Regionalliga und Oberliga)
-  [5,6].forEach(level => {
-    const lv = LEAGUES.filter(l=>l.level===level);
-    lv.forEach(l => {
-      while (newT[l.id].length > l.size){
-        const under = lv.filter(x=>newT[x.id].length < x.size);
-        if (!under.length) break;
-        const inc = moves.filter(m=>m.type==='ab'&&m.to===l.id);
-        const cands = inc.length ? inc.map(m=>m.id) : [newT[l.id][newT[l.id].length-1]];
-        let best=null;
-        cands.forEach(id=>under.forEach(x=>{ const d=distTo(id,x.id)+(x.upTo===l.upTo?0:150);
-          if(!best||d<best.d) best={id,tgt:x,d}; }));
-        const id=best.id, tgt=best.tgt, mv=inc.find(m=>m.id===id);
-        newT[l.id].splice(newT[l.id].indexOf(id),1); newT[tgt.id].push(id);
-        if (mv) mv.to = tgt.id;
-        notes.push(TEAMS[id].name+' ('+TEAMS[id].bl+') wird wegen der Staffelgröße in die '+tgt.name+' statt in die '+l.name+' eingeteilt.');
-      }
-    });
-  });
-  // Oberligen so ausgleichen, dass überall genau zwei Amateur-Aufstiegsplätze frei sind.
-  const ols=LEAGUES.filter(l=>l.level===6), vacancy=2;
-  for (let guard=0; guard<40; guard++){
-    const fat=ols.filter(l=>newT[l.id].length>l.size-vacancy).sort((a,b)=>newT[b.id].length-newT[a.id].length)[0];
-    const thin=ols.filter(l=>newT[l.id].length<l.size-vacancy).sort((a,b)=>newT[a.id].length-newT[b.id].length)[0];
-    if(!fat||!thin) break;
-    const inc=moves.filter(m=>m.type==='ab'&&m.to===fat.id).map(m=>m.id).filter(id=>newT[fat.id].includes(id));
-    const cands=inc.length?inc:[newT[fat.id][newT[fat.id].length-1]];
-    let best=null; cands.forEach(id=>{ const d=distTo(id,thin.id); if(!best||d<best.d) best={id,d}; });
-    const id=best.id;
-    newT[fat.id].splice(newT[fat.id].indexOf(id),1); newT[thin.id].push(id);
-    const mv=moves.find(m=>m.id===id&&m.type==='ab'&&m.to===fat.id);
-    if(mv) mv.to=thin.id;
-    notes.push(TEAMS[id].name+' wird zum Ausgleich der Aufstiegsplätze der '+thin.name+' statt der '+fat.name+' zugeordnet.');
-  }
   const need={};
-  ols.forEach(l=>{ need[l.id]=Math.max(0,l.size-newT[l.id].length); });
-  return {tables, moves, notes, newT, pools, need, picks:{}, step:1};
+  LEAGUES.filter(l=>l.level===6).forEach(l=>{ need[l.id]=Math.max(0, l.size-newT[l.id].length); });
+  return {tables, moves, notes, newT, pools, need, picks:{}, step:1, downOf};
 }
 function startSeasonEnd(){
   const s=latest();
@@ -493,22 +512,24 @@ function clubHTML(id, opts={}){
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
+  const down = !lg || opts.zones===false ? 0 : relegationProfile(season, lg.id).down;
   let h='<table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>T/GT</th><th>Diff.</th><th>Pkt.</th>'+(opts.form===false?'':'<th>Form</th>')+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
-    let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n);
+    let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
     if (flag==='up') z='sure-up';
     else if (flag==='down') z='sure-down';
     h+='<tr class="'+(z?'z-'+z:'')+'"><td>'+r.pl+'</td><td class="l">'+clubHTML(r.id,{nobl:!!opts.nobl,marker:opts.markers===false?null:season.markers[r.id]})+'</td><td>'+r.sp+'</td><td>'+r.s+'</td><td>'+r.u+'</td><td>'+r.n+'</td><td>'+r.tg+':'+r.gt+'</td><td>'+(r.diff>0?'+':'')+r.diff+'</td><td class="pts">'+r.pkt+'</td>'+
       (opts.form===false?'':'<td><span class="form">'+r.form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f])+'">'+f+'</span>').join('')+'</span></td>')+'</tr>';
   });
   h+='</tbody></table>';
-  if (opts.zones!==false) h+=legendHTML(lg);
+  if (opts.zones!==false) h+=legendHTML(lg, season);
   return h;
 }
 function legendSwatch(zone, label){ return '<span><i class="sw sw-'+zone+'"></i>'+label+'</span>'; }
-function legendHTML(lg){
+function legendHTML(lg, season){
   const it=[];
+  const prof=!lg?null:relegationProfile(season||cur(), lg.id);
   if (lg.id==='BL'){
     it.push(legendSwatch('meister','Meister'));
     it.push(legendSwatch('cl','Champions League'));
@@ -517,11 +538,12 @@ function legendHTML(lg){
     it.push(legendSwatch('ab','Abstieg'));
     it.push(legendSwatch('sure-down','rechnerisch abgestiegen'));
   } else {
-    it.push(legendSwatch('champ', lg.up===1 ? 'Meister &amp; Aufstieg → '+leagueName(lg.upTo) : 'Meister'));
-    if (lg.up>1) it.push(legendSwatch('auf','Aufstieg → '+leagueName(lg.upTo)));
+    if (lg.up===1) it.push(legendSwatch('auf','Meister &amp; Aufstieg → '+leagueName(lg.upTo)));
+    else if (lg.up>1) it.push(legendSwatch('auf','Aufstieg → '+leagueName(lg.upTo)));
     if (lg.up) it.push(legendSwatch('sure-up','Aufstieg rechnerisch sicher'));
     if (lg.down){
-      it.push(legendSwatch('ab','Abstieg'));
+      const ab = prof && prof.down!==lg.down ? 'Abstieg (diesmal '+prof.down+' statt '+lg.down+')' : 'Abstieg';
+      it.push(legendSwatch('ab', ab));
       it.push(legendSwatch('sure-down','rechnerisch abgestiegen'));
     }
   }
@@ -580,7 +602,7 @@ function render(){
   $('#title').textContent=lg.name;
   const pr=seasonProgress(s), lp=leagueProgress(s,lid);
   let sub = 'Saison '+s.name+' · <a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · <span class="muted">Liga: '+lp.done+'/'+lp.total+' Spiele · alle Ligen: '+pr.done+'/'+pr.total+'</span>';
-  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small primary" data-act="end">Saison abschließen</button>';
+  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button> · <button class="btn small primary" data-act="end">Saison abschließen</button>';
   if (s.status==='ending') sub+=' · <button class="btn small primary" data-act="toEnd">Zum Saisonabschluss</button>';
   if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison (nur Ansicht)</span>';
   $('#subline').innerHTML=sub;
@@ -643,7 +665,7 @@ function spielplanHTML(s,lid){
       '<div class="away">'+clubHTML(aid)+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
   });
   if (ed){
-    h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag zufällig füllen</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
+    h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
       '<div class="sp-hint">＋ und − ändern die Tore. Offenes Spiel: Heim-＋ wird 1:0, Gast-＋ wird 0:1, − wird 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</div>';
   }
   return h;
@@ -1566,7 +1588,7 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
   const topNeed=Math.max(1, slotTemplate(lid).filter(s=>s.kind==='top').length);
   const rankOf=id=>snap.rank[id]||n;
   const legalAt=(mi,i)=>Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))<=upper;
-  const hasBad=mi=>bag[mi]&&bag[mi].some((slot,i)=>slot.kind==='top'&&!legalAt(mi,i));
+  const hasBad=mi=>bag[mi]&&bag[mi].some((slot,i)=>slot.kind==='top'&&!slot.kracher&&!legalAt(mi,i));
   const countBefore=mi=>{
     const c={}; lg.teams.forEach(id=>c[id]=0);
     for (let d=0; d<mi; d++) if (bag[d]) bag[d].forEach((slot,i)=>{
@@ -1578,7 +1600,7 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
   const placeTops=mi=>{
     const row=bag[mi];
     row.forEach((slot,i)=>{
-      if (slot.kind!=='top' || legalAt(mi,i)) return;
+      if (slot.kind!=='top' || slot.kracher || legalAt(mi,i)) return;
       let alt=null;
       row.forEach((other,j)=>{
         if (j===i || other.kind==='top' || other.kind==='konferenz' || !legalAt(mi,j)) return;
@@ -1683,7 +1705,7 @@ function prepareFinalDay(season, lid, from, to, snap){
   const fixTops=mi=>{
     const row=bag[mi];
     row.forEach((slot,i)=>{
-      if (slot.kind!=='top' || legal(mi,i)) return;
+      if (slot.kind!=='top' || slot.kracher || legal(mi,i)) return;
       let alt=null;
       row.forEach((other,j)=>{
         if (j===i || other.kind==='top' || other.kind==='konferenz' || !legal(mi,j)) return;
@@ -1767,7 +1789,7 @@ function viewTerminierung(s, lid){
   const tmpl=slotTemplate(lid);
   const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
   const counts=slotTally(s, lid);
-  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Hin- und Rückrunde spiegeln sich, keine Mannschaft hat mehr als zwei Heim- oder Auswärtsspiele in Folge.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
+  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Jede Paarung einmal zu Hause und einmal auswärts. Keine drei Heim- oder Auswärtsspiele in Folge, auch nicht am Übergang. Höchstens '+fix.maxBreaks+' Breaks pro Verein in der ganzen Saison.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
   const last=lastScheduled(s,lid);
   if (last<0 && isEditable()) h+='<button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button>';
   else if (last>=0 && last<total-1) h+='<p class="muted">Angesetzt bis Spieltag '+(last+1)+'. Der nächste Block folgt automatisch, sobald dieser Spieltag vollständig ist. Blöcke enden an der Hin- bzw. Rückrunde.</p>';
@@ -1817,13 +1839,13 @@ function viewTerminierung(s, lid){
   if (has.top) cols.push(['top','Topspiel']);
   if (has.so) cols.push(['so','Sonntag']);
   if (has.regional) cols.push(['regional','regional']);
-  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Serie</th><th class="l">Regeln</th></tr></thead><tbody>';
+  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Breaks</th><th class="l">Regeln</th></tr></thead><tbody>';
   const placeOf={}; leagueTable(s,lid).forEach(r=>placeOf[r.id]=r.pl);
   lg.teams.slice().sort((x,y)=>(placeOf[x]||999)-(placeOf[y]||999)).forEach(id=>{
     const idx=lg.teams.indexOf(id);
     const c=counts[id];
-    const hin=haString(lg.md, idx, 0, half), rueck=haString(lg.md, idx, half, total);
-    const run=Math.max(maxRun(hin), maxRun(rueck));
+    const full=haString(lg.md, idx, 0, total);
+    const run=maxRun(full), br=breakCount(full);
     const open=last<total-1;
     const problems=[];
     if (!open) cols.forEach(([key,label])=>{
@@ -1831,14 +1853,15 @@ function viewTerminierung(s, lid){
       else if (!c[key]) problems.push(label+' fehlt');
     });
     if (run>2) problems.push('Serie '+run);
+    if (br>2) problems.push(br+' Breaks');
     const bad=problems.length>0;
     h+='<tr><td>'+placeOf[id]+'</td><td class="l">'+esc(TEAMS[id].name)+'</td>'+cols.map(([key])=>{
       const v=c[key];
       const warn=!open && (key==='konferenz'?v<total/2:v===0);
       return '<td class="'+(warn?'bad':'')+'">'+v+'</td>';
-    }).join('')+'<td class="'+(run>2?'bad':'ok')+'">'+run+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
+    }).join('')+'<td class="'+(run>2||br>2?'bad':'ok')+'">'+br+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, höchstens zwei Heim- oder Auswärtsspiele in Folge. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
+  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, keine drei Heim- oder Auswärtsspiele in Folge und höchstens zwei Breaks pro Verein. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
   return h;
 }
 function haString(md, idx, from, to){
@@ -1889,10 +1912,10 @@ function viewKarte(s, lid){
   const marks=ids.map(id=>{ const c=coordOf(id); if(!c) return null; const [x,y]=px(c.lon,c.lat); return {id,x,y,name:TEAMS[id].name,stadion:c.stadion,crest:TEAMS[id].crest}; }).filter(Boolean);
   const crests=marks.map(m=>{
     const tip=esc(m.name+(m.stadion?' – '+m.stadion:''));
-    return '<g class="crest"><title>'+tip+'</title><image href="'+esc(m.crest)+'" data-cx="'+m.x.toFixed(2)+'" data-cy="'+m.y.toFixed(2)+'" x="'+(m.x-12).toFixed(1)+'" y="'+(m.y-12).toFixed(1)+'" width="24" height="24"/></g>';
+    return '<g class="crest"><title>'+tip+'</title><image href="'+esc(m.crest)+'" data-cx="'+m.x.toFixed(2)+'" data-cy="'+m.y.toFixed(2)+'" x="'+(m.x-17).toFixed(1)+'" y="'+(m.y-17).toFixed(1)+'" width="34" height="34"/></g>';
   }).join('');
   const scope=allow?allow.join(', '):'Deutschland';
-  return '<div class="card map-card"><div class="card-title"><span>'+esc(L[lid].name)+' – Vereine</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(lid)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg></div><p class="map-credit">'+esc(scope)+' · Mausrad zoomt, Ziehen verschiebt. Wappen bleiben klein, damit nahe Vereine auseinanderfallen. Kartendaten © OpenStreetMap-Mitwirkende, europlan-online.de · Grenzen: Natural Earth</p></div>';
+  return '<div class="card map-card"><div class="card-title"><span>'+esc(L[lid].name)+' – Vereine</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(lid)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg></div><p class="map-credit">'+esc(scope)+' · Mausrad zoomt, Ziehen verschiebt. In der Übersicht sind die Wappen etwas größer; beim Heranzoomen bleiben sie auf dem Bildschirm gleich groß und liegen am Spielort. Kartendaten © OpenStreetMap-Mitwirkende, europlan-online.de · Grenzen: Natural Earth</p></div>';
 }
 function applyMap(){
   const svg=document.querySelector('.de-map'); if(!svg) return;
@@ -1900,7 +1923,7 @@ function applyMap(){
   const w=W/z, h=H/z, x=mapView.cx-w/2, y=mapView.cy-h/2;
   svg.setAttribute('viewBox', x+' '+y+' '+w+' '+h);
   const rect=svg.getBoundingClientRect();
-  const size=Math.max(6, 26*(W/(rect.width||W))/z);
+  const size=Math.max(6, 34*(W/(rect.width||W))/z);
   svg.querySelectorAll('.crest image').forEach(img=>{
     const cx=+img.dataset.cx, cy=+img.dataset.cy;
     img.setAttribute('x', (cx-size/2).toFixed(2));
@@ -1959,9 +1982,9 @@ function renderAbschluss(){
       const up=e.moves.filter(m=>m.from===l.id&&m.type==='auf'), dn=e.moves.filter(m=>m.from===l.id&&m.type==='ab');
       h+='<div class="box"><h3>'+esc(l.name)+'</h3><div style="margin-bottom:6px"><b>Meister:</b> '+esc(TEAMS[t[0].id].name)+' <span class="muted">('+t[0].pkt+' Pkt.)</span></div>'+
       (up.length?'<div><b>Aufsteiger:</b> '+up.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div>':'')+
-      '<div><b>Absteiger:</b> '+dn.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div></div>'; });
+      '<div><b>Absteiger'+(e.downOf&&e.downOf[l.id]!==l.down?' <span class="muted">(diesmal '+e.downOf[l.id]+' statt '+l.down+')</span>':'')+':</b> '+dn.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div></div>'; });
     h+='</div>';
-    if (e.notes.length) h+='<div class="notice"><b>Ausgleich der Staffelgrößen:</b><br>'+e.notes.map(esc).join('<br>')+'</div>';
+    if (e.notes.length) h+='<div class="notice"><b>Abstiegszahlen in dieser Saison:</b><br>'+e.notes.map(esc).join('<br>')+'</div>';
     h+='<div style="display:flex;gap:8px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="endStep2">Weiter: Aufsteiger aus der Amateurliga wählen</button></div>';
     v.innerHTML=h; return;
   }
@@ -1981,9 +2004,21 @@ function renderAbschluss(){
   v.innerHTML=h;
 }
 function rulesHTML(){
-  let h='<h3>Ligensystem &amp; Regeln</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Reihenfolge bei Gleichstand: Punkte → Tordifferenz → mehr Tore → direkter Vergleich (Punkte, Tordifferenz, Tore) → historische Stärke.</p><table class="tbl"><thead><tr><th class="l">Liga</th><th>Teams</th><th>Auf</th><th>Ab</th><th class="l">Aufstieg in</th></tr></thead><tbody>';
-  LEAGUES.forEach(l=>h+='<tr><td class="l">'+esc(l.name)+'</td><td>'+l.size+'</td><td>'+(l.up||'–')+'</td><td>'+l.down+'</td><td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>');
-  h+='</tbody></table><p>Die 4. Liga gibt vier Absteiger an die Regionalliga ihres Bundeslandes ab (Nord: Bremen, Niedersachsen, Hamburg, Schleswig-Holstein, Mecklenburg-Vorpommern; Ost: Berlin, Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen; Süd: Bayern, Baden-Württemberg; West: Nordrhein-Westfalen, Hessen, Rheinland-Pfalz, Saarland). Die vier Regionalliga-Meister steigen in die 4. Liga auf. Wäre eine Staffel dadurch zu groß, wird ein Absteiger in die geografisch nächstgelegene Staffel mit freiem Platz verschoben (wird im Saisonrückblick angezeigt).</p><p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga die Aufsteiger (normal 2, zusammen 16) aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes.</p>';
+  const s=cur();
+  let h='<h3>Ligensystem &amp; Regeln</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Reihenfolge bei Gleichstand: Punkte → Tordifferenz → mehr Tore → direkter Vergleich (Punkte, Tordifferenz, Tore) → historische Stärke.</p><table class="tbl"><thead><tr><th class="l">Liga</th><th>Teams</th><th>Auf</th><th>Ab geplant</th><th>Ab jetzt</th><th class="l">Aufstieg in</th></tr></thead><tbody>';
+  LEAGUES.forEach(l=>{
+    const p=relegationProfile(s, l.id);
+    const mark=p.down!==l.down;
+    h+='<tr><td class="l">'+esc(l.name)+'</td><td>'+l.size+'</td><td>'+(l.up||'–')+'</td><td>'+l.down+'</td><td'+(mark?' class="pts"':'')+'>'+p.down+'</td><td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>';
+  });
+  h+='</tbody></table><p>Bundesliga bis 4. Liga haben feste Zahlen. Die vier Absteiger der 4. Liga gehen nur in die Regionalliga ihres Bundeslandes (Nord: Bremen, Niedersachsen, Hamburg, Schleswig-Holstein, Mecklenburg-Vorpommern; Ost: Berlin, Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen; Süd: Bayern, Baden-Württemberg; West: Nordrhein-Westfalen, Hessen, Rheinland-Pfalz, Saarland). Jede Regionalliga gibt einen Meister an die 4. Liga ab und nimmt die Meister ihrer beiden Oberligen auf. Kommen k Absteiger aus der 4. Liga dazu, steigen k+1 Vereine ab, damit die Staffel bei 18 bleibt. Dieselbe Rechnung gilt in der Oberliga: k Absteiger aus der eigenen Regionalliga bedeuten k+1 Absteiger, und zwei Amateurvereine rücken nach. Niemand wird in eine fremde Region verschoben. „Ab jetzt“ folgt dem aktuellen Tabellenstand.</p>';
+  const changed=LEAGUES.filter(l=>l.level>=5 && relegationProfile(s, l.id).down!==l.down);
+  if (changed.length){
+    h+='<p><b>In der Saison '+esc(s.name)+' weicht die Abstiegszahl ab:</b></p><ul>';
+    changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+p.down+' statt '+l.down+'.</b> '+esc(p.reason)+'</li>'; });
+    h+='</ul>';
+  } else h+='<p>In der Saison '+esc(s.name)+' hat nach dem aktuellen Stand jede Staffel die geplante Abstiegszahl.</p>';
+  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes.</p>';
   return h;
 }
 function viewAnsehen(){
@@ -2119,6 +2154,8 @@ document.addEventListener('click', ev=>{
     applyMap();
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
+  else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
+  else if (act==='simSeason'){ if(confirm('Saison simulieren: alle noch offenen Spiele aller Ligen mit zufälligen Ergebnissen auffüllen? Die Ergebnisse orientieren sich leicht an Ansehen und Stärke. Fehlende Blöcke werden dabei terminiert.')){ const c=simSeason(s); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -2182,5 +2219,5 @@ if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='abschlu
 save(); render();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, computeTable, leagueTable, simLeague, homeLeague, AREA_BY_BL, validateFixtures, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot};
+window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, computeTable, leagueTable, simLeague, simSeason, simBlock, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot};
 })();

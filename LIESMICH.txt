@@ -13,8 +13,12 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
 - Tab "Karte": Vereinswappen am Spielort. Mausrad zoomt, Ziehen verschiebt, „Ansicht zurücksetzen“ holt die ganze Karte. Regionalliga und Oberliga zeigen nur ihre Bundesländer.
 - In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Ein sicherer Abstieg ist ausgegraut. Bei möglicher Punktgleichheit bleibt die Zeile normal, weil die Tordifferenz offen ist.
+- "Saison simulieren" füllt alle offenen Spiele aller Ligen (leicht nach Ansehen und Stärke). Im Spielplan: "Spieltag simulieren" und "Block simulieren".
 - "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
   danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
+  Regionalliga und Oberliga bleiben in ihrer Region. Kommen mehr Absteiger von oben, steigen dort mehr Vereine ab.
+- Jede Saison ein neuer Spielplan: die Vereine werden den Positionen neu zugeordnet, Heim und Auswärts wechseln, höchstens zwei Breaks pro Verein.
+- Untere Ligen: alle Aufstiegsplätze hellgrün, auch der erste Platz.
 - Gespeichert wird im Browser (localStorage). Bitte regelmäßig "Spielstand exportieren" (JSON-Datei) als Backup!
   Achtung: Ein anderer Browser oder ein anderer Speicherort des Ordners sieht den Spielstand nicht – dann einfach importieren.
 - Regeln: Link "Regeln & Auf-/Abstieg" in jeder Liga.
