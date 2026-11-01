@@ -147,3 +147,30 @@ table.tbl{width:100%;border-collapse:collapse}
 .hist-split{border-top:2px solid var(--green);background:#e7f3ec;color:#145c38;font-weight:700;text-align:left;padding:7px 8px}
 .ansehen-tools{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .ansehen-tools .searchbox{max-width:280px}
+.pokal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.pokal-bar select{min-width:220px}
+.match.cup .home,.match.cup .away{align-items:center;gap:8px}
+.match.cup .home .liga-edge{margin-right:auto}
+.match.cup .away .liga-edge{margin-left:auto}
+.liga-edge{font-size:9px;color:var(--muted);max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ie-box{display:flex;align-items:center;gap:4px;font-size:10px;color:#444;margin-top:2px}
+.ie-box input{margin:0}
+.ie-link{display:inline-block;margin:0 0 1px;padding:0;border:none;background:none;color:#1d4e89;font:inherit;font-size:11px;font-weight:700;line-height:1.1;cursor:pointer;text-decoration:underline}
+.ie-static{text-decoration:none;cursor:default}
+.modal-box:has(.pen-dlg){max-width:480px}
+.pen-sides{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin:14px 0}
+.pen-side{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.pen-side img{width:48px;height:48px;object-fit:contain}
+.pen-side .nm{font-size:13px;font-weight:600;line-height:1.25}
+.pen-num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;min-width:1.2em}
+.pen-colon{font-size:22px}
+.pen-step{flex-direction:row;gap:4px}
+.pen-actions{display:flex;justify-content:flex-end;gap:8px}
+.bracket{display:flex;gap:16px;overflow:auto;padding:4px 2px 14px;align-items:flex-start}
+.br-col{min-width:210px;flex:0 0 210px}
+.br-col h4{margin:0 0 6px;font-size:12px}
+.br-m{border:1px solid var(--line);border-radius:3px;background:#fff;padding:4px 6px;margin:0 0 6px}
+.br-m .ln{display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35}
+.br-m .ln.win{font-weight:700}
+.br-m .bye{color:var(--muted);font-size:11px}
+.cup-note{font-size:12px;color:#444;margin:0 0 8px}
