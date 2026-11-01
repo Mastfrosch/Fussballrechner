@@ -897,7 +897,7 @@ function viewKarte(s, lid){
     const tip=esc(m.name+(m.stadion?' – '+m.stadion:''));
     return '<g class="crest" data-tip="'+tip+'"><title>'+tip+'</title><image href="'+esc(m.crest)+'" x="'+(m.x-14).toFixed(1)+'" y="'+(m.y-14).toFixed(1)+'" width="28" height="28"/></g>';
   }).join('');
-  return '<div class="card map-card"><div class="card-title">'+esc(L[lid].name)+' – Vereine</div><svg class="de-map" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg><p class="map-credit">Kartendaten © OpenStreetMap-Mitwirkende, Grenzen: Natural Earth</p></div>';
+  return '<div class="card map-card"><div class="card-title">'+esc(L[lid].name)+' – Vereine</div><svg class="de-map" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg><p class="map-credit">Kartendaten © OpenStreetMap-Mitwirkende, europlan-online.de · Grenzen: Natural Earth</p></div>';
 }
 function renderAbschluss(){
   const s=latest(), e=s.endData, v=$('#view');
