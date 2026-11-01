@@ -88,7 +88,7 @@ table.tbl{width:100%;border-collapse:collapse}
 .match .home{justify-content:flex-end;text-align:right}
 .match .home .club{justify-content:flex-end}
 .match .home .txt{text-align:right}
-.match .club .nm{font-size:12.5px;white-space:normal;line-height:1.2}
+.match .club .nm{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .scorecol{display:flex;flex-direction:column;align-items:center;gap:2px}
 .score{display:flex;align-items:center;justify-content:center;gap:5px}
 .meta{font-size:10px;color:var(--muted);text-align:center;line-height:1.25}
@@ -156,17 +156,29 @@ table.tbl{width:100%;border-collapse:collapse}
 tr.w-hot td{background:#e7f6ec}
 tr.w-off td{color:#9aa}
 tr.w-off .nm,tr.w-off .muted{color:#9aa}
-.move-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:10px}
-.move-lg{border:1px solid var(--line);border-radius:4px;padding:8px}
-.move-lg h3{margin:0 0 6px;font-size:13px}
-.move-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:32px;margin-top:4px}
-.move-line .arr{font-weight:800;width:16px}
-.move-line.up .arr{color:#1d6b45}
-.move-line.dn .arr{color:#a33}
-.move-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:2px 8px 2px 2px;max-width:100%}
-.move-chip img{width:20px;height:20px;object-fit:contain}
-.move-chip span{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
-.move-chip i{font-style:normal;color:var(--muted);font-size:10px}
+.pyramid{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px 20px;background:linear-gradient(#fbfcfd,#e7eef3)}
+.py-row{display:grid;gap:8px;justify-content:center}
+.py-row.w1{width:38%;min-width:260px}
+.py-row.w2{width:54%;min-width:300px}
+.py-row.w3{width:70%;min-width:340px}
+.py-row.w4{width:86%;min-width:380px}
+.py-row.wrl{width:100%;grid-template-columns:repeat(4,minmax(0,1fr))}
+.py-row.wol{width:100%;grid-template-columns:repeat(8,minmax(0,1fr))}
+.py-row.wam{width:100%}
+.py-block{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 8px 10px;min-width:0}
+.py-block h3{margin:0 0 6px;font-size:12px;text-align:center;color:#234}
+.py-side{min-height:78px;border-radius:4px;padding:4px}
+.py-side.up{background:#f3faf4}
+.py-side.dn{background:#fdf6f6;margin-top:4px}
+.py-clubs{display:flex;flex-wrap:wrap;gap:4px 6px;justify-content:center}
+.py-empty{color:#9aa;font-size:11px;align-self:center;padding:18px 0}
+.py-chip{display:flex;flex-direction:column;align-items:center;width:68px;text-align:center;gap:1px}
+.py-chip b{font-size:11px;line-height:1}
+.py-chip.up b{color:#1d6b45}
+.py-chip.dn b{color:#a33}
+.py-chip img{width:26px;height:26px;object-fit:contain}
+.py-chip span{font-size:10px;line-height:1.15;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.py-chip i{font-style:normal;color:var(--muted);font-size:9px;line-height:1.1}
 .pokal-bar .toggle{margin-bottom:0}
 .ov-card{overflow:visible}
 .ov-card .card-title .progress b{color:var(--green)}

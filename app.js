@@ -1665,10 +1665,10 @@ function spielplanHTML(s,lid){
     md.forEach((m,k)=>{
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
       const mk=id=>(s.markers&&s.markers[id])||null;
-      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid)})+'</div>'+
+      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid),markerBefore:true})+'</div>'+
         '<div class="scorecol"><div class="score"><span class="scoreline"><span class="goals">-</span><b>:</b><span class="goals">-</span></span></div>'+
         '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-        '<div class="away">'+clubHTML(aid,{marker:mk(aid),markerBefore:true})+'</div><span></span></div>';
+        '<div class="away">'+clubHTML(aid,{marker:mk(aid)})+'</div><span></span></div>';
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -1685,10 +1685,10 @@ function spielplanHTML(s,lid){
     const km=kmBetween(hid,aid);
     const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
-    h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid)})+'</div>'+
+    h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid),markerBefore:true})+'</div>'+
       '<div class="scorecol"><div class="score">'+step(0)+'<span class="scoreline"><span class="goals" data-side="0">'+(has?m[2]:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(has?m[3]:'-')+'</span></span>'+step(1)+'</div>'+
       '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-      '<div class="away">'+clubHTML(aid,{marker:mk(aid),markerBefore:true})+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
+      '<div class="away">'+clubHTML(aid,{marker:mk(aid)})+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -3070,7 +3070,8 @@ function bindMap(){
   svg.addEventListener('pointercancel', end);
 }
 function renderAbschluss(){
-  const s=latest(), e=s.endData, v=$('#view');
+  const s=cur(), e=s.endData, v=$('#view');
+  if (!e){ v.innerHTML='<div class="box">Für diese Saison liegt kein Abschluss vor.</div>'; return; }
   const pr=seasonProgress(s);
   if (e.step===1){
     let h='';
@@ -3104,26 +3105,40 @@ function renderAbschluss(){
   h+='</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endStep1">Zurück</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
   v.innerHTML=h;
 }
-function moveChip(id, dest){
+function moveChip(id, dest, dir){
   const t=TEAMS[id];
-  return '<span class="move-chip" title="'+esc(t.name)+'"><img src="'+esc(t.crest)+'" alt=""><span>'+esc(t.name)+'</span>'+(dest?'<i>→ '+esc(dest)+'</i>':'')+'</span>';
+  return '<span class="py-chip '+dir+'" title="'+esc(t.name+(dest?' → '+dest:''))+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt=""><span>'+esc(t.name)+'</span>'+(dest?'<i>'+esc(dest)+'</i>':'')+'</span>';
+}
+function moveBlock(l, ups, dns, hideDown){
+  let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>';
+  h+='<div class="py-side up"><div class="py-clubs">';
+  if (!ups.length) h+='<span class="py-empty">kein Aufsteiger</span>';
+  ups.forEach(x=>{ h+=moveChip(x.id, x.dest, 'up'); });
+  h+='</div></div>';
+  if (!hideDown){
+    h+='<div class="py-side dn"><div class="py-clubs">';
+    if (!dns.length) h+='<span class="py-empty">kein Absteiger</span>';
+    dns.forEach(x=>{ h+=moveChip(x.id, x.dest, 'dn'); });
+    h+='</div></div>';
+  }
+  h+='</div>';
+  return h;
 }
 function moveBoardHTML(e){
-  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="move-wrap">';
-  LEAGUES.forEach(l=>{
-    const up=e.moves.filter(m=>m.from===l.id && m.type==='auf');
-    const dn=e.moves.filter(m=>m.from===l.id && m.type==='ab');
-    const incoming=(e.picks && e.picks[l.id])||[];
-    h+='<div class="move-lg"><h3>'+esc(l.name)+'</h3>';
-    h+='<div class="move-line up"><span class="arr">▲</span>';
-    if (!up.length && !incoming.length) h+='<span class="muted">kein Aufsteiger</span>';
-    up.forEach(m=>{ h+=moveChip(m.id, leagueShort(m.to)); });
-    incoming.forEach(id=>{ h+=moveChip(id, 'Amateur'); });
-    h+='</div><div class="move-line dn"><span class="arr">▼</span>';
-    if (!dn.length) h+='<span class="muted">kein Absteiger</span>';
-    dn.forEach(m=>{ h+=moveChip(m.id, leagueShort(m.to)); });
-    h+='</div></div>';
-  });
+  const ups=id=>e.moves.filter(m=>m.from===id && m.type==='auf').map(m=>({id:m.id, dest:leagueShort(m.to)}));
+  const dns=id=>e.moves.filter(m=>m.from===id && m.type==='ab').map(m=>({id:m.id, dest:leagueShort(m.to)}));
+  const row=(cls, inner)=>'<div class="py-row '+cls+'">'+inner+'</div>';
+  const one=l=>moveBlock(l, ups(l.id), dns(l.id));
+  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
+  h+=row('w1', one(L.BL));
+  h+=row('w2', one(L.BL2));
+  h+=row('w3', one(L.L3));
+  h+=row('w4', one(L.L4));
+  h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id])).join(''));
+  h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id])).join(''));
+  const amUp=[];
+  POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
+  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], true));
   h+='</div></div>';
   return h;
 }
