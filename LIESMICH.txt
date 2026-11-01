@@ -3,6 +3,7 @@ Fußballrechner – Kurzanleitung
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
 - Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
+- Pokal: DFB-Pokal (64 Mannschaften, Profitopf gegen Amateurtopf) und 16 Landespokale. „Auslosen“ öffnet die nächste Runde, Ergebnisse wie im Spielplan, Unentschieden nur über i.E. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
 - Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand steht die Entfernung, die Anstoßzeit steht in der Gruppenüberschrift.
   Zuerst „Spieltage 1–4 terminieren“. Weitere Viererblöcke folgen automatisch und enden an Hin- und Rückrunde.
 - Tab "Terminierung": immer ein Viererblock, mit Pfeilen vor und zurück. Darunter die Vereine nach Tabellenplatz.

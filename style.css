@@ -147,3 +147,19 @@ table.tbl{width:100%;border-collapse:collapse}
 .hist-split{border-top:2px solid var(--green);background:#e7f3ec;color:#145c38;font-weight:700;text-align:left;padding:7px 8px}
 .ansehen-tools{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .ansehen-tools .searchbox{max-width:280px}
+.pokal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.pokal-bar select{min-width:220px}
+.match.cup .home,.match.cup .away{align-items:center;gap:8px}
+.match.cup .home .liga-edge{margin-right:auto}
+.match.cup .away .liga-edge{margin-left:auto}
+.liga-edge{font-size:9px;color:var(--muted);max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ie-box{display:flex;align-items:center;gap:4px;font-size:10px;color:#444;margin-top:2px}
+.ie-box input{margin:0}
+.bracket{display:flex;gap:16px;overflow:auto;padding:4px 2px 14px;align-items:flex-start}
+.br-col{min-width:210px;flex:0 0 210px}
+.br-col h4{margin:0 0 6px;font-size:12px}
+.br-m{border:1px solid var(--line);border-radius:3px;background:#fff;padding:4px 6px;margin:0 0 6px}
+.br-m .ln{display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35}
+.br-m .ln.win{font-weight:700}
+.br-m .bye{color:var(--muted);font-size:11px}
+.cup-note{font-size:12px;color:#444;margin:0 0 8px}
