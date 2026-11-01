@@ -202,6 +202,7 @@ function relegationBattle(season, lid, mi){
 // Die Rückrunde ist dieselbe Kreisrunde rückwärts, um zwei Spieltage versetzt, Heimrecht getauscht.
 // Damit bleibt auch die Rückrunde bei n-2 Breaks, niemand spielt denselben Gegner zweimal hintereinander,
 // und über die ganze Saison einschließlich des Übergangs hat kein Verein mehr als zwei Breaks.
+// Wer zwei Breaks hat, hat genau einen Heim-Break und einen Auswärts-Break.
 // Zufall nur über die Zuordnung Verein → Position, nicht über die Spieltagsreihenfolge.
 function bergerRounds(n){
   let t=Array.from({length:n},(_,i)=>i);
@@ -228,6 +229,11 @@ function returnRoundOrder(n){
   return order;
 }
 function breakCount(str){ let b=0; for (let i=1;i<str.length;i++) if (str[i]===str[i-1]) b++; return b; }
+function breakKinds(str){
+  let hh=0, aa=0;
+  for (let i=1;i<str.length;i++) if (str[i]===str[i-1]){ if (str[i]==='H') hh++; else aa++; }
+  return {hh, aa};
+}
 function validateFixtures(md){
   const issues=[];
   if (!md||!md.length||!md[0]) return {ok:false, issues:['leer'], maxBreaks:0, halfBreaks:[0,0]};
@@ -270,11 +276,16 @@ function validateFixtures(md){
     halfSeq[part][m[0]]+='H'; halfSeq[part][m[1]]+='A';
   }));
   const breaks=seq.map(breakCount);
-  seq.forEach((s,i)=>{ if (/HHH|AAA/.test(s)) issues.push('Serie bei '+i); });
+  const kinds=seq.map(breakKinds);
+  let sameKind=0;
+  seq.forEach((s,i)=>{
+    if (/HHH|AAA/.test(s)) issues.push('Serie bei '+i);
+    if (kinds[i].hh>1 || kinds[i].aa>1){ sameKind++; issues.push('gleichartige Breaks bei '+i); }
+  });
   const maxBreaks=breaks.length?Math.max(...breaks):0;
   if (maxBreaks>2) issues.push('Breaks max '+maxBreaks);
   const halfBreaks=[0,1].map(p=>halfSeq[p].reduce((a,s)=>a+breakCount(s),0));
-  return {ok:issues.length===0, issues, maxBreaks, breaks, halfBreaks};
+  return {ok:issues.length===0, issues, maxBreaks, breaks, halfBreaks, sameKind, kinds};
 }
 function makeSchedule(n){
   const rounds=bergerRounds(n);
@@ -1789,7 +1800,7 @@ function viewTerminierung(s, lid){
   const tmpl=slotTemplate(lid);
   const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
   const counts=slotTally(s, lid);
-  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Jede Paarung einmal zu Hause und einmal auswärts. Keine drei Heim- oder Auswärtsspiele in Folge, auch nicht am Übergang. Höchstens '+fix.maxBreaks+' Breaks pro Verein in der ganzen Saison.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
+  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Jede Paarung einmal zu Hause und einmal auswärts. Keine drei Heim- oder Auswärtsspiele in Folge, auch nicht am Übergang. Höchstens '+fix.maxBreaks+' Breaks pro Verein, und wer zwei hat, einen zu Hause und einen auswärts.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
   const last=lastScheduled(s,lid);
   if (last<0 && isEditable()) h+='<button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button>';
   else if (last>=0 && last<total-1) h+='<p class="muted">Angesetzt bis Spieltag '+(last+1)+'. Der nächste Block folgt automatisch, sobald dieser Spieltag vollständig ist. Blöcke enden an der Hin- bzw. Rückrunde.</p>';
@@ -1845,7 +1856,7 @@ function viewTerminierung(s, lid){
     const idx=lg.teams.indexOf(id);
     const c=counts[id];
     const full=haString(lg.md, idx, 0, total);
-    const run=maxRun(full), br=breakCount(full);
+    const run=maxRun(full), br=breakCount(full), kinds=breakKinds(full);
     const open=last<total-1;
     const problems=[];
     if (!open) cols.forEach(([key,label])=>{
@@ -1854,14 +1865,15 @@ function viewTerminierung(s, lid){
     });
     if (run>2) problems.push('Serie '+run);
     if (br>2) problems.push(br+' Breaks');
+    if (kinds.hh>1 || kinds.aa>1) problems.push('zweimal '+ (kinds.hh>1?'Heim':'Auswärts'));
     const bad=problems.length>0;
     h+='<tr><td>'+placeOf[id]+'</td><td class="l">'+esc(TEAMS[id].name)+'</td>'+cols.map(([key])=>{
       const v=c[key];
       const warn=!open && (key==='konferenz'?v<total/2:v===0);
       return '<td class="'+(warn?'bad':'')+'">'+v+'</td>';
-    }).join('')+'<td class="'+(run>2||br>2?'bad':'ok')+'">'+br+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
+    }).join('')+'<td class="'+(run>2||br>2||kinds.hh>1||kinds.aa>1?'bad':'ok')+'">'+br+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, keine drei Heim- oder Auswärtsspiele in Folge und höchstens zwei Breaks pro Verein. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
+  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, keine drei Heim- oder Auswärtsspiele in Folge, höchstens zwei Breaks pro Verein und davon einer heim und einer auswärts. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
   return h;
 }
 function haString(md, idx, from, to){

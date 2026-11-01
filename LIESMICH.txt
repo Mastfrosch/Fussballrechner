@@ -17,7 +17,7 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
 - "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
   danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
   Regionalliga und Oberliga bleiben in ihrer Region. Kommen mehr Absteiger von oben, steigen dort mehr Vereine ab.
-- Jede Saison ein neuer Spielplan: die Vereine werden den Positionen neu zugeordnet, Heim und Auswärts wechseln, höchstens zwei Breaks pro Verein.
+- Jede Saison ein neuer Spielplan: die Vereine werden den Positionen neu zugeordnet, Heim und Auswärts wechseln, höchstens zwei Breaks pro Verein (einer heim, einer auswärts).
 - Untere Ligen: alle Aufstiegsplätze hellgrün, auch der erste Platz.
 - Gespeichert wird im Browser (localStorage). Bitte regelmäßig "Spielstand exportieren" (JSON-Datei) als Backup!
   Achtung: Ein anderer Browser oder ein anderer Speicherort des Ordners sieht den Spielstand nicht – dann einfach importieren.
