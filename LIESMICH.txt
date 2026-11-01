@@ -5,7 +5,7 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
 - Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
 - Pokal: DFB-Pokal und 16 Landespokale. Das Finale wird automatisch ausgelost. Unentschieden über das Fenster „i.E.“. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
 - Bei völliger Gleichheit nach der Saison gibt es ein Entscheidungsspiel (Hin- und Rückspiel). Der Saisonwechsel wartet darauf.
-- Ansehen: Pfeil zur Vorsaison, Filter nach Liga und Bundesland, Verlauf in der Vereinsansicht. Die Amateurliga hat je Bundesland einen Reiter.
+- Ansehen: Pfeil zur Vorsaison, Filter nach Liga und Bundesland. Die Amateurliga hat je Bundesland einen Reiter.
 - Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand steht die Entfernung, die Anstoßzeit steht in der Gruppenüberschrift.
   Zuerst „Spieltage 1–4 terminieren“. Weitere Viererblöcke folgen automatisch und enden an Hin- und Rückrunde.
 - Tab "Terminierung": immer ein Viererblock, mit Pfeilen vor und zurück. Darunter die Vereine nach Tabellenplatz.

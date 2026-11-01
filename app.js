@@ -1040,12 +1040,10 @@ function cupSlotLabel(slot, neutral){
   const k=slot.kind==='top'?' Topspiel':slot.kind==='konferenz'?' Konferenz':slot.kind==='regional'?' regional':'';
   return slot.dow+' '+slot.time+k;
 }
-function cupScoreLabel(m){
-  if (m.hg==null || m.ag==null) return '';
-  let s=m.hg+':'+m.ag;
-  if (m.hg!==m.ag && m.et) s+=' i.V.';
-  if (m.hg===m.ag && m.peh!=null && m.pea!=null) s+=', '+m.peh+':'+m.pea+' i.E.';
-  return s;
+function cupScoreBits(m){
+  if (!m || m.hg==null || m.ag==null) return null;
+  const pen=m.hg===m.ag && m.peh!=null && m.pea!=null && m.peh!==m.pea;
+  return {main:m.hg+':'+m.ag+(m.hg!==m.ag && m.et?' n.V.':''), above:pen?m.peh+':'+m.pea+' i.E.':''};
 }
 
 // ---------- Darstellung ----------
@@ -1079,8 +1077,9 @@ function fixedPlaceHTML(season, lg, n){
   let h='<div class="fixed-row" title="Plätze, die rechnerisch niemand mehr ändern kann">';
   for (let pl=1; pl<=n; pl++){
     const id=fixed[pl];
-    if (!id) h+='<span class="fp muted">'+pl+'.</span>';
-    else h+='<span class="fp" title="'+esc(TEAMS[id].name)+'">'+pl+'. <img src="'+esc(TEAMS[id].crest)+'" alt="'+esc(TEAMS[id].name)+'"></span>';
+    const num='<span class="pl">'+pl+'.</span>';
+    if (!id) h+='<span class="fp muted">'+num+'</span>';
+    else h+='<span class="fp" title="'+esc(TEAMS[id].name)+'">'+num+'<img src="'+esc(TEAMS[id].crest)+'" alt="'+esc(TEAMS[id].name)+'"></span>';
   }
   h+='</div>';
   return h;
@@ -1219,7 +1218,7 @@ function viewCupRound(s, cup, ed){
   });
   flush();
   if (round.byes && round.byes.length) h+='<div class="sp-hint"><b>Freilos:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
-  h+='<div class="sp-hint">Ein Sieg trägt den Sieger ein. „i.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, angezeigt als 1:1, 4:3 i.E.</div>';
+  h+='<div class="sp-hint">Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht.</div>';
   h+='</div>';
   if (cup.kind==='dfb' && cup.spots) h+=viewCupSpots(cup);
   return h;
@@ -1253,9 +1252,9 @@ function cupMatchHTML(s, m, key, ri, i, ed){
       ? '<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">i.E.</button>'
       : '<span class="ie-link ie-static">i.E.</span>';
   } else if (ed){
-    below='<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+((played && m.et)?' checked':'')+(played?'':' disabled')+'> i.V.</label>';
-  } else below='<span class="ie-box">'+(played && m.et?'i.V.':'i.V.')+'</span>';
-  if (!played && !ed) below='<span class="ie-box">i.V.</span>';
+    below='<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+((played && m.et)?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
+  } else below='<span class="ie-box">n.V.</span>';
+  if (!played && !ed) below='<span class="ie-box">n.V.</span>';
   return '<div class="match cup'+(win?' done':'')+'" data-mi="'+i+'"><div class="home"><span class="liga-edge" title="'+esc(ligaEdge(s,m.h))+'">'+esc(ligaEdge(s,m.h))+'</span>'+clubHTML(m.h,{crestRight:true})+'</div>'+
     '<div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+ (played?m.hg:'-') +'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+
     '<div class="meta">'+(meta?meta+'<br>':'')+below+'</div></div>'+
@@ -1302,11 +1301,14 @@ function viewCupTree(s, cup){
     if (!round.drawn) h+='<div class="br-m bye">noch nicht ausgelost</div>';
     else round.matches.forEach(m=>{
       const w=cupWinner(m);
-      const sc=cupScoreLabel(m)||'–';
+      const b=cupScoreBits(m);
       const cls=id=>w?(w===id?'win':'lose'):'';
-      h+='<div class="br-m"><div class="br-crests"><span class="'+cls(m.h)+'">'+crestTip(m.h)+'</span><b>'+esc(sc)+'</b><span class="'+cls(m.a)+'">'+crestTip(m.a)+'</span></div></div>';
+      const sc=b
+        ? '<span class="br-sc"><span class="br-ie">'+(b.above?esc(b.above):'')+'</span><b>'+esc(b.main)+'</b></span>'
+        : '<span class="br-sc"><span class="br-ie"></span><b>–</b></span>';
+      h+='<div class="br-m"><div class="br-crests"><span class="'+cls(m.h)+'">'+crestTip(m.h)+'</span>'+sc+'<span class="'+cls(m.a)+'">'+crestTip(m.a)+'</span></div></div>';
     });
-    (round.byes||[]).forEach(id=>{ h+='<div class="br-m bye"><span class="br-crests"><span>'+crestTip(id,'Freilos')+'</span><b>Freilos</b></span></div>'; });
+    (round.byes||[]).forEach(id=>{ h+='<div class="br-m bye"><span class="br-crests"><span>'+crestTip(id,'Freilos')+'</span><span class="br-sc"><span class="br-ie"></span><b>Freilos</b></span><span></span></span></div>'; });
     h+='</div>';
   });
   h+='</div></div>';
@@ -1314,8 +1316,8 @@ function viewCupTree(s, cup){
 }
 function finalLine(fin){
   if (!fin) return '<span class="muted">–</span>';
-  const sc=cupScoreLabel(fin.match)||'–';
-  return '<div class="final-line"><div class="win">'+clubHTML(fin.winner,{nobl:true})+'</div><div class="final-sc">'+esc(sc)+'</div><div>'+clubHTML(fin.finalist,{nobl:true})+'</div></div>';
+  const b=cupScoreBits(fin.match)||{main:'–', above:''};
+  return '<div class="final-line"><div class="side side-l">'+clubHTML(fin.winner,{nobl:true,crestRight:true})+'</div><div class="final-sc"><span class="br-ie">'+(b.above?esc(b.above):'')+'</span><b>'+esc(b.main)+'</b></div><div class="side side-r">'+clubHTML(fin.finalist,{nobl:true})+'</div></div>';
 }
 function viewCupWinners(s){
   const blocks=[];
@@ -1332,10 +1334,10 @@ function viewCupWinners(s){
   if (!blocks.length) return '<div class="box"><h3>Sieger</h3><p class="muted">Noch kein beendeter Pokal. Nach dem Finale stehen hier Sieger, Finalgegner und das Ergebnis.</p></div>';
   let h='';
   blocks.slice().reverse().forEach(b=>{
-    h+='<div class="box"><h3>'+esc(b.season)+'</h3><h4 style="margin:8px 0 4px">DFB-Pokal</h4>'+finalLine(b.dfb);
+    h+='<div class="box"><h3>'+esc(b.season)+'</h3><h4 style="margin:8px 0 4px">DFB-Pokal</h4><div class="dfb-final">'+finalLine(b.dfb)+'</div>';
     h+='<h4 style="margin:12px 0 4px">Landespokale</h4><div class="land-finals">';
     if (!b.land.length) h+='<p class="muted">Noch keine Landespokal-Finals.</p>';
-    b.land.forEach(row=>{ h+='<div class="land-final"><div class="muted">'+esc(row.bl)+'</div>'+finalLine(row.fin)+'</div>'; });
+    b.land.forEach(row=>{ h+='<div class="land-final"><div class="land-bl">'+esc(row.bl)+'</div>'+finalLine(row.fin)+'</div>'; });
     h+='</div></div>';
   });
   return h;
@@ -1516,12 +1518,12 @@ function decideHTML(s, lid){
     let below='<span class="ie-box">'+((m.leg===1)?'Hinspiel':'Rückspiel')+'</span>';
     if (m.leg===2){
       if (needPen) below=ed?'<button type="button" class="ie-link" data-act="decideIe" data-di="'+i+'">i.E.</button>':'<span class="ie-link ie-static">i.E.</span>';
-      else if (ed) below='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> i.V.</label>';
-      else below='<span class="ie-box">'+(m.et?'i.V.':'Rückspiel')+'</span>';
+      else if (ed) below='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
+      else below='<span class="ie-box">'+(m.et?'n.V.':'Rückspiel')+'</span>';
     }
-    h+='<div class="match cup'+(twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2))?' done':'')+'"><div class="home"><span class="liga-edge">'+esc(ligaEdge(s,m.h))+'</span>'+clubHTML(m.h,{crestRight:true})+'</div>'+
+    h+='<div class="match cup'+(twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2))?' done':'')+'"><div class="home">'+clubHTML(m.h,{crestRight:true})+'</div>'+
       '<div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+(played?m.hg:'-')+'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div><div class="meta">'+(km!=null?km+' km<br>':'')+below+'</div></div>'+
-      '<div class="away">'+clubHTML(m.a)+'<span class="liga-edge">'+esc(ligaEdge(s,m.a))+'</span></div>'+
+      '<div class="away">'+clubHTML(m.a)+'</div>'+
       (ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>')+'</div>';
   });
   return h;
@@ -2960,25 +2962,11 @@ function viewAnsehen(){
   h+='</tbody></table></div></div>';
   return h;
 }
-function ansehenChart(rows){
-  const pts=rows.filter(r=>r.w>0);
-  if (pts.length<2) return '<p class="muted">Zu wenige Saisons für einen Verlauf.</p>';
-  const w=420,h=86,pad=10;
-  const max=Math.max(...pts.map(r=>r.pts)), min=Math.min(...pts.map(r=>r.pts));
-  const sp=Math.max(0.01, max-min);
-  const xy=pts.map((r,i)=>{
-    const x=pad+(w-2*pad)*i/(pts.length-1);
-    const y=h-pad-(h-2*pad)*(r.pts-min)/sp;
-    return x.toFixed(1)+','+y.toFixed(1);
-  }).join(' ');
-  return '<svg class="ansehen-chart" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Verlauf des Ansehens"><polyline points="'+xy+'"/></svg><p class="muted">Jede Saison im Fenster, von '+esc(pts[0].season)+' bis '+esc(pts[pts.length-1].season)+'.</p>';
-}
 function viewAnsehenDetail(id){
   const info=ansehenInfo(id), t=TEAMS[id];
   const end=info.end, from=(end-24);
   let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b> aus '+info.n+' Saisons</div></div></div>';
   h+='<p>Gewertet wird das Fenster '+(from)+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Darin zählen '+ (end-9)+'/'+String((end-8)%100).padStart(2,'0')+' bis zum Ende mit Gewicht 1,5, die älteren mit Gewicht 1. Saisons ohne Nachweis fehlen. Der Wert ist die Summe aus Gewicht × Punkte, geteilt durch die Summe der Gewichte.</p>';
-  h+='<h3 style="margin:12px 0 6px">Verlauf</h3>'+ansehenChart(info.rows);
   h+='<table class="tbl"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
   let seenSplit=false;
   info.rows.forEach(r=>{
