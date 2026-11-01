@@ -68,9 +68,8 @@ function byRang(a,b){ return (TEAMS[a].rang||99999)-(TEAMS[b].rang||99999) || TE
 function deNum(x, digits){ return (x==null||!isFinite(x)?'–':Number(x).toFixed(digits).replace('.',',')); }
 function seasonYear(name){ return parseInt(String(name).slice(0,4),10)||0; }
 
-// Ansehen: gewichteter Schnitt der Saisonpunkte im 25-Jahres-Fenster.
-// Die jüngsten 10 Saisons des Fensters zählen 1,5-fach, ältere 1-fach.
-// Saisons ohne Nachweis fallen aus Zähler und Nenner.
+// Ansehen: Liga über 30 Saisons, die jüngsten 10 davon 1,5-fach.
+// Pokal über 15 Saisons, die jüngsten 5 davon 1,5-fach, Jahre ohne Start zählen 0.
 function windowEndYear(){
   let y=2025;
   (S.chronicle||[]).forEach(r=>{ const k=seasonYear(r.season); if(k>y) y=k; });
@@ -78,9 +77,10 @@ function windowEndYear(){
 }
 function seasonWeight(seasonName, endYear){
   const y=seasonYear(seasonName);
-  if (y>endYear || y<endYear-24) return 0;
+  if (y>endYear || y<endYear-29) return 0;
   return y>=endYear-9 ? 1.5 : 1;
 }
+function pokalWindowSum(){ return 10*1+5*1.5; }
 function historyEntries(id){
   const H=window.FR_HISTORY, out=[];
   if (H && H.rows && H.rows[id]){
@@ -102,12 +102,53 @@ function ansehenInfo(id, endYear){
     if (w>0){ sw+=w; sp+=w*r.pts; n++; }
     return Object.assign({w}, r);
   });
-  return {end, rows, n, sw, value:n?sp/sw:null};
+  const liga=n?sp/sw:null;
+  const dfb=pokalPart(id, 'dfb', end);
+  const land=pokalPart(id, 'land', end);
+  const value=(liga==null && !dfb.sp && !land.sp) ? null : (liga||0)+dfb.value+land.value;
+  return {end, rows, n, sw, value, liga, dfb, land};
 }
 function ansehenValue(id){
   const info=ansehenInfo(id);
   if (info.value!=null) return info.value;
   return TEAMS[id].schnitt || 12;
+}
+const DFB_ROUND_PTS={'1. Runde':6,'2. Runde':8,'Achtelfinale':10,'Viertelfinale':12,'Halbfinale':14,'Finale':16};
+const DFB_TITLE_PTS=6;
+function dfbRunPoints(roundName, won){ return (DFB_ROUND_PTS[roundName]||0)+(won?DFB_TITLE_PTS:0); }
+function landRunPoints(roundNames, roundName, won){
+  const idx=(roundNames||[]).indexOf(roundName);
+  const fromEnd=idx<0?9:(roundNames.length-1-idx);
+  if (won) return 4;
+  if (fromEnd<=0) return 2.5;
+  if (fromEnd===1) return 1.5;
+  if (fromEnd===2) return 1;
+  return 0.5;
+}
+function allPokalRuns(){
+  if (S && S.pokalRuns && S.pokalRuns.length) return S.pokalRuns;
+  const out=[];
+  ((S && S.pokalHistory)||[]).forEach(r=>{
+    if (r.dfb) out.push({season:r.season, id:r.dfb, comp:'dfb', round:'Finale', won:true, pts:dfbRunPoints('Finale', true)});
+    if (r.land) Object.keys(r.land).forEach(bl=>{
+      const id=r.land[bl];
+      if (id) out.push({season:r.season, id, comp:'land', bl, round:'Finale', won:true, pts:4});
+    });
+  });
+  return out;
+}
+function pokalPart(id, comp, end){
+  const runs=allPokalRuns().filter(r=>r.id===id && r.comp===comp);
+  const sw=pokalWindowSum();
+  let sp=0;
+  const rows=[];
+  runs.forEach(r=>{
+    const w=(()=>{ const y=seasonYear(r.season); if(y>end||y<end-14) return 0; return y>=end-4?1.5:1; })();
+    if (w>0) sp+=w*(r.pts||0);
+    rows.push(Object.assign({w}, r));
+  });
+  rows.sort((a,b)=>seasonYear(a.season)-seasonYear(b.season));
+  return {sw, sp, value:sw?sp/sw:0, rows};
 }
 const POINT_BANDS={1:[81,100],2:[61,80],3:[41,60],4:[26,40],5:[16,25],6:[9,15],7:[4,8]};
 function seasonStrengthPoints(ebene, n, place){
@@ -850,7 +891,11 @@ function buildCups(season, prev){
       id=bestOfState(bl); via=id?'staat':'';
       if (!id){ id=nextL3(); via='liga'; }
     }
-    if (id){ taken.add(id); spots.push({bl, id, via}); }
+    if (id){
+      taken.add(id);
+      const place=via==='liga' && st.map[id] ? st.map[id].place : null;
+      spots.push({bl, id, via, place});
+    }
   });
   const landIds=spots.map(s=>s.id);
   const amateur=amateurLeague.concat(landIds);
@@ -860,11 +905,11 @@ function buildCups(season, prev){
     entrants, pro, amateur, spots,
     rounds:DFB_ROUNDS.map(r=>({name:r.name, neutral:!!r.neutral, drawn:false, byes:[], matches:[]}))
   };
-  const here=standingOf(season);
+  const byeSt=placementStanding(season, prev);
   const land={};
   BL_ORDER.forEach(bl=>{
     const ids=landParticipants(season, bl);
-    land[bl]={id:'land:'+bl, name:'Landespokal '+bl, kind:'land', bl, entrants:ids, rounds:planLandRounds(ids, here)};
+    land[bl]={id:'land:'+bl, name:'Landespokal '+bl, kind:'land', bl, entrants:ids, rounds:planLandRounds(ids, byeSt)};
   });
   return {dfb, land};
 }
@@ -924,16 +969,32 @@ function assignCupSlots(matches, plan, st){
   info.forEach(o=>{ if (!takenM.has(o.i)) restM.push(o.i); });
   restM.forEach((mi,k)=>{ if (restS[k]) matches[mi].slot=Object.assign({}, restS[k]); });
 }
+function placementStanding(season, prev){
+  if (prev && prev.endData && prev.endData.tables) return standingOf(prev);
+  const map={}, lists={};
+  LEAGUES.forEach(l=>{
+    const ids=(season.leagues[l.id]&&season.leagues[l.id].teams||[]).slice();
+    lists[l.id]=ids;
+    ids.forEach((id,i)=>{ map[id]={level:l.level, place:i+1, lid:l.id, short:l.short}; });
+  });
+  POOLS.forEach(p=>{
+    const ids=((season.pools&&season.pools[p.id])||[]).slice();
+    lists[p.id]=ids;
+    ids.forEach((id,i)=>{ if (!map[id]) map[id]={level:7, place:i+1, lid:p.id, short:'Amateur'}; });
+  });
+  return {map, lists};
+}
 function pairLowerHome(ids, st){
-  const bag=shuffle(ids.slice()), matches=[];
-  for (let i=0;i+1<bag.length;i+=2){
-    let h=bag[i], a=bag[i+1];
-    const hs=rankOf(st,h), as=rankOf(st,a);
-    const homeIsH=hs.level!==as.level ? hs.level>as.level : hs.place>=as.place;
-    if (!homeIsH) [h,a]=[a,h];
-    matches.push(cupMatch(h,a,false));
-  }
-  return matches;
+  const buckets={};
+  ids.forEach(id=>{ const lv=rankOf(st,id).level; (buckets[lv]=buckets[lv]||[]).push(id); });
+  const order=[];
+  Object.keys(buckets).map(Number).sort((a,b)=>b-a).forEach(lv=>{
+    order.push(...shuffle(buckets[lv].slice()));
+  });
+  const homeN=Math.floor(order.length/2);
+  const homes=order.slice(0, homeN);
+  const aways=shuffle(order.slice(homeN));
+  return homes.map((h,i)=>cupMatch(h, aways[i], false));
 }
 function pairDfb(ids, proSet, neutral){
   if (neutral){
@@ -1013,16 +1074,52 @@ function simAllCups(season){
   BL_ORDER.forEach(bl=>{ if (season.cups.land[bl]) c+=simCup(season, season.cups.land[bl]); });
   return c;
 }
+function cupReached(cup){
+  const best={};
+  const last=cup.rounds.length-1;
+  const touch=(id, ri, name, won)=>{
+    if (!id) return;
+    const prev=best[id];
+    if (!prev || ri>prev.ri) best[id]={ri, name, won:!!won};
+    else if (ri===prev.ri && won) prev.won=true;
+  };
+  cup.rounds.forEach((round, ri)=>{
+    (round.byes||[]).forEach(id=>touch(id, ri, round.name, ri===last));
+    (round.matches||[]).forEach(m=>{
+      const w=cupWinner(m);
+      touch(m.h, ri, round.name, w===m.h && ri===last);
+      touch(m.a, ri, round.name, w===m.a && ri===last);
+    });
+  });
+  return best;
+}
 function recordCupHistory(season){
   if (!season.cups) return;
   if (!S.pokalHistory) S.pokalHistory=[];
-  if (S.pokalHistory.some(r=>r.season===season.name)) return;
+  if (!S.pokalRuns) S.pokalRuns=[];
+  if (S.pokalRuns.some(r=>r.season===season.name)) return;
   const land={};
   BL_ORDER.forEach(bl=>{
-    const fin=cupFinalists(season.cups.land[bl]);
+    const cup=season.cups.land[bl];
+    const fin=cupFinalists(cup);
     land[bl]=fin?fin.winner:null;
+    if (!cup) return;
+    const names=cup.rounds.map(r=>r.name);
+    const reached=cupReached(cup);
+    Object.keys(reached).forEach(id=>{
+      const x=reached[id];
+      S.pokalRuns.push({season:season.name, id, comp:'land', bl, round:x.name, won:!!x.won, pts:landRunPoints(names, x.name, x.won)});
+    });
   });
-  const dfb=cupFinalists(season.cups.dfb);
+  const dfbCup=season.cups.dfb;
+  const dfb=cupFinalists(dfbCup);
+  if (dfbCup){
+    const reached=cupReached(dfbCup);
+    Object.keys(reached).forEach(id=>{
+      const x=reached[id];
+      S.pokalRuns.push({season:season.name, id, comp:'dfb', round:x.name, won:!!x.won, pts:dfbRunPoints(x.name, x.won)});
+    });
+  }
   S.pokalHistory.push({season:season.name, dfb:dfb?dfb.winner:null, land});
 }
 function getCup(season, key){
@@ -1050,7 +1147,8 @@ function cupScoreBits(m){
 function clubHTML(id, opts={}){
   const t=TEAMS[id]; const mk = opts.marker ? [].concat(opts.marker).map(x=>'<span class="mk">('+x+')</span>').join('') : '';
   const img='<img src="'+esc(t.crest)+'" alt="" loading="lazy">';
-  const txt='<div class="txt"><div class="nm">'+esc(t.name)+mk+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
+  const nm=opts.markerBefore ? mk+esc(t.name) : esc(t.name)+mk;
+  const txt='<div class="txt"><div class="nm">'+nm+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
   return '<div class="club'+(opts.crestRight?' crest-right':'')+'" data-club="'+id+'">'+(opts.crestRight?txt+img:img+txt)+'</div>';
 }
 function tableHTML(rows, lg, opts={}){
@@ -1124,7 +1222,7 @@ function renderNav(){
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
 
-const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hinrunde/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie']];
+const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie']];
 function renderMigrate(){
   let el=$('#migrate');
   if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice hidden'; $('#main').prepend(el); }
@@ -1164,11 +1262,12 @@ function viewPokal(s, cup, view){
   const ed=isEditable();
   const key=S.ui.cup;
   let h='<div class="pokal-bar">'+cupSelectHTML(key);
-  h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['baum','Turnierbaum'],['sieger','Sieger']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
+  h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['baum','Turnierbaum'],['sieger','Sieger'],['uebersicht','Übersicht']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
   h+='</div>';
   if (!cup) return h+'<div class="box">Dieser Pokal fehlt.</div>';
   if (view==='sieger') return h+viewCupWinners(s);
   if (view==='baum') return h+viewCupTree(s, cup);
+  if (view==='uebersicht') return h+viewCupOverview(s, cup);
   return h+viewCupRound(s, cup, ed);
 }
 function viewCupRound(s, cup, ed){
@@ -1189,7 +1288,7 @@ function viewCupRound(s, cup, ed){
     h+='<p class="cup-note">64 Mannschaften. Profitopf: die 20 der Bundesliga und die Plätze 1–12 der 2. Bundesliga. Amateurtopf: Plätze 13–20 der 2. Bundesliga, Plätze 1–8 der 3. Liga und 16 über die Landespokale. In der 1. Runde spielt jeder Amateurverein zu Hause gegen einen Profi.</p>';
   }
   if (cup.kind==='land' && ri===0){
-    h+='<p class="cup-note">'+cup.entrants.length+' Vereine aus '+esc(cup.bl)+', von der 3. Liga bis zur Amateurliga. Stärkere Vereine haben bei ungerader Feldgröße ein Freilos. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.</p>';
+    h+='<p class="cup-note">'+cup.entrants.length+' Vereine aus '+esc(cup.bl)+', von der 3. Liga bis zur Amateurliga. Freilose gehen an die bestplatzierten Vereine des Vorjahres. Die schwächere Liga hat Heimrecht, innerhalb derselben Liga der zuerst gezogene. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.</p>';
   }
   if (!round.drawn){
     const ready=ri===0 || roundComplete(cup.rounds[ri-1]);
@@ -1224,11 +1323,95 @@ function viewCupRound(s, cup, ed){
   return h;
 }
 function viewCupSpots(cup){
-  let h='<div class="box"><h3>Die 16 Landespokal-Plätze</h3><table class="tbl"><thead><tr><th class="l">Land</th><th class="l">Verein</th><th class="l">Weg</th></tr></thead><tbody>';
-  (cup.spots||[]).forEach(sp=>{
+  const main=(cup.spots||[]).filter(sp=>sp.via!=='liga');
+  const liga=(cup.spots||[]).filter(sp=>sp.via==='liga');
+  let h='<div class="box"><h3>Qualifikation über die Landespokale</h3><table class="tbl"><thead><tr><th class="l">Land</th><th class="l">Verein</th><th class="l">Weg</th></tr></thead><tbody>';
+  main.forEach(sp=>{
     h+='<tr><td class="l">'+esc(sp.bl)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true})+'</td><td class="l">'+esc(VIA_TEXT[sp.via]||sp.via)+'</td></tr>';
   });
-  h+='</tbody></table></div>';
+  h+='</tbody></table>';
+  if (liga.length){
+    h+='<h3 style="margin-top:14px">Nachgerückt aus der 3. Liga</h3><p class="muted">Beide Finalisten dieses Landes waren schon qualifiziert. Der Platz geht an den nächsten freien Verein der 3. Liga, nicht an den Pokalsieger.</p><table class="tbl"><thead><tr><th class="l">Platz</th><th class="l">Verein</th></tr></thead><tbody>';
+    liga.forEach(sp=>{
+      const label=(sp.place?sp.place+'. ':'')+'3. Liga (für '+sp.bl+')';
+      h+='<tr><td class="l">'+esc(label)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true})+'</td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  h+='</div>';
+  return h;
+}
+const OV_ORDER=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga','Oberliga','Amateurliga'];
+function leagueBucket(season, id){
+  const lid=clubLeagueId(season, id);
+  if (lid==='BL') return 'Bundesliga';
+  if (lid==='BL2') return '2. Bundesliga';
+  if (lid==='L3') return '3. Liga';
+  if (lid==='L4') return '4. Liga';
+  if (L[lid] && L[lid].level===5) return 'Regionalliga';
+  if (L[lid] && L[lid].level===6) return 'Oberliga';
+  return 'Amateurliga';
+}
+function cupAliveSet(cup){
+  const alive=new Set(cup.entrants||[]);
+  (cup.rounds||[]).forEach((round, ri)=>{
+    (round.byes||[]).forEach(id=>alive.add(id));
+    (round.matches||[]).forEach(m=>{
+      alive.add(m.h); alive.add(m.a);
+      const w=cupWinner(m);
+      if (!w) return;
+      if (m.h!==w) alive.delete(m.h);
+      if (m.a!==w) alive.delete(m.a);
+    });
+  });
+  return alive;
+}
+function ovGroupsHTML(season, ids, alive, maxCols){
+  const G={};
+  ids.forEach(id=>{ const g=leagueBucket(season, id); (G[g]=G[g]||[]).push(id); });
+  let h='<div class="ov-groups">';
+  OV_ORDER.filter(g=>G[g]&&G[g].length).forEach(g=>{
+    const list=G[g].slice().sort(byRang);
+    const n=list.length, left=list.filter(id=>alive.has(id)).length;
+    const cols=Math.min(n, maxCols);
+    const half=n<=8 && g!=='Bundesliga' && g!=='2. Bundesliga' && g!=='Amateurliga';
+    h+='<div class="ov-group '+(half?'half':'full')+'"><div class="ov-gh"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-grid" style="--cols:'+cols+'">';
+    list.forEach(id=>{
+      const t=TEAMS[id], out=!alive.has(id);
+      h+='<div class="ov-c'+(out?' out':'')+'"><img src="'+esc(t.crest)+'" alt=""><div class="ov-tip"><div class="nm">'+esc(t.name)+'</div><div class="bl">'+esc(t.bl)+' · '+esc(g)+'</div><div class="st'+(out?' out':'')+'">'+(out?'ausgeschieden':'noch im Wettbewerb')+'</div></div></div>';
+    });
+    h+='</div></div>';
+  });
+  h+='</div>';
+  return h;
+}
+function viewCupOverview(s, cup){
+  const alive=cupAliveSet(cup);
+  const total=(cup.entrants||[]).length;
+  const left=alive.size;
+  let doneName='', nextName='';
+  for (let i=0;i<cup.rounds.length;i++){
+    const r=cup.rounds[i];
+    if (r.drawn && roundComplete(r)) doneName=r.name;
+    else { nextName=r.name; break; }
+  }
+  const stand=doneName ? 'nach '+doneName : 'vor dem Start';
+  const sub=(nextName||'beendet')+' · '+left+' Teams noch dabei';
+  const cell=cup.kind==='dfb'?54:(total>80?40:48);
+  const maxCols=cup.kind==='dfb'?10:12;
+  let legendId=[...alive][0] || (cup.entrants||[])[0];
+  let outId=(cup.entrants||[]).find(id=>!alive.has(id)) || legendId;
+  let h='<div class="card ov-card"><div class="card-title"><span>Übersicht <span class="progress">('+esc(stand)+' · <b>'+left+'</b> von '+total+' noch dabei)</span></span><span class="muted" style="font-weight:400;font-size:12px">Name beim Drüberfahren</span></div>';
+  h+='<div class="ov-panel" style="--cell:'+cell+'px"><div class="ov-head"><div class="t">'+esc(cup.name)+' '+esc(s.name)+'</div><div class="s">'+esc(sub)+'</div></div>';
+  if (cup.kind==='dfb'){
+    const pro=new Set(cup.pro||[]);
+    const pros=(cup.entrants||[]).filter(id=>pro.has(id));
+    const ams=(cup.entrants||[]).filter(id=>!pro.has(id));
+    h+='<div class="ov-pot-title">Profitopf</div>'+ovGroupsHTML(s, pros, alive, maxCols);
+    h+='<div class="ov-pot-title">Amateurtopf</div>'+ovGroupsHTML(s, ams, alive, maxCols);
+  } else h+=ovGroupsHTML(s, cup.entrants||[], alive, maxCols);
+  const crest=id=>id&&TEAMS[id]?'<img src="'+esc(TEAMS[id].crest)+'" alt="">':'';
+  h+='<div class="ov-legend"><span>'+crest(legendId)+'noch im Wettbewerb</span><span class="out">'+crest(outId)+'ausgeschieden</span></div></div></div>';
   return h;
 }
 function cupMatchHTML(s, m, key, ri, i, ed){
@@ -1468,10 +1651,11 @@ function spielplanHTML(s,lid){
     h+='<div class="slot-head">nicht terminiert</div>';
     md.forEach((m,k)=>{
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
-      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true})+'</div>'+
+      const mk=id=>(s.markers&&s.markers[id])||null;
+      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid)})+'</div>'+
         '<div class="scorecol"><div class="score"><span class="scoreline"><span class="goals">-</span><b>:</b><span class="goals">-</span></span></div>'+
         '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-        '<div class="away">'+clubHTML(aid)+'</div><span></span></div>';
+        '<div class="away">'+clubHTML(aid,{marker:mk(aid),markerBefore:true})+'</div><span></span></div>';
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -1486,11 +1670,12 @@ function spielplanHTML(s,lid){
     const has=m[2]!=null&&m[3]!=null;
     const hid=lg.teams[m[0]], aid=lg.teams[m[1]];
     const km=kmBetween(hid,aid);
+    const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
-    h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true})+'</div>'+
+    h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid)})+'</div>'+
       '<div class="scorecol"><div class="score">'+step(0)+'<span class="scoreline"><span class="goals" data-side="0">'+(has?m[2]:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(has?m[3]:'-')+'</span></span>'+step(1)+'</div>'+
       '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-      '<div class="away">'+clubHTML(aid)+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
+      '<div class="away">'+clubHTML(aid,{marker:mk(aid),markerBefore:true})+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -1529,10 +1714,10 @@ function decideHTML(s, lid){
   return h;
 }
 function viewToggle(s,lid,kind){
-  const key='tg_'+kind; const opt=S.ui[key]||(kind==='ha'?'home':'hin');
-  const btns = kind==='ha' ? [['home','Heimtabelle'],['away','Auswärtstabelle']] : [['hin','Hinrunde'],['rueck','Rückrunde']];
-  const rows = kind==='ha' ? leagueTable(s,lid,opt) : leagueTable(s,lid,'all',opt);
-  return '<div class="toggle" data-toggle="'+key+'">'+btns.map(([k,n])=>'<button data-v="'+k+'" class="'+(opt===k?'active':'')+'">'+n+'</button>').join('')+'</div><div class="card">'+tableHTML(rows,L[lid],{zones:false})+'</div>';
+  if (kind==='ha'){
+    return '<div class="twin"><div class="card"><div class="card-title">Heimtabelle</div>'+tableHTML(leagueTable(s,lid,'home'),L[lid],{zones:false})+'</div><div class="card"><div class="card-title">Auswärtstabelle</div>'+tableHTML(leagueTable(s,lid,'away'),L[lid],{zones:false})+'</div></div>';
+  }
+  return '<div class="twin"><div class="card"><div class="card-title">Hinrunde</div>'+tableHTML(leagueTable(s,lid,'all','hin'),L[lid],{zones:false})+'</div><div class="card"><div class="card-title">Rückrunde</div>'+tableHTML(leagueTable(s,lid,'all','rueck'),L[lid],{zones:false})+'</div></div>';
 }
 function viewEwig(lid){
   const agg={}, seasons={};
@@ -2885,11 +3070,13 @@ function renderAbschluss(){
       (up.length?'<div><b>Aufsteiger:</b> '+up.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div>':'')+
       '<div><b>Absteiger'+(e.downOf&&e.downOf[l.id]!==l.down?' <span class="muted">(diesmal '+e.downOf[l.id]+' statt '+l.down+')</span>':'')+':</b> '+dn.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div></div>'; });
     h+='</div>';
+    h+=moveBoardHTML(e);
     if (e.notes.length) h+='<div class="notice"><b>Abstiegszahlen in dieser Saison:</b><br>'+e.notes.map(esc).join('<br>')+'</div>';
     h+='<div style="display:flex;gap:8px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="endStep2">Weiter: Aufsteiger aus der Amateurliga wählen</button></div>';
     v.innerHTML=h; return;
   }
-  let h='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">Wähle pro Oberliga die Aufsteiger aus der Amateurliga desselben Gebiets. Die Anzahl ergibt sich aus den freien Plätzen (normal 2). Absteiger aus der Oberliga dieser Saison können nicht sofort wieder aufsteigen.</p>'+
+  let h=moveBoardHTML(e);
+  h+='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">Wähle pro Oberliga die Aufsteiger aus der Amateurliga desselben Gebiets. Die Anzahl ergibt sich aus den freien Plätzen (normal 2). Absteiger aus der Oberliga dieser Saison können nicht sofort wieder aufsteigen.</p>'+
     '<button class="btn small" data-act="suggest">Vorschlag: jeweils die historisch stärksten übernehmen</button> <button class="btn small" data-act="clearPicks">Auswahl leeren</button> <label style="margin-left:10px"><input type="checkbox" id="allPools"'+(S.ui.allPools?' checked':'')+'> alle Amateurvereine anzeigen (auch andere Regionen)</label></div><div class="grid2">';
   let ok=true;
   POOLS.forEach(p=>{
@@ -2898,11 +3085,34 @@ function renderAbschluss(){
     let cand = S.ui.allPools ? POOLS.flatMap(x=>e.pools[x.id]) : [...e.pools[p.id]];
     cand = cand.filter(id=>!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)).sort(byRang);
     const takenElse = new Set(Object.entries(e.picks).filter(([k])=>k!==p.ol).flatMap(([,v])=>v));
-    h+='<div class="box"><div class="pick-head"><h3 style="margin:0">'+esc(L[p.ol].name)+'</h3><span class="'+(picks.length===need?'ok':'bad')+'">'+picks.length+' / '+need+'</span></div><div class="muted" style="margin-bottom:6px">aus: '+esc(p.name)+' ('+esc(p.desc)+')</div><div class="pick-list">'+
+    h+='<div class="box"><div class="pick-head"><h3 style="margin:0">'+esc(L[p.ol].name)+'</h3><span class="'+(picks.length===need?'ok':'bad')+'">'+picks.length+' / '+need+'</span></div><div class="muted" style="margin-bottom:6px">aus: '+esc(p.name)+' ('+esc(p.desc)+')</div><div class="pick-list" data-ol="'+esc(p.ol)+'">'+
       cand.filter(id=>!takenElse.has(id)).map(id=>'<label class="pick-row'+(picks.includes(id)?' sel':'')+'"><input type="checkbox" data-pick="'+p.ol+'" value="'+id+'"'+(picks.includes(id)?' checked':'')+'>'+clubHTML(id)+'<span class="r">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></label>').join('')+'</div></div>';
   });
   h+='</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endStep1">Zurück</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
   v.innerHTML=h;
+}
+function moveChip(id, dest){
+  const t=TEAMS[id];
+  return '<span class="move-chip" title="'+esc(t.name)+'"><img src="'+esc(t.crest)+'" alt=""><span>'+esc(t.name)+'</span>'+(dest?'<i>→ '+esc(dest)+'</i>':'')+'</span>';
+}
+function moveBoardHTML(e){
+  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="move-wrap">';
+  LEAGUES.forEach(l=>{
+    const up=e.moves.filter(m=>m.from===l.id && m.type==='auf');
+    const dn=e.moves.filter(m=>m.from===l.id && m.type==='ab');
+    const incoming=(e.picks && e.picks[l.id])||[];
+    h+='<div class="move-lg"><h3>'+esc(l.name)+'</h3>';
+    h+='<div class="move-line up"><span class="arr">▲</span>';
+    if (!up.length && !incoming.length) h+='<span class="muted">kein Aufsteiger</span>';
+    up.forEach(m=>{ h+=moveChip(m.id, leagueShort(m.to)); });
+    incoming.forEach(id=>{ h+=moveChip(id, 'Amateur'); });
+    h+='</div><div class="move-line dn"><span class="arr">▼</span>';
+    if (!dn.length) h+='<span class="muted">kein Absteiger</span>';
+    dn.forEach(m=>{ h+=moveChip(m.id, leagueShort(m.to)); });
+    h+='</div></div>';
+  });
+  h+='</div></div>';
+  return h;
 }
 function rulesHTML(){
   const s=cur();
@@ -2953,7 +3163,7 @@ function viewAnsehen(){
   list.sort((a,b)=>(b.info.value==null?-1:b.info.value)-(a.info.value==null?-1:a.info.value) || TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de'));
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
-  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Der Ansehenswert ist der gewichtete Schnitt der Saisonpunkte der letzten 25 Jahre. Die jüngsten 10 Saisons zählen 1,5-fach, ältere einfach. Jahre ohne Nachweis werden ausgelassen. Der Pfeil vergleicht den Rang mit dem Fenster bis zur Vorsaison.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
+  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Die Liga zählt über die letzten 30 Saisons, die jüngsten 10 davon 1,5-fach. DFB-Pokal und Landespokal zählen über die letzten 15 Saisons, die jüngsten 5 davon 1,5-fach. Jahre ohne Pokal zählen als 0. Der Pfeil vergleicht den Rang mit dem Fenster bis zur Vorsaison.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
   h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr><th>Rang</th><th></th><th class="l">Verein</th><th>Ansehen</th><th>Saisons</th><th class="l">Aktuelle Liga</th></tr></thead><tbody>';
   list.forEach((r,i)=>{
     const name=TEAMS[r.id].name;
@@ -2962,27 +3172,38 @@ function viewAnsehen(){
   h+='</tbody></table></div></div>';
   return h;
 }
+function weightClass(w){ return w>1?'w-hot':w>0?'w-on':'w-off'; }
 function viewAnsehenDetail(id){
   const info=ansehenInfo(id), t=TEAMS[id];
-  const end=info.end, from=(end-24);
-  let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b> aus '+info.n+' Saisons</div></div></div>';
-  h+='<p>Gewertet wird das Fenster '+(from)+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Darin zählen '+ (end-9)+'/'+String((end-8)%100).padStart(2,'0')+' bis zum Ende mit Gewicht 1,5, die älteren mit Gewicht 1. Saisons ohne Nachweis fehlen. Der Wert ist die Summe aus Gewicht × Punkte, geteilt durch die Summe der Gewichte.</p>';
-  h+='<table class="tbl"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
+  const end=info.end, from=end-29, hot=end-9;
+  const part=(label, value, note)=>'<div'+(label==='Ansehen'?' class="tot"':'')+'><span>'+label+'</span><b>'+(value==null?'–':deNum(value,2))+'</b><i>'+note+'</i></div>';
+  let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b></div></div></div>';
+  h+='<div class="ansehen-break">'+part('Liga', info.liga, '30 Saisons, letzte 10 ×1,5')+part('DFB-Pokal', info.dfb.value, '15 Saisons, letzte 5 ×1,5')+part('Landespokal', info.land.value, '15 Saisons, letzte 5 ×1,5')+part('Ansehen', info.value, 'Liga + DFB-Pokal + Landespokal')+'</div>';
+  h+='<p>Liga: Fenster '+from+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Grün markiert sind die letzten 10 Saisons (×1,5), normal gezählt die übrigen im Fenster. Graue Zeilen liegen außerhalb. Pokal: die letzten 15 Saisons, davon die letzten 5 grün. Ein Jahr ohne Pokal zählt als 0.</p>';
+  h+='<h3 style="margin:8px 0">Liga</h3><table class="tbl"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
   let seenSplit=false;
   info.rows.forEach(r=>{
     const rechner=r.src==='rechner' || seasonYear(r.season)>2025;
-    if (rechner && !seenSplit){
-      seenSplit=true;
-      h+='<tr><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>';
-    }
+    if (rechner && !seenSplit){ seenSplit=true; h+='<tr><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>'; }
     const beitrag=r.w>0?r.w*r.pts:null;
-    h+='<tr><td class="l">'+r.season+'</td><td class="l">'+esc(r.liga)+'</td><td>'+r.pl+'. / '+r.n+'</td><td>'+deNum(r.pts,2)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
+    h+='<tr class="'+weightClass(r.w)+'"><td class="l">'+r.season+'</td><td class="l">'+esc(r.liga)+'</td><td>'+r.pl+'. / '+r.n+'</td><td>'+deNum(r.pts,2)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
   });
   if (!seenSplit) h+='<tr><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>';
-  h+='<tr><td class="l" colspan="4"><b>Summe</b></td><td><b>'+deNum(info.sw,1)+'</b></td><td><b>'+(info.sw?deNum(info.value*info.sw,2):'–')+'</b></td></tr>';
+  h+='<tr><td class="l" colspan="4"><b>Liga</b></td><td><b>'+deNum(info.sw,1)+'</b></td><td><b>'+(info.liga==null?'–':deNum(info.liga,2))+'</b></td></tr>';
   h+='</tbody></table>';
-  if (info.value!=null) h+='<p>Ansehen = '+deNum(info.value*info.sw,2)+' / '+deNum(info.sw,1)+' = <b>'+deNum(info.value,2)+'</b>.</p>';
-  else h+='<p>Für diesen Verein liegt im Fenster keine Saison mit Nachweis vor.</p>';
+  const pokalTable=(title, part)=>{
+    let x='<h3 style="margin:16px 0 8px">'+title+'</h3><table class="tbl"><thead><tr><th class="l">Saison</th><th class="l">Runde</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
+    if (!part.rows.length) x+='<tr><td class="l" colspan="5"><span class="muted">Keine Pokalteilnahme im Rechner.</span></td></tr>';
+    part.rows.forEach(r=>{
+      const beitrag=r.w>0?r.w*r.pts:null;
+      x+='<tr class="'+weightClass(r.w)+'"><td class="l">'+esc(r.season)+(r.bl?' · '+esc(r.bl):'')+'</td><td class="l">'+esc(r.round)+(r.won?' · Sieger':'')+'</td><td>'+deNum(r.pts,1)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
+    });
+    x+='<tr><td class="l" colspan="3"><b>Schnitt im 15-Jahres-Fenster</b></td><td><b>'+deNum(part.sw,1)+'</b></td><td><b>'+deNum(part.value,2)+'</b></td></tr></tbody></table>';
+    return x;
+  };
+  h+=pokalTable('DFB-Pokal', info.dfb);
+  h+=pokalTable('Landespokal', info.land);
+  h+='<p>Ansehen = '+(info.liga==null?'0':deNum(info.liga,2))+' + '+deNum(info.dfb.value,2)+' + '+deNum(info.land.value,2)+' = <b>'+(info.value==null?'–':deNum(info.value,2))+'</b>. Das Fenster der Liga endet '+end+', die ×1,5-Staffel beginnt '+hot+'.</p>';
   h+='</div>';
   return h;
 }
@@ -3115,7 +3336,7 @@ document.addEventListener('click', ev=>{
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
-  else if (act==='simSeason'){ if(confirm('Saison simulieren: alle noch offenen Spiele aller Ligen und der Pokale mit zufälligen Ergebnissen auffüllen? Die Ergebnisse orientieren sich leicht an Ansehen und Stärke. Fehlende Blöcke werden dabei terminiert.')){ const c=simSeason(s); save(); render(); toast(c+' Spiele simuliert.'); } }
+  else if (act==='simSeason'){ if(confirm('Saison simulieren: offene Spiele und Pokale auffüllen, die Aufsteiger aus der Amateurliga automatisch wählen und die nächste Saison starten?')){ const c=simSeason(s); if (decidePending(s)){ save(); render(); alert('Die Entscheidungsspiele sind noch nicht beendet.'); return; } s.endData=computeTransition(s); s.status='ending'; suggestPicks(s.endData); finalizeSeason(); toast(c+' Spiele simuliert.'); } }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -3144,7 +3365,19 @@ document.addEventListener('change', ev=>{
   else if (t.dataset.pick){ const e=latest().endData, ol=t.dataset.pick; const arr=e.picks[ol]||(e.picks[ol]=[]);
     if (t.checked){ if (arr.length>=e.need[ol]){ t.checked=false; toast('Für '+L[ol].name+' sind nur '+e.need[ol]+' Aufsteiger möglich.'); return; } arr.push(t.value); }
     else arr.splice(arr.indexOf(t.value),1);
-    save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
+    save();
+    const y=window.scrollY;
+    const tops=[...document.querySelectorAll('.pick-list')].map(el=>({ol:el.dataset.ol, top:el.scrollTop}));
+    const side=document.querySelector('#sidebar');
+    const sy=side?side.scrollTop:0;
+    render();
+    const restore=()=>{
+      window.scrollTo(0, y);
+      const side2=document.querySelector('#sidebar'); if (side2) side2.scrollTop=sy;
+      document.querySelectorAll('.pick-list').forEach(el=>{ const f=tops.find(x=>x.ol===el.dataset.ol); if (f) el.scrollTop=f.top; });
+    };
+    restore(); requestAnimationFrame(restore);
+  }
   else if (t.id==='fileImport'){ importFile(t.files[0]); t.value=''; }
 });
 document.addEventListener('input', ev=>{
