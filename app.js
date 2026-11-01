@@ -1012,11 +1012,11 @@ function cupMatchHTML(s, m, key, ri, i, ed){
   if (played && !draw && ed) meta+=(meta?'<br>':'')+'<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+(m.et?' checked':'')+'> i.V.</label>';
   else if (played && !draw && m.et) meta+=(meta?' · ':'')+'i.V.';
   if (draw){
-    const ph=m.peh==null?'–':m.peh, pa=m.pea==null?'–':m.pea;
+    const hasPen=m.peh!=null && m.pea!=null && m.peh!==m.pea;
+    const label=hasPen ? m.peh+':'+m.pea+' i.E.' : 'i.E.';
     meta+=(meta?'<br>':'');
-    if (ed){
-      meta+='<span class="ie-box">i.E. '+stepPen(key,ri,i,0)+'<b>'+ph+':'+pa+'</b>'+stepPen(key,ri,i,1)+'</span>';
-    } else if (m.peh!=null && m.pea!=null) meta+=m.peh+':'+m.pea+' i.E.';
+    if (ed) meta+='<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">'+label+'</button>';
+    else if (hasPen) meta+=label;
   }
   const score=played?m.hg+':'+m.ag:'-:-';
   return '<div class="match cup'+(win?' done':'')+'" data-mi="'+i+'"><div class="home"><span class="liga-edge" title="'+esc(ligaEdge(s,m.h))+'">'+esc(ligaEdge(s,m.h))+'</span>'+clubHTML(m.h,{crestRight:true})+'</div>'+
@@ -1025,9 +1025,29 @@ function cupMatchHTML(s, m, key, ri, i, ed){
     '<div class="away">'+clubHTML(m.a)+'<span class="liga-edge" title="'+esc(ligaEdge(s,m.a))+'">'+esc(ligaEdge(s,m.a))+'</span></div>'+
     (ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>')+'</div>';
 }
-function stepPen(key, ri, i, side){
-  return '<span class="stepper"><button type="button" data-act="cupPen" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" data-side="'+side+'" data-dir="1">+</button><button type="button" data-act="cupPen" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" data-side="'+side+'" data-dir="-1">−</button></span>';
+let penEdit=null;
+function openPenDialog(cupKey, ri, mi){
+  const s=cur(); if (!isEditable()) return;
+  ensureCups(s);
+  const cup=getCup(s, cupKey);
+  const m=cup && cup.rounds[ri] && cup.rounds[ri].matches[mi];
+  if (!m || m.hg==null || m.ag==null || m.hg!==m.ag) return;
+  penEdit={cup:cupKey, ri, mi, h:m.peh==null?0:m.peh, a:m.pea==null?0:m.pea};
+  const side=(id, which)=>{
+    const t=TEAMS[id];
+    return '<div class="pen-side"><img src="'+esc(t.crest)+'" alt=""><div class="nm">'+esc(t.name)+'</div><div class="pen-num" id="pen'+which+'">0</div><span class="stepper pen-step"><button type="button" data-act="penAdj" data-side="'+(which==='H'?0:1)+'" data-dir="1" title="Elfmeter">+</button><button type="button" data-act="penAdj" data-side="'+(which==='H'?0:1)+'" data-dir="-1" title="Elfmeter zurück">−</button></span></div>';
+  };
+  openModal('<div class="pen-dlg"><h3>Elfmeterschießen</h3><p class="muted">'+m.hg+':'+m.ag+' nach 90 Minuten und Verlängerung. Unentschieden im Elfmeterschießen ist nicht möglich.</p><div class="pen-sides">'+side(m.h,'H')+'<b class="pen-colon">:</b>'+side(m.a,'A')+'</div><div class="pen-actions"><button type="button" class="btn" data-act="penCancel">Abbrechen</button><button type="button" class="btn primary" id="penOk" data-act="penOk" disabled>OK</button></div></div>');
+  paintPen();
 }
+function paintPen(){
+  if (!penEdit) return;
+  const h=$('#penH'), a=$('#penA'), ok=$('#penOk');
+  if (h) h.textContent=String(penEdit.h);
+  if (a) a.textContent=String(penEdit.a);
+  if (ok) ok.disabled=penEdit.h===penEdit.a;
+}
+function closePen(){ penEdit=null; $('#modal').classList.add('hidden'); }
 function ligaEdge(season, id){
   const lid=clubLeagueId(season, id);
   if (L[lid]) return L[lid].short;
@@ -1087,16 +1107,9 @@ function applyCupGoal(key, ri, mi, side, dir){
     if (side===0) m.hg=Math.max(0, m.hg+dir); else m.ag=Math.max(0, m.ag+dir);
   });
 }
-function applyCupPen(key, ri, mi, side, dir){
-  mutateCup(key, ri, mi, m=>{
-    if (m.hg==null || m.hg!==m.ag) return;
-    if (m.peh==null) m.peh=0;
-    if (m.pea==null) m.pea=0;
-    if (side===0) m.peh=Math.max(0, m.peh+dir); else m.pea=Math.max(0, m.pea+dir);
-  });
-}
 function mutateCup(cupKey, ri, mi, fn){
   const s=cur(); if (!isEditable()) return;
+  if (penEdit) closePen();
   ensureCups(s);
   const cup=getCup(s, cupKey); if (!cup) return;
   const m=cup.rounds[ri] && cup.rounds[ri].matches[mi]; if (!m) return;
@@ -2673,7 +2686,20 @@ document.addEventListener('click', ev=>{
     save(); render();
   }
   else if (act==='cupGoal'){ applyCupGoal(a.dataset.cup, +a.dataset.ri, +a.dataset.mi, +a.dataset.side, +a.dataset.dir); }
-  else if (act==='cupPen'){ applyCupPen(a.dataset.cup, +a.dataset.ri, +a.dataset.mi, +a.dataset.side, +a.dataset.dir); }
+  else if (act==='cupIe'){ openPenDialog(a.dataset.cup, +a.dataset.ri, +a.dataset.mi); }
+  else if (act==='penAdj'){
+    if (!penEdit) return;
+    if (+a.dataset.side===0) penEdit.h=Math.max(0, penEdit.h+(+a.dataset.dir));
+    else penEdit.a=Math.max(0, penEdit.a+(+a.dataset.dir));
+    paintPen();
+  }
+  else if (act==='penCancel'){ closePen(); }
+  else if (act==='penOk'){
+    if (!penEdit || penEdit.h===penEdit.a) return;
+    const edit=penEdit;
+    closePen();
+    mutateCup(edit.cup, edit.ri, edit.mi, m=>{ if (m.hg===m.ag){ m.peh=edit.h; m.pea=edit.a; m.et=false; } });
+  }
   else if (act==='cupDel'){ mutateCup(a.dataset.cup, +a.dataset.ri, +a.dataset.mi, m=>{ m.hg=m.ag=null; m.et=false; m.peh=m.pea=null; }); }
   else if (act==='mdPrev'||act==='mdNext'){ const n=s.leagues[lid].md.length; let i=currentMd(s,lid)+(act==='mdNext'?1:-1); i=Math.max(0,Math.min(n-1,i)); S.ui.md[S.view+':'+lid]=i; save(); render(); }
   else if (act==='goal'){ adjustGoal(+a.dataset.k, +a.dataset.side, +a.dataset.dir); }
