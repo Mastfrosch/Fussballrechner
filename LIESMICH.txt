@@ -3,7 +3,9 @@ Fußballrechner – Kurzanleitung
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
 - Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
-- Pokal: DFB-Pokal (64 Mannschaften, Profitopf gegen Amateurtopf) und 16 Landespokale. „Auslosen“ öffnet die nächste Runde, Ergebnisse wie im Spielplan, Unentschieden nur über i.E. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
+- Pokal: DFB-Pokal und 16 Landespokale. Das Finale wird automatisch ausgelost. Unentschieden über das Fenster „i.E.“. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
+- Bei völliger Gleichheit nach der Saison gibt es ein Entscheidungsspiel (Hin- und Rückspiel). Der Saisonwechsel wartet darauf.
+- Ansehen: Pfeil zur Vorsaison, Filter nach Liga und Bundesland. Die Amateurliga hat je Bundesland einen Reiter.
 - Tab "Tabelle": links die Tabelle, rechts der Spielplan. Unter dem Spielstand steht die Entfernung, die Anstoßzeit steht in der Gruppenüberschrift.
   Zuerst „Spieltage 1–4 terminieren“. Weitere Viererblöcke folgen automatisch und enden an Hin- und Rückrunde.
 - Tab "Terminierung": immer ein Viererblock, mit Pfeilen vor und zurück. Darunter die Vereine nach Tabellenplatz.
@@ -13,8 +15,8 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
   Tore mit + und −. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
 - Tab "Karte": Vereinswappen am Spielort. Mausrad zoomt, Ziehen verschiebt, „Ansicht zurücksetzen“ holt die ganze Karte. Regionalliga und Oberliga zeigen nur ihre Bundesländer.
-- In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Ein sicherer Abstieg ist ausgegraut. Bei möglicher Punktgleichheit bleibt die Zeile normal, weil die Tordifferenz offen ist.
-- "Saison simulieren" füllt alle offenen Spiele aller Ligen (leicht nach Ansehen und Stärke). Im Spielplan: "Spieltag simulieren" und "Block simulieren".
+- In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Unter der Legende stehen die Plätze, die niemand mehr ändern kann, als Wappen. Bei möglicher Punktgleichheit bleibt die Zeile normal.
+- "Saison simulieren" füllt alle offenen Spiele aller Ligen und die Pokale (leicht nach Ansehen und Stärke), auch offene Entscheidungsspiele. Im Spielplan: "Spieltag simulieren" und "Block simulieren".
 - "Saison abschließen": Rückblick (Meister, Auf-/Absteiger), dann Aufsteiger aus der Amateurliga wählen,
   danach startet die neue Saison mit neuem Spielplan. Alte Saisons bleiben über die Saisonauswahl sichtbar.
   Regionalliga und Oberliga bleiben in ihrer Region. Kommen mehr Absteiger von oben, steigen dort mehr Vereine ab.
