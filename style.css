@@ -70,7 +70,7 @@ table.tbl{width:100%;border-collapse:collapse}
 .club .txt{min-width:0}
 .club .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
-.club .mk{color:var(--muted);font-size:11px;margin-left:4px}
+.club .mk{color:var(--muted);font-size:11px;margin:0 3px}
 .club:hover .nm{text-decoration:underline}
 .pts{font-weight:700}
 .form{display:inline-flex;gap:2px}

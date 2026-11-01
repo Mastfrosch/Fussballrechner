@@ -727,6 +727,18 @@ function cancelSeasonEnd(){ const s=latest(); delete s.endData; s.status='runnin
 function suggestPicks(e){
   POOLS.forEach(p=>{ const need=e.need[p.ol]; e.picks[p.ol]=[...e.pools[p.id]].filter(id=>!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)).sort(byRang).slice(0,need); });
 }
+function rollSimulatedSeason(){
+  const s=latest();
+  if (!s || s.status!=='running') return {c:0, rolled:false};
+  const c=simSeason(s);
+  if (decidePending(s)) return {c, rolled:false};
+  s.endData=computeTransition(s);
+  s.status='ending';
+  suggestPicks(s.endData);
+  const before=S.seasons.length;
+  finalizeSeason();
+  return {c, rolled:S.seasons.length>before};
+}
 function finalizeSeason(){
   const s=latest(), e=s.endData;
   for (const ol in e.need){ if ((e.picks[ol]||[]).length!==e.need[ol]) { alert('Bitte für '+L[ol].name+' genau '+e.need[ol]+' Aufsteiger wählen.'); return; } }
@@ -1147,7 +1159,7 @@ function cupScoreBits(m){
 function clubHTML(id, opts={}){
   const t=TEAMS[id]; const mk = opts.marker ? [].concat(opts.marker).map(x=>'<span class="mk">('+x+')</span>').join('') : '';
   const img='<img src="'+esc(t.crest)+'" alt="" loading="lazy">';
-  const nm=opts.markerBefore ? mk+esc(t.name) : esc(t.name)+mk;
+  const nm=opts.markerBefore ? (mk?mk+' ':'')+esc(t.name) : esc(t.name)+(mk?' '+mk:'');
   const txt='<div class="txt"><div class="nm">'+nm+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
   return '<div class="club'+(opts.crestRight?' crest-right':'')+'" data-club="'+id+'">'+(opts.crestRight?txt+img:img+txt)+'</div>';
 }
@@ -1396,7 +1408,8 @@ function viewCupOverview(s, cup){
     else { nextName=r.name; break; }
   }
   const stand=doneName ? 'nach '+doneName : 'vor dem Start';
-  const sub=(nextName||'beendet')+' · '+left+' Teams noch dabei';
+  const noch=left===1?'Team':'Teams';
+  const sub=nextName ? nextName+' · '+left+' '+noch+' noch dabei' : 'Sieger steht';
   const cell=cup.kind==='dfb'?54:(total>80?40:48);
   const maxCols=cup.kind==='dfb'?10:12;
   let legendId=[...alive][0] || (cup.entrants||[])[0];
@@ -3336,7 +3349,7 @@ document.addEventListener('click', ev=>{
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
-  else if (act==='simSeason'){ if(confirm('Saison simulieren: offene Spiele und Pokale auffüllen, die Aufsteiger aus der Amateurliga automatisch wählen und die nächste Saison starten?')){ const c=simSeason(s); if (decidePending(s)){ save(); render(); alert('Die Entscheidungsspiele sind noch nicht beendet.'); return; } s.endData=computeTransition(s); s.status='ending'; suggestPicks(s.endData); finalizeSeason(); toast(c+' Spiele simuliert.'); } }
+  else if (act==='simSeason'){ if(confirm('Saison simulieren: offene Spiele und Pokale auffüllen, die Aufsteiger aus der Amateurliga automatisch wählen und die nächste Saison starten?')){ const r=rollSimulatedSeason(); if(!r.rolled){ save(); render(); alert('Die Entscheidungsspiele sind noch nicht beendet. Der Saisonwechsel wartet darauf.'); return; } toast(r.c+' Spiele simuliert.'); } }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -3418,5 +3431,5 @@ ensureAllCups();
 save(); render();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, DFB_ROUNDS};
+window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, DFB_ROUNDS};
 })();
