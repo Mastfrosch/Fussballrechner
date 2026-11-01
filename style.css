@@ -95,6 +95,11 @@ table.tbl{width:100%;border-collapse:collapse}
 .stepper button{width:20px;height:16px;padding:0;line-height:14px;border:1px solid #ccc;background:#fafafa;border-radius:2px;cursor:pointer;font-size:13px;color:#333;user-select:none}
 .stepper button:hover{background:#eef4f0;border-color:var(--green)}
 .match.done .goals{color:#145c38}
+.match.unscheduled{opacity:.72}
+.term-md{margin:0 0 10px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.term-md-title{background:var(--head);padding:4px 8px;font-weight:700}
+.term-row{display:grid;grid-template-columns:168px 1fr;gap:8px;padding:3px 8px;border-top:1px solid var(--line);font-size:12px}
+.term-row span:first-child{color:#345;font-weight:600}
 .del{border:none;background:none;color:#b55;cursor:pointer;font-size:15px;visibility:hidden}
 .match.done .del{visibility:visible}
 .sp-tools{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line);flex-wrap:wrap;align-items:center}

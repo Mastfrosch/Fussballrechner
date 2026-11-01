@@ -75,27 +75,95 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove(
 function nextSeasonName(n){ const y=parseInt(n.slice(0,4),10)+1; return y+'/'+String((y+1)%100).padStart(2,'0'); }
 function byRang(a,b){ return (TEAMS[a].rang||99999)-(TEAMS[b].rang||99999) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de'); }
 
-// Spielplan: doppelte Runde (Kreismethode), Rückrunde gespiegelt
-function makeSchedule(n){
-  const arr = shuffle([...Array(n).keys()]);
-  const rounds = [];
-  for (let r=0; r<n-1; r++){
-    const md = [];
-    for (let i=0;i<n/2;i++){
-      const t1=arr[i], t2=arr[n-1-i];
-      let home = i===0 ? (r%2===0) : (i%2===1) === (r%2===0);
-      md.push(home ? [t1,t2,null,null] : [t2,t1,null,null]);
-    }
-    rounds.push(md);
-    arr.splice(1,0,arr.pop());
+// Spielplan: Berger/Kreis, Hinrunde mit höchstens zwei Heim- oder Auswärtsspielen in Folge,
+// Rückrunde ist das exakte Spiegelbild (Spieltag k ↔ Spieltag k+N, Heim/Auswärts getauscht).
+function circlePairs(n){
+  // Stärkste Vereine liegen sich gegenüber: Spieltag 1 paart 1–2, 3–4, … statt 1–Letzter.
+  const t=Array(n);
+  for (let i=0;i<n/2;i++){ t[i]=i*2; t[n-1-i]=i*2+1; }
+  const rounds=[];
+  for (let r=0;r<n-1;r++){
+    const pairs=[];
+    for (let i=0;i<n/2;i++) pairs.push([t[i], t[n-1-i]]);
+    rounds.push(pairs);
+    const rest=t.slice(1); rest.unshift(rest.pop());
+    t.splice(0, n, t[0], ...rest);
   }
-  const second = rounds.map(md => md.map(m => [m[1],m[0],null,null]));
-  return rounds.concat(second);
+  return rounds;
+}
+function orientHinrunde(n, pairs){
+  const last=Array.from({length:n},()=>[]);
+  const out=[];
+  const ok=(team,ha)=>{ const s=last[team]; return !(s.length>=2 && s[s.length-1]===ha && s[s.length-2]===ha); };
+  function rec(r){
+    if (r===pairs.length) return true;
+    const ps=pairs[r], m=ps.length, opts=[];
+    for (let mask=0; mask<(1<<m); mask++){
+      let good=true, cost=0; const ori=[];
+      for (let i=0;i<m;i++){
+        let [a,b]=ps[i];
+        if ((mask>>i)&1) [a,b]=[b,a];
+        if (!ok(a,'H')||!ok(b,'A')){ good=false; break; }
+        if (last[a].length && last[a][last[a].length-1]==='H') cost+=2;
+        if (last[b].length && last[b][last[b].length-1]==='A') cost+=2;
+        ori.push([a,b]);
+      }
+      if (good) opts.push({cost, ori});
+    }
+    opts.sort((a,b)=>a.cost-b.cost);
+    const prev=last.map(s=>s.slice());
+    for (const o of opts.slice(0,4)){
+      o.ori.forEach(([h,a])=>{ last[h].push('H'); last[a].push('A'); if (last[h].length>2) last[h].shift(); if (last[a].length>2) last[a].shift(); });
+      out[r]=o.ori.map(([h,a])=>[h,a,null,null]);
+      if (rec(r+1)) return true;
+      for (let i=0;i<n;i++) last[i]=prev[i].slice();
+    }
+    return false;
+  }
+  return rec(0)?out:null;
+}
+function validateFixtures(md){
+  const issues=[];
+  if (!md||!md.length) return {ok:false, issues:['leer']};
+  const n=md[0].length*2, half=md.length/2;
+  if (md.length!==(n-1)*2) issues.push('Spielfolgenlänge');
+  for (let r=0;r<half;r++){
+    const a=md[r], b=md[r+half];
+    if (!b || a.length!==b.length){ issues.push('Spiegel '+ (r+1)); continue; }
+    for (let i=0;i<a.length;i++) if (a[i][0]!==b[i][1]||a[i][1]!==b[i][0]) issues.push('Spiegel Spieltag '+(r+1));
+  }
+  for (const part of [0,1]){
+    const seq=Array.from({length:n},()=>'');
+    const seenPairs=new Set();
+    for (let r=part*half;r<(part+1)*half;r++){
+      const seen=new Set();
+      md[r].forEach(m=>{
+        seq[m[0]]+='H'; seq[m[1]]+='A';
+        if (seen.has(m[0])||seen.has(m[1])) issues.push('doppelt am Spieltag '+(r+1));
+        seen.add(m[0]); seen.add(m[1]);
+        const key=(m[0]<m[1]?m[0]+'-'+m[1]:m[1]+'-'+m[0]);
+        if (seenPairs.has(key)) issues.push('Paarung doppelt');
+        seenPairs.add(key);
+      });
+      if (seen.size!==n) issues.push('unvollständig '+(r+1));
+    }
+    seq.forEach((s,i)=>{ if (/HHH|AAA/.test(s)) issues.push((part?'Rückrunde':'Hinrunde')+' Serie bei '+i); });
+  }
+  return {ok:issues.length===0, issues};
+}
+function makeSchedule(n){
+  const hin=orientHinrunde(n, circlePairs(n));
+  if (!hin) return circlePairs(n).map(ps=>ps.map(([a,b])=>[a,b,null,null])).concat([]);
+  const rueck=hin.map(md=>md.map(m=>[m[1],m[0],null,null]));
+  const all=hin.concat(rueck);
+  const v=validateFixtures(all);
+  if (!v.ok) console.warn('Spielplan-Prüfung', v.issues.slice(0,8));
+  return all;
 }
 
 // ---------- Zustand ----------
-const KEY = 'fussballrechner_v2';
-const OLD_KEY = 'fussballrechner_v1';
+const KEY = 'fussballrechner_v3';
+const OLD_KEY = 'fussballrechner_v2';
 let S;
 function newGame(){
   const season = {name:'2026/27', status:'running', leagues:{}, pools:{}, markers:{}};
@@ -196,7 +264,15 @@ function simMatch(h,a){
 }
 function simLeague(season, lid, mdIdx){
   const lg=season.leagues[lid]; let c=0;
-  lg.md.forEach((md,mi)=>{ if(mdIdx!=null && mi!==mdIdx) return; md.forEach(m=>{ if(m[2]==null||m[3]==null){const r=simMatch(lg.teams[m[0]],lg.teams[m[1]]); m[2]=r[0]; m[3]=r[1]; c++;} }); });
+  const fill=mi=>{ if(!isScheduled(season,lid,mi)) return; lg.md[mi].forEach(m=>{ if(m[2]==null||m[3]==null){const r=simMatch(lg.teams[m[0]],lg.teams[m[1]]); m[2]=r[0]; m[3]=r[1]; c++;} }); };
+  if (mdIdx!=null){ fill(mdIdx); maybeAdvance(season, lid); return c; }
+  if (lastScheduled(season, lid)<0) scheduleNextBlock(season, lid);
+  for (let guard=0; guard<80; guard++){
+    const last=lastScheduled(season, lid);
+    if (last<0) break;
+    for (let mi=0; mi<=last; mi++) fill(mi);
+    if (!maybeAdvance(season, lid)) break;
+  }
   return c;
 }
 
@@ -342,14 +418,14 @@ function renderNav(){
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
 
-const TABS=[['tabelle','Tabelle'],['karte','Karte'],['heimaus','Heim/Auswärts'],['hinrueck','Hinrunde/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie']];
+const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hinrunde/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie']];
 function renderMigrate(){
   let el=$('#migrate');
   if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice hidden'; $('#main').prepend(el); }
   if(!S.ui.showMigrate){ el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
-  el.innerHTML='Die Ligastruktur hat sich geändert: die 5. Liga entfällt, Regionalligen und Oberligen haben je 18 Mannschaften. Ein älterer Spielstand kann nicht übernommen werden. <button type="button" class="btn small" id="btnMigrate">Neu starten</button>';
-  $('#btnMigrate').onclick=()=>{ try{ localStorage.removeItem(OLD_KEY); }catch(e){} S=newGame(); save(); render(); toast('Neuer Spielstand gestartet.'); };
+  el.innerHTML='Die Terminierung läuft jetzt in Blöcken von vier Spieltagen. Ein älterer Spielstand wird nicht übernommen. <button type="button" class="btn small" id="btnMigrate">Neu starten</button>';
+  $('#btnMigrate').onclick=()=>{ try{ localStorage.removeItem(OLD_KEY); localStorage.removeItem('fussballrechner_v1'); }catch(e){} S=newGame(); save(); render(); toast('Neuer Spielstand gestartet.'); };
 }
 function render(){
   renderMigrate();
@@ -377,6 +453,7 @@ function render(){
   const v=$('#view');
   if (S.ui.tab==='tabelle') v.innerHTML=viewTabelle(s,lid);
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
+  else if (S.ui.tab==='terminierung') v.innerHTML=viewTerminierung(s,lid);
   else if (S.ui.tab==='heimaus') v.innerHTML=viewToggle(s,lid,'ha');
   else if (S.ui.tab==='hinrueck') v.innerHTML=viewToggle(s,lid,'hr');
   else if (S.ui.tab==='ewig') v.innerHTML=viewEwig(lid);
@@ -400,7 +477,20 @@ function spielplanHTML(s,lid){
   let h='<div class="card-title"><span>Spielplan <span class="progress">('+done+'/'+md.length+' eingetragen)</span></span><span class="md-nav"><button class="btn" data-act="mdPrev" title="Vorheriger Spieltag">‹</button><select id="mdSelect">'+
     lg.md.map((d,i)=>{const c=d.every(m=>m[2]!=null&&m[3]!=null); return '<option value="'+i+'"'+(i===mi?' selected':'')+'>'+(i+1)+'. Spieltag'+(c?' ✓':'')+'</option>';}).join('')+
     '</select><button class="btn" data-act="mdNext" title="Nächster Spieltag">›</button></span></div>';
-  const slots=ensureKickoffs(s,lid,mi);
+  const slots=isScheduled(s,lid,mi)?s.kickoffs[lid][mi]:null;
+  if (!slots){
+    h+='<div class="slot-head">nicht terminiert</div>';
+    md.forEach((m,k)=>{
+      const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
+      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true})+'</div>'+
+        '<div class="scorecol"><div class="score"><span class="scoreline"><span class="goals">-</span><b>:</b><span class="goals">-</span></span></div>'+
+        '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
+        '<div class="away">'+clubHTML(aid)+'</div><span></span></div>';
+    });
+    if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
+    else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
+    return h;
+  }
   const ordered=md.map((m,k)=>({m,k,slot:slots[k]})).sort((a,b)=>slotOrder(a.slot,b.slot)||a.k-b.k);
   let prevSlot='';
   ordered.forEach(({m,k,slot})=>{
@@ -412,12 +502,12 @@ function spielplanHTML(s,lid){
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true})+'</div>'+
       '<div class="scorecol"><div class="score">'+step(0)+'<span class="scoreline"><span class="goals" data-side="0">'+(has?m[2]:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(has?m[3]:'-')+'</span></span>'+step(1)+'</div>'+
-      '<div class="meta">'+(km==null?'':km+' km')+'<span class="kick">'+esc(slot.dow+' '+slot.time)+'</span></div></div>'+
+      '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
       '<div class="away">'+clubHTML(aid)+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag zufällig füllen</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
-      '<div class="sp-hint">＋ und − ändern die Tore. Offenes Spiel: Heim-＋ wird 1:0, Gast-＋ wird 0:1, − wird 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Die Tabelle wird sofort gespeichert.</div>';
+      '<div class="sp-hint">＋ und − ändern die Tore. Offenes Spiel: Heim-＋ wird 1:0, Gast-＋ wird 0:1, − wird 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</div>';
   }
   return h;
 }
@@ -510,6 +600,36 @@ function slotTemplate(lid){
   if(lid==='L4') return expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:6},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
   return expandSlots([{dow:'Fr',time:'18:30',kind:'top'},{dow:'Sa',time:'14:30',kind:'konferenz',n:8}]);
 }
+function slotCuts(n){ return {top:5, upper:n>=20?8:6}; }
+function lastScheduled(season, lid){
+  const bag=season.kickoffs&&season.kickoffs[lid]; if(!bag) return -1;
+  let m=-1; for (const k in bag) if (bag[k]) m=Math.max(m, +k); return m;
+}
+function isScheduled(season, lid, mi){ return !!(season.kickoffs&&season.kickoffs[lid]&&season.kickoffs[lid][mi]); }
+function nextBlockRange(n, from){
+  const half=n-1, total=half*2;
+  if (from>=total) return null;
+  const halfEnd=from<half ? half-1 : total-1;
+  return [from, Math.min(from+3, halfEnd)];
+}
+function hungarian(cost){
+  const n=cost.length, u=Array(n+1).fill(0), v=Array(n+1).fill(0), p=Array(n+1).fill(0), way=Array(n+1).fill(0);
+  for (let i=1;i<=n;i++){
+    p[0]=i; let j0=0; const minv=Array(n+1).fill(Infinity), used=Array(n+1).fill(false);
+    do {
+      used[j0]=true; const i0=p[j0]; let delta=Infinity, j1=0;
+      for (let j=1;j<=n;j++) if (!used[j]){
+        const cur=cost[i0-1][j-1]-u[i0]-v[j];
+        if (cur<minv[j]){ minv[j]=cur; way[j]=j0; }
+        if (minv[j]<delta){ delta=minv[j]; j1=j; }
+      }
+      for (let j=0;j<=n;j++){ if (used[j]){ u[p[j]]+=delta; v[j]-=delta; } else minv[j]-=delta; }
+      j0=j1;
+    } while (p[j0]!==0);
+    do { const j1=way[j0]; p[j0]=p[j1]; j0=j1; } while (j0!==0);
+  }
+  const assign=Array(n); for (let j=1;j<=n;j++) if (p[j]) assign[p[j]-1]=j-1; return assign;
+}
 function slotLabel(s){ return s.dow+' '+s.time+(s.kind==='konferenz'?' Konferenz':s.kind==='top'?' Topspiel':s.kind==='regional'?' regional':''); }
 function slotOrder(a,b){ return (DOW[a.dow]-DOW[b.dow]) || a.time.localeCompare(b.time) || a.kind.localeCompare(b.kind); }
 function tableBefore(season, lid, mi){
@@ -529,28 +649,214 @@ function appealOf(season, lid, teamId, mi){
   }
   return 10000+(TEAMS[teamId].rang||99999);
 }
-function assignSlots(season, lid, mi){
-  const lg=season.leagues[lid], md=lg.md[mi], tmpl=slotTemplate(lid);
-  const items=md.map((m,k)=>{ const h=lg.teams[m[0]], a=lg.teams[m[1]]; const d=kmBetween(h,a); return {k, attr:appealOf(season,lid,h,mi)+appealOf(season,lid,a,mi), dist:d==null?1e9:d}; });
-  const used=new Set(), assign={};
-  const take=(sorted, slots)=>{ slots.forEach(sl=>{ const m=sorted.find(x=>!used.has(x.k)); if(!m) return; used.add(m.k); assign[m.k]=sl.i; }); };
-  const top=tmpl.map((s,i)=>({s,i})).filter(x=>x.s.kind==='top').sort((a,b)=>slotOrder(b.s,a.s));
-  take([...items].sort((a,b)=>a.attr-b.attr||a.k-b.k), top);
-  const reg=tmpl.map((s,i)=>({s,i})).filter(x=>x.s.kind==='regional').sort((a,b)=>slotOrder(a.s,b.s));
-  take([...items].sort((a,b)=>a.dist-b.dist||a.k-b.k), reg);
-  const usedSlots=new Set(Object.values(assign));
-  const restSlots=tmpl.map((s,i)=>({s,i})).filter(x=>!usedSlots.has(x.i)).sort((a,b)=>slotOrder(a.s,b.s)||a.i-b.i);
-  const rest=items.filter(x=>!used.has(x.k)).sort((a,b)=>a.k-b.k);
-  rest.forEach((m,i)=>{ assign[m.k]=restSlots[i].i; });
-  return md.map((m,k)=>tmpl[assign[k]]);
+function emptySlotCount(){ return {fr:0,so:0,konferenz:0,top:0,regional:0,total:0}; }
+function slotTally(season, lid){
+  const ids=season.leagues[lid].teams, map={};
+  ids.forEach(id=>map[id]=emptySlotCount());
+  const bag=season.kickoffs&&season.kickoffs[lid]||{};
+  season.leagues[lid].md.forEach((md,mi)=>{
+    const slots=bag[mi]; if(!slots) return;
+    md.forEach((m,k)=>{
+      const slot=slots[k]; if(!slot) return;
+      [season.leagues[lid].teams[m[0]], season.leagues[lid].teams[m[1]]].forEach(id=>{
+        const c=map[id]; c.total++;
+        if(slot.dow==='Fr') c.fr++;
+        if(slot.dow==='So') c.so++;
+        if(slot.kind==='konferenz') c.konferenz++;
+        if(slot.kind==='top') c.top++;
+        if(slot.kind==='regional') c.regional++;
+      });
+    });
+  });
+  return map;
 }
-function ensureKickoffs(season, lid, mi){
+function topKind(ph, pa, needH, needA, n){
+  const upper=n>=20?8:6;
+  const hi=Math.min(ph,pa), lo=Math.max(ph,pa);
+  if (lo<=upper) return 'both';
+  const lowerNeeds=(ph===lo?needH:needA);
+  if (hi<=upper && lowerNeeds) return 'rescue';
+  return 'no';
+}
+function placesForBlock(season, lid, startMi){
+  const ids=season.leagues[lid].teams, pl={};
+  if (startMi<4){
+    const order=ids.slice().sort((a,b)=>appealOf(season,lid,a,0)-appealOf(season,lid,b,0));
+    order.forEach((id,i)=>pl[id]=i+1);
+    return pl;
+  }
+  tableBefore(season, lid, startMi).forEach(r=>pl[r.id]=r.pl);
+  return pl;
+}
+function assignMatchday(season, lid, mi, places, counts){
+  const lg=season.leagues[lid], md=lg.md[mi], tmpl=slotTemplate(lid), n=lg.teams.length;
+  const total=md.length? lg.md.length : 0;
+  const rem=total-mi;
+  const konfPer=tmpl.filter(s=>s.kind==='konferenz').length;
+  const hasSo=tmpl.some(s=>s.dow==='So');
+  const topSlots=tmpl.filter(s=>s.kind==='top').length;
+  const upper=n>=20?8:6;
+  const bothCount=md.filter(m=>{
+    const ph=places[lg.teams[m[0]]]||n, pa=places[lg.teams[m[1]]]||n;
+    return Math.max(ph,pa)<=upper;
+  }).length;
+  let zeroLeft=0;
+  for (let j=mi;j<lg.md.length;j++){
+    const has=lg.md[j].some(g=>{
+      const ph=places[lg.teams[g[0]]]||n, pa=places[lg.teams[g[1]]]||n;
+      return Math.max(ph,pa)<=upper;
+    });
+    if (!has) zeroLeft++;
+  }
+  const needsLeft=lg.teams.filter(id=>counts[id].top===0).length;
+  const cost=md.map(m=>{
+    const h=lg.teams[m[0]], a=lg.teams[m[1]];
+    const ph=places[h]||n, pa=places[a]||n, dist=kmBetween(h,a);
+    const distKm=dist==null?400:dist;
+    return tmpl.map(slot=>{
+      let c=0;
+      const needH=counts[h].top===0, needA=counts[a].top===0;
+      if (slot.kind==='top'){
+        const kind=topKind(ph,pa,needH,needA,n);
+        const mustSpend=needsLeft>zeroLeft;
+        const hi=Math.min(ph,pa), lo=Math.max(ph,pa);
+        if (kind==='both') c+=(ph+pa)*4;
+        else if (kind==='rescue' && (bothCount<topSlots || mustSpend)) c+=280+lo*6;
+        else if (kind==='rescue') c+=80000;
+        else if (hi<=(n>=20?8:6)) c+=70000+lo;
+        else c+=250000+lo;
+        if (slot.dow==='Sa' && kind!=='both') c+=5000;
+        if (slot.dow==='Fr') c+=(counts[h].fr+counts[a].fr)*350;
+        if (needH) c-=7000; if (needA) c-=7000;
+      }
+      if (slot.kind==='regional'){
+        c += distKm*4 - 9000 + (counts[h].so*counts[h].so + counts[a].so*counts[a].so)*8;
+        if (rem<=4 && counts[h].regional===0) c -= 2000;
+        if (rem<=4 && counts[a].regional===0) c -= 2000;
+      }
+      for (const id of [h,a]){
+        const cnt=counts[id];
+        const urge=missing=>missing ? (rem<=6?60000: rem<=12?9000:2500) : 0;
+        if (slot.dow==='Fr'){ c-=urge(cnt.fr===0); c+=cnt.fr*cnt.fr*120; }
+        if (slot.dow==='So' && hasSo && slot.kind!=='regional'){ c-=urge(cnt.so===0); c+=cnt.so*cnt.so*90; }
+        if (slot.kind==='regional') c+=(counts[h].so+counts[a].so)*6;
+        if (slot.kind==='konferenz'){
+          const need=total/2-cnt.konferenz;
+          const expect=konfPer/tmpl.length*rem;
+          c-=need*60;
+          if (need>expect-0.05) c-=12000;
+        } else if (konfPer){
+          const need=total/2-cnt.konferenz;
+          const expect=konfPer/tmpl.length*(rem-1);
+          if (need>=expect-0.25) c+=40000;
+          if (need>=1 && rem<=8) c+=100000;
+        }
+      }
+      return c;
+    });
+  });
+  const asg=hungarian(cost);
+  const row=md.map(()=>null);
+  asg.forEach((col,i)=>{
+    const slot=tmpl[col]; row[i]=slot;
+    const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+    for (const id of [h,a]){
+      const cnt=counts[id]; cnt.total++;
+      if (slot.dow==='Fr') cnt.fr++;
+      if (slot.dow==='So') cnt.so++;
+      if (slot.kind==='konferenz') cnt.konferenz++;
+      if (slot.kind==='top') cnt.top++;
+      if (slot.kind==='regional') cnt.regional++;
+    }
+  });
+  return row;
+}
+function scheduleNextBlock(season, lid){
+  const lg=season.leagues[lid], n=lg.teams.length;
+  const from=lastScheduled(season, lid)+1;
+  const range=nextBlockRange(n, from);
+  if (!range) return null;
   season.kickoffs=season.kickoffs||{};
   const bag=season.kickoffs[lid]||(season.kickoffs[lid]={});
-  if(bag[mi]) return bag[mi];
-  bag[mi]=assignSlots(season, lid, mi);
-  save();
-  return bag[mi];
+  const places=placesForBlock(season, lid, range[0]);
+  const counts=slotTally(season, lid);
+  for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=assignMatchday(season, lid, mi, places, counts);
+  return range;
+}
+function maybeAdvance(season, lid){
+  const last=lastScheduled(season, lid);
+  if (last<0) return null;
+  const md=season.leagues[lid].md;
+  if (last>=md.length-1) return null;
+  if (!md[last].every(m=>m[2]!=null&&m[3]!=null)) return null;
+  return scheduleNextBlock(season, lid);
+}
+function maxRun(str){ let m=0,c=0,p=''; for (const ch of str){ if(ch===p){c++;} else {c=1;p=ch;} if(c>m)m=c; } return m; }
+function viewTerminierung(s, lid){
+  const lg=s.leagues[lid], n=lg.teams.length, half=n-1, total=lg.md.length;
+  const fix=validateFixtures(lg.md);
+  const tmpl=slotTemplate(lid);
+  const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
+  const counts=slotTally(s, lid);
+  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Hin- und Rückrunde spiegeln sich, keine Mannschaft hat mehr als zwei Heim- oder Auswärtsspiele in Folge.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
+  const last=lastScheduled(s,lid);
+  if (last<0 && isEditable()) h+='<button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button>';
+  else if (last>=0 && last<total-1) h+='<p class="muted">Angesetzt bis Spieltag '+(last+1)+'. Der nächste Block folgt automatisch, sobald dieser Spieltag vollständig ist. Blöcke enden an der Hin- bzw. Rückrunde.</p>';
+  else if (last>=total-1) h+='<p class="muted">Die ganze Saison ist terminiert.</p>';
+  h+='</div>';
+  h+='<div class="box"><h3>Blöcke</h3>';
+  let shown=0;
+  for (let from=0; from<total; ){
+    const range=nextBlockRange(n, from); if(!range) break;
+    const [a,b]=range;
+    if (isScheduled(s,lid,a)){
+      shown++;
+      h+='<h4 style="margin:12px 0 6px">'+(a<half?'Hinrunde':'Rückrunde')+' · Spieltage '+(a+1)+(a===b?'':'–'+(b+1))+'</h4>';
+      for (let mi=a; mi<=b; mi++){
+        const slots=s.kickoffs[lid][mi];
+        h+='<div class="term-md"><div class="term-md-title">'+(mi+1)+'. Spieltag</div>';
+        lg.md[mi].map((m,k)=>({m,k,slot:slots[k]})).sort((x,y)=>slotOrder(x.slot,y.slot)||x.k-y.k).forEach(({m,slot})=>{
+          h+='<div class="term-row"><span>'+esc(slotLabel(slot))+'</span><span>'+esc(TEAMS[lg.teams[m[0]]].name)+' – '+esc(TEAMS[lg.teams[m[1]]].name)+'</span></div>';
+        });
+        h+='</div>';
+      }
+    }
+    from=b+1;
+  }
+  if (!shown) h+='<p class="muted">Noch keine Spieltage terminiert.</p>';
+  h+='</div>';
+  const cols=[];
+  if (has.fr) cols.push(['fr','Fr']);
+  if (has.konferenz) cols.push(['konferenz','Konferenz']);
+  if (has.top) cols.push(['top','Topspiel']);
+  if (has.so) cols.push(['so','Sonntag']);
+  if (has.regional) cols.push(['regional','regional']);
+  h+='<div class="box"><h3>Je Verein</h3><div style="overflow:auto"><table class="tbl"><thead><tr><th class="l">Verein</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Serie</th><th class="l">Regeln</th></tr></thead><tbody>';
+  lg.teams.forEach((id,idx)=>{
+    const c=counts[id];
+    const hin=haString(lg.md, idx, 0, half), rueck=haString(lg.md, idx, half, total);
+    const run=Math.max(maxRun(hin), maxRun(rueck));
+    const open=last<total-1;
+    const problems=[];
+    if (!open) cols.forEach(([key,label])=>{
+      if (key==='konferenz'){ if (c.konferenz<total/2) problems.push('Konferenz '+c.konferenz+'/'+(total/2)); }
+      else if (!c[key]) problems.push(label+' fehlt');
+    });
+    if (run>2) problems.push('Serie '+run);
+    const bad=problems.length>0;
+    h+='<tr><td class="l">'+esc(TEAMS[id].name)+'</td>'+cols.map(([key])=>{
+      const v=c[key];
+      const warn=!open && (key==='konferenz'?v<total/2:v===0);
+      return '<td class="'+(warn?'bad':'')+'">'+v+'</td>';
+    }).join('')+'<td class="'+(run>2?'bad':'ok')+'">'+run+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
+  });
+  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, höchstens zwei Heim- oder Auswärtsspiele in Folge. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: beide oben oder ein unterer Verein, der sein Topspiel noch braucht, gegen einen Top-5-Klub.</p></div>';
+  return h;
+}
+function haString(md, idx, from, to){
+  let s='';
+  for (let r=from;r<to;r++) md[r].forEach(m=>{ if(m[0]===idx) s+='H'; else if(m[1]===idx) s+='A'; });
+  return s;
 }
 function viewKarte(s, lid){
   const ids=s.leagues[lid].teams, states=window.FR_STATES;
@@ -591,7 +897,7 @@ function viewKarte(s, lid){
     const tip=esc(m.name+(m.stadion?' – '+m.stadion:''));
     return '<g class="crest" data-tip="'+tip+'"><title>'+tip+'</title><image href="'+esc(m.crest)+'" x="'+(m.x-14).toFixed(1)+'" y="'+(m.y-14).toFixed(1)+'" width="28" height="28"/></g>';
   }).join('');
-  return '<div class="card map-card"><div class="card-title">'+esc(L[lid].name)+' – Vereine</div><svg class="de-map" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg><p class="map-credit">Kartendaten © OpenStreetMap-Mitwirkende, Grenzen: Natural Earth</p></div>';
+  return '<div class="card map-card"><div class="card-title">'+esc(L[lid].name)+' – Vereine</div><svg class="de-map" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(L[lid].name)+'">'+paths+crests+'</svg><p class="map-credit">Kartendaten © OpenStreetMap-Mitwirkende, europlan-online.de · Grenzen: Natural Earth</p></div>';
 }
 function renderAbschluss(){
   const s=latest(), e=s.endData, v=$('#view');
@@ -662,9 +968,14 @@ function paintMatch(k){
 }
 function applyScore(k, hg, ag){
   if (!isEditable()) return;
-  const m=cur().leagues[S.ui.league].md[shownMd][k];
+  const lid=S.ui.league;
+  if (!isScheduled(cur(), lid, shownMd)) return;
+  const m=cur().leagues[lid].md[shownMd][k];
   m[2]=hg; m[3]=ag;
-  save(); paintMatch(k); refreshTableOnly();
+  const adv=maybeAdvance(cur(), lid);
+  save();
+  if (adv){ render(); toast('Spieltage '+(adv[0]+1)+'–'+(adv[1]+1)+' terminiert.'); }
+  else { paintMatch(k); refreshTableOnly(); }
 }
 function adjustGoal(k, side, dir){
   if (!isEditable()) return;
@@ -694,8 +1005,9 @@ document.addEventListener('click', ev=>{
   if (act==='mdPrev'||act==='mdNext'){ const n=s.leagues[lid].md.length; let i=currentMd(s,lid)+(act==='mdNext'?1:-1); i=Math.max(0,Math.min(n-1,i)); S.ui.md[S.view+':'+lid]=i; save(); render(); }
   else if (act==='goal'){ adjustGoal(+a.dataset.k, +a.dataset.side, +a.dataset.dir); }
   else if (act==='del'){ applyScore(+a.dataset.k, null, null); }
-  else if (act==='simMd'){ const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
-  else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren?')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
+  else if (act==='termBlock'){ const r=scheduleNextBlock(s,lid); save(); render(); if(r) toast('Spieltage '+(r[0]+1)+'–'+(r[1]+1)+' terminiert.'); }
+  else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
+  else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
   else if (act==='toEnd'){ S.view=S.seasons.length-1; S.ui.tab='abschluss'; render(); }
@@ -750,11 +1062,11 @@ $('#btnReset').onclick=()=>{ if(confirm('Wirklich alles zurücksetzen? Alle Sais
 const freshSave = !localStorage.getItem(KEY);
 S = load() || newGame();
 S.ui = Object.assign({league:'BL', tab:'tabelle', md:{}, autoNext:true}, S.ui||{});
-if (freshSave && localStorage.getItem(OLD_KEY)) S.ui.showMigrate = true;
+if (freshSave && (localStorage.getItem(OLD_KEY)||localStorage.getItem('fussballrechner_v1'))) S.ui.showMigrate = true;
 if (S.view==null || S.view>=S.seasons.length) S.view=S.seasons.length-1;
 if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='abschluss';
 save(); render();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, computeTable, leagueTable, simLeague, homeLeague, AREA_BY_BL};
+window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, computeTable, leagueTable, simLeague, homeLeague, AREA_BY_BL, validateFixtures, scheduleNextBlock, slotTally, topKind};
 })();
