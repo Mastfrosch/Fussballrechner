@@ -69,13 +69,20 @@ function deNum(x, digits){ return (x==null||!isFinite(x)?'–':Number(x).toFixed
 function seasonYear(name){ return parseInt(String(name).slice(0,4),10)||0; }
 
 // Ansehen: Liga über 30 Saisons, die jüngsten 10 davon 1,5-fach.
-// Pokal über 15 Saisons, die jüngsten 5 davon 1,5-fach, Jahre ohne Start zählen 0.
-function windowEndYear(){
+// Pokal über 15 Saisons, die jüngsten 5 davon 1,5-fach. Jahre ohne Teilnahme zählen 0,
+// der Schnitt teilt durch das ganze Fenster. Die Anzeige endet bei der gerade geöffneten Saison.
+function dataEndYear(){
   if (endYearGen===ansehenGen && endYearCache) return endYearCache;
   let y=2025;
   (S.chronicle||[]).forEach(r=>{ const k=seasonYear(r.season); if(k>y) y=k; });
   endYearCache=y; endYearGen=ansehenGen;
   return y;
+}
+function windowEndYear(){
+  const y=dataEndYear();
+  const view=S && S.seasons && S.seasons[S.view];
+  const vy=view ? seasonYear(view.name) : 0;
+  return vy && vy<y ? vy : y;
 }
 function seasonWeight(seasonName, endYear){
   const y=seasonYear(seasonName);
@@ -149,7 +156,7 @@ function ansehenValue(id){
   const tr=window.FR_TIMING;
   const t0=tr?performance.now():0;
   if (ansehenMemoGen!==ansehenGen){ ansehenMemo.clear(); ansehenMemoGen=ansehenGen; }
-  const end=windowEndYear();
+  const end=dataEndYear();
   const key=id+'|'+end;
   let v=ansehenMemo.get(key);
   if (v==null){
@@ -160,10 +167,10 @@ function ansehenValue(id){
   if (tr){ tr.ansehenMs+=performance.now()-t0; tr.ansehenN++; }
   return v;
 }
-// Pokalpunkte sind der Wert der erreichten Runde und werden im 15-Jahres-Fenster
-// addiert (jüngste 5 Saisons ×1,5), nicht noch einmal heruntergerechnet.
+// Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
+// Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
+// stecken im Nenner 17,5. Wer jede Saison die 1. DFB-Runde erreicht, hat +26.
 // Landespokalsieger 20 liegt zwischen Oberliga (9–15) und 4. Liga (26–40).
-// DFB-Pokal 1. Runde (26) liegt darüber. Der Sieger liegt knapp über dem Finalisten.
 const DFB_ROUND_PTS={'1. Runde':26,'2. Runde':32,'Achtelfinale':38,'Viertelfinale':44,'Halbfinale':50,'Finale':56};
 const DFB_TITLE_PTS=4;
 const LAND_ROUND_PTS={'Vorrunde':3,'1. Runde':3,'Runde der 256':3,'Runde der 128':5,'Runde der 64':7,'Runde der 32':9,'Achtelfinale':11,'Viertelfinale':14,'Halbfinale':16,'Finale':18};
@@ -191,18 +198,27 @@ function allPokalRuns(){
   });
   return out;
 }
+function pokalWeight(seasonName, end){
+  const y=seasonYear(seasonName);
+  if (y>end || y<end-14) return 0;
+  return y>=end-4 ? 1.5 : 1;
+}
 function pokalPart(id, comp, end){
-  const runs=runsById(id).filter(r=>r.comp===comp);
   const sw=pokalWindowSum();
+  const best={};
+  runsById(id).filter(r=>r.comp===comp).forEach(r=>{
+    const prev=best[r.season];
+    if (!prev || (r.pts||0)>(prev.pts||0)) best[r.season]=r;
+  });
   let sp=0;
-  const rows=[];
-  runs.forEach(r=>{
-    const w=(()=>{ const y=seasonYear(r.season); if(y>end||y<end-14) return 0; return y>=end-4?1.5:1; })();
+  const rows=Object.keys(best).map(season=>{
+    const r=best[season];
+    const w=pokalWeight(season, end);
     if (w>0) sp+=w*(r.pts||0);
-    rows.push(Object.assign({w}, r));
+    return Object.assign({w}, r);
   });
   rows.sort((a,b)=>seasonYear(a.season)-seasonYear(b.season));
-  return {sw, sp, value:sp, rows};
+  return {sw, sp, value:sw?sp/sw:0, rows};
 }
 const POINT_BANDS={1:[81,100],2:[61,80],3:[41,60],4:[26,40],5:[16,25],6:[9,15],7:[4,8]};
 function seasonStrengthPoints(ebene, n, place){
@@ -3524,7 +3540,7 @@ function viewAnsehen(){
   list.sort((a,b)=>(b.info.value==null?-1:b.info.value)-(a.info.value==null?-1:a.info.value) || TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de'));
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
-  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Die Liga ist der Schnitt über 30 Saisons, die jüngsten 10 davon 1,5-fach. DFB-Pokal und Landespokal werden über 15 Saisons addiert, die jüngsten 5 davon 1,5-fach. Der Pfeil vergleicht den Rang mit dem Fenster bis zur Vorsaison.</p>'+ansehenLegendHTML()+'<div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
+  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Liga und Pokal sind gewichtete Schnitte. Die Liga über 30 Saisons, die jüngsten 10 davon 1,5-fach. DFB-Pokal und Landespokal über 15 Saisons, die jüngsten 5 davon 1,5-fach. Eine Saison ohne Teilnahme zählt im Pokal als 0. Wer jede Saison dieselbe Runde erreicht, hat genau deren Punktwert. Die Liste gilt bis zur geöffneten Saison. Der Pfeil vergleicht den Rang mit dem Fenster bis zur Vorsaison.</p>'+ansehenLegendHTML()+'<div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
   h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr><th>Rang</th><th></th><th class="l">Verein</th><th>Gesamt</th><th>Liga</th><th>DFB-Pokal</th><th>Landespokal</th><th class="l">Aktuelle Liga</th></tr></thead><tbody>';
   list.forEach((r,i)=>{
     const name=TEAMS[r.id].name;
@@ -3540,7 +3556,7 @@ function ansehenLegendHTML(){
     +cell('1. Runde / Vorrunde','3')+cell('Runde der 128','5')+cell('Runde der 64','7')+cell('Runde der 32','9')+cell('Achtelfinale','11')+cell('Viertelfinale','14')+cell('Halbfinale','16')+cell('Finale','18')+cell('Sieger','20')
     +'</tbody></table><table class="tbl"><thead><tr><th class="l">DFB-Pokal</th><th>Pkt.</th></tr></thead><tbody>'
     +cell('1. Runde','26')+cell('2. Runde','32')+cell('Achtelfinale','38')+cell('Viertelfinale','44')+cell('Halbfinale','50')+cell('Finale','56')+cell('Sieger','60')
-    +'</tbody></table></div><p class="muted">Eine Runde zählt mit ihrem vollen Wert, im Fenster der jüngsten fünf Saisons mit 1,5. Der Landespokalsieger (20) entspricht einer Saison zwischen Oberliga und 4. Liga und bleibt unter der 1. DFB-Runde (26). Der Sieger eines Finales liegt knapp über dem Finalisten. Gesamt = Liga + DFB-Pokal + Landespokal.</p></div>';
+    +'</tbody></table></div><p class="muted">Der Rundenwert zählt voll und wird nicht noch einmal verkleinert. Über die 15 Saisons läuft ein gewichteter Schnitt, die jüngsten 5 mit 1,5. Jahre ohne Teilnahme zählen als 0. Wer immer die 1. DFB-Runde erreicht, hat +26, wer immer den Landespokal gewinnt, +20. Der Landespokalsieger bleibt unter der 1. DFB-Runde. Gesamt = Liga + DFB-Pokal + Landespokal.</p></div>';
 }
 function weightClass(w){ return w>1?'w-hot':w>0?'w-on':'w-off'; }
 function viewAnsehenDetail(id){
@@ -3549,7 +3565,7 @@ function viewAnsehenDetail(id){
   const part=(label, value, note)=>'<div'+(label==='Ansehen'?' class="tot"':'')+'><span>'+label+'</span><b>'+(value==null?'–':deNum(value,2))+'</b><i>'+note+'</i></div>';
   let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b></div></div></div>';
   h+='<div class="ansehen-break">'+part('Liga', info.liga, '30 Saisons, letzte 10 ×1,5')+part('DFB-Pokal', info.dfb.value, '15 Saisons, letzte 5 ×1,5')+part('Landespokal', info.land.value, '15 Saisons, letzte 5 ×1,5')+part('Ansehen', info.value, 'Liga + DFB-Pokal + Landespokal')+'</div>';
-  h+='<p>Liga: Fenster '+from+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Grün markiert sind die letzten 10 Saisons (×1,5), normal gezählt die übrigen im Fenster. Graue Zeilen liegen außerhalb. Pokal: die letzten 15 Saisons, davon die letzten 5 grün. Teilnahmen werden addiert, Jahre ohne Pokal zählen nicht mit.</p>'+ansehenLegendHTML();
+  h+='<p>Liga: Fenster '+from+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Grün markiert sind die letzten 10 Saisons (×1,5), normal gezählt die übrigen im Fenster. Graue Zeilen liegen außerhalb. Pokal: die letzten 15 Saisons, davon die letzten 5 grün. Der Schnitt teilt durch das ganze Fenster (17,5). Jahre ohne Teilnahme zählen als 0.</p>'+ansehenLegendHTML();
   h+='<h3 style="margin:8px 0">Liga</h3><table class="tbl"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
   let seenSplit=false;
   info.rows.forEach(r=>{
@@ -3568,7 +3584,7 @@ function viewAnsehenDetail(id){
       const beitrag=r.w>0?r.w*r.pts:null;
       x+='<tr class="'+weightClass(r.w)+'"><td class="l">'+esc(r.season)+(r.bl?' · '+esc(r.bl):'')+'</td><td class="l">'+esc(r.round)+(r.won?' · Sieger':'')+'</td><td>'+deNum(r.pts,1)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
     });
-    x+='<tr><td class="l" colspan="4"><b>Summe im 15-Jahres-Fenster</b></td><td><b>'+deNum(part.value,2)+'</b></td></tr></tbody></table>';
+    x+='<tr><td class="l" colspan="3"><b>Schnitt (Jahre ohne Teilnahme = 0)</b></td><td><b>'+deNum(part.sw,1)+'</b></td><td><b>'+deNum(part.value,2)+'</b></td></tr></tbody></table>';
     return x;
   };
   h+=pokalTable('DFB-Pokal', info.dfb);
