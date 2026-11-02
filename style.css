@@ -66,7 +66,7 @@ table.tbl{width:100%;border-collapse:collapse}
 .tbl tr.z-auf td:first-child{box-shadow:inset 3px 0 var(--z-bar-auf)}
 .tbl tr.z-ab td:first-child{box-shadow:inset 3px 0 var(--z-bar-ab)}
 .club{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0}
-.club img{width:24px;height:24px;object-fit:contain;flex:0 0 24px}
+.club img{width:24px;height:24px;object-fit:contain;flex:0 0 24px;cursor:pointer}
 .club .txt{min-width:0}
 .club .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
@@ -269,3 +269,20 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .br-m .ln.win{font-weight:700}
 .br-m .bye{color:var(--muted);font-size:11px}
 .cup-note{font-size:12px;color:#444;margin:0 0 8px}
+.feat-settings{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;font-size:12px}
+.feat-settings label{display:flex;gap:6px;align-items:center}
+.verein-head{display:flex;gap:14px;align-items:center;margin:10px 0 4px}
+.verein-head img{width:72px;height:72px;object-fit:contain}
+.verein-head h2{margin:0}
+.place-chart{width:100%;height:auto;background:#f7faf8;border:1px solid var(--line);border-radius:4px}
+.place-chart polyline{fill:none;stroke:#1d6b45;stroke-width:2}
+.place-chart circle{fill:#1d6b45}
+.place-chart line.band{stroke:#d5e0d8;stroke-width:1}
+.place-chart text{font-size:11px;fill:#5d6b64}
+.title-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.title-grid>div{background:#f7faf8;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.title-grid .seasons{color:#555;font-size:12px;line-height:1.35}
+.derby-line{display:flex;align-items:center;gap:12px;padding:4px 0;border-bottom:1px solid var(--line)}
+.derby-line>.muted{flex:0 0 200px}
+.sc-past{margin:8px 0}
+.sc-past>.muted{margin:0 0 2px}
