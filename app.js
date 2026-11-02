@@ -723,7 +723,7 @@ function startSeasonEnd(){
   const s=latest();
   if (decidePending(s)){ alert('Die Entscheidungsspiele sind noch nicht beendet. Der Saisonwechsel wartet darauf.'); return; }
   if (supercupPending(s)){ alert('Der Supercup dieser Saison ist noch nicht entschieden.'); return; }
-  s.endData = computeTransition(s); s.status='ending'; S.view=S.seasons.length-1; S.ui.tab='abschluss'; save(); render();
+  s.endData = computeTransition(s); s.status='ending'; S.view=S.seasons.length-1; S.ui.tab='aufab'; save(); render();
 }
 function cancelSeasonEnd(){ const s=latest(); delete s.endData; s.status='running'; S.ui.tab='tabelle'; save(); render(); }
 function suggestPicks(e){
@@ -1241,7 +1241,7 @@ function renderNav(){
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
 
-const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie']];
+const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie'],['aufab','Auf/Abstiege']];
 function renderMigrate(){
   let el=$('#migrate');
   if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice hidden'; $('#main').prepend(el); }
@@ -1284,10 +1284,11 @@ function viewPokal(s, cup, view){
   h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['baum','Turnierbaum'],['sieger','Sieger'],['uebersicht','Übersicht']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
   h+='</div>';
   if (!cup) return h+'<div class="box">Dieser Pokal fehlt.</div>';
+  const spots=(key==='dfb' && cup.spots && view==='spiele') ? viewCupSpots(cup) : '';
   if (view==='sieger') return h+viewCupWinners(s);
   if (view==='baum') return h+viewCupTree(s, cup);
   if (view==='uebersicht') return h+viewCupOverview(s, cup);
-  return h+viewCupRound(s, cup, ed);
+  return h+spots+viewCupRound(s, cup, ed);
 }
 function viewCupRound(s, cup, ed){
   const key=S.ui.cup;
@@ -1318,7 +1319,6 @@ function viewCupRound(s, cup, ed){
     else h+='<span class="muted">'+(ed?'Zuerst die vorherige Runde zu Ende spielen.':'Diese Runde ist nicht ausgelost.')+'</span>';
     h+='</div></div>';
     if (round.byes && round.byes.length) h+='<div class="box"><b>Freilos in dieser Runde:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
-    if (cup.kind==='dfb' && cup.spots) h+=viewCupSpots(cup);
     return h;
   }
   const rows=round.matches.map((m,i)=>({m,i})).sort((a,b)=>cupSlotOrder(a.m.slot,b.m.slot)||a.i-b.i);
@@ -1338,7 +1338,6 @@ function viewCupRound(s, cup, ed){
   if (round.byes && round.byes.length) h+='<div class="sp-hint"><b>Freilos:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
   h+='<div class="sp-hint">Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht.</div>';
   h+='</div>';
-  if (cup.kind==='dfb' && cup.spots) h+=viewCupSpots(cup);
   return h;
 }
 function viewCupSpots(cup){
@@ -1417,8 +1416,8 @@ function viewCupOverview(s, cup){
   const stand=doneName ? 'nach '+doneName : 'vor dem Start';
   const noch=left===1?'Team':'Teams';
   const sub=nextName ? nextName+' · '+left+' '+noch+' noch dabei' : 'Sieger steht';
-  const cell=cup.kind==='dfb'?54:(total>80?40:48);
-  const maxCols=cup.kind==='dfb'?10:12;
+  const cell=cup.kind==='dfb'?40:(total>80?32:36);
+  const maxCols=cup.kind==='dfb'?12:14;
   let legendId=[...alive][0] || (cup.entrants||[])[0];
   let outId=(cup.entrants||[]).find(id=>!alive.has(id)) || legendId;
   let h='<div class="card ov-card"><div class="card-title"><span>Übersicht <span class="progress">('+esc(stand)+' · <b>'+left+'</b> von '+total+' noch dabei)</span></span><span class="muted" style="font-weight:400;font-size:12px">Name beim Drüberfahren</span></div>';
@@ -1518,33 +1517,38 @@ function viewCupTree(s, cup){
   h+='</div></div>';
   return h;
 }
-function finalLine(fin){
-  if (!fin) return '<span class="muted">–</span>';
-  const b=cupScoreBits(fin.match)||{main:'–', above:''};
-  return '<div class="final-line"><div class="side side-l">'+clubHTML(fin.winner,{nobl:true,crestRight:true})+'</div><div class="final-sc"><span class="br-ie">'+(b.above?esc(b.above):'')+'</span><b>'+esc(b.main)+'</b></div><div class="side side-r">'+clubHTML(fin.finalist,{nobl:true})+'</div></div>';
+function seasonLeagueTag(season, id){
+  const lid=season ? clubLeagueId(season, id) : '';
+  if (L[lid]) return L[lid].short;
+  if (P[lid]) return 'Amateur';
+  return '';
 }
-function viewCupWinners(s){
-  const blocks=[];
+function siegerCrest(id){
+  const t=TEAMS[id]; if(!t) return '';
+  return '<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
+}
+function siegerRow(year, winnerId, finalistId, match, season){
+  const b=match ? cupScoreBits(match) : null;
+  const home=match ? match.h : winnerId;
+  const away=match ? match.a : finalistId;
+  const sc='<span class="br-ie">'+(b&&b.above?esc(b.above):'')+'</span><b>'+(b?esc(b.main):'–')+'</b>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+clubHTML(winnerId,{nobl:true})+'</div><div class="sieger-who">'+clubHTML(finalistId,{nobl:true})+'</div><div class="sieger-sep"></div><div class="sieger-final"><span class="liga-edge">'+esc(seasonLeagueTag(season, home))+'</span><span class="sieger-nm home-nm">'+esc(TEAMS[home].name)+'</span>'+siegerCrest(home)+'<span class="sieger-sc">'+sc+'</span>'+siegerCrest(away)+'<span class="sieger-nm">'+esc(TEAMS[away].name)+'</span><span class="liga-edge">'+esc(seasonLeagueTag(season, away))+'</span></div></div>';
+}
+function siegerHead(){
+  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div></div><div class="sieger-final"><span></span><span>Heim</span><span></span><span>Ergebnis</span><span></span><span>Auswärts</span><span></span></div></div>';
+}
+function viewCupWinners(){
+  const key=S.ui.cup||'dfb';
+  const rows=[];
   S.seasons.forEach(sea=>{
     if (!sea.cups) return;
-    const dfb=cupFinalists(sea.cups.dfb);
-    const land=[];
-    BL_ORDER.forEach(bl=>{
-      const fin=sea.cups.land && cupFinalists(sea.cups.land[bl]);
-      if (fin) land.push({bl, fin});
-    });
-    if (dfb || land.length || sea.status==='done') blocks.push({season:sea.name, dfb, land});
+    const cup=key==='dfb' ? sea.cups.dfb : (sea.cups.land && sea.cups.land[key]);
+    const fin=cupFinalists(cup);
+    if (fin) rows.push(siegerRow(sea.name, fin.winner, fin.finalist, fin.match, sea));
   });
-  if (!blocks.length) return '<div class="box"><h3>Sieger</h3><p class="muted">Noch kein beendeter Pokal. Nach dem Finale stehen hier Sieger, Finalgegner und das Ergebnis.</p></div>';
-  let h='';
-  blocks.slice().reverse().forEach(b=>{
-    h+='<div class="box"><h3>'+esc(b.season)+'</h3><h4 style="margin:8px 0 4px">DFB-Pokal</h4><div class="dfb-final">'+finalLine(b.dfb)+'</div>';
-    h+='<h4 style="margin:12px 0 4px">Landespokale</h4><div class="land-finals">';
-    if (!b.land.length) h+='<p class="muted">Noch keine Landespokal-Finals.</p>';
-    b.land.forEach(row=>{ h+='<div class="land-final"><div class="land-bl">'+esc(row.bl)+'</div>'+finalLine(row.fin)+'</div>'; });
-    h+='</div></div>';
-  });
-  return h;
+  const title=key==='dfb' ? 'DFB-Pokal' : key;
+  if (!rows.length) return '<div class="box"><h3>Sieger '+esc(title)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
+  return '<div class="box sieger-box"><h3>Sieger '+esc(title)+'</h3>'+siegerHead()+rows.reverse().join('')+'</div>';
 }
 function touchDecide(lid, idx, fn){
   if (!isEditable()) return;
@@ -1617,8 +1621,7 @@ function render(){
   renderSettings();
   renderNav();
   const s=cur(), lid=S.ui.league;
-  if (s.status==='ending' && S.ui.tab==='abschluss'){ $('#title').textContent='Saisonabschluss '+s.name; $('#subline').innerHTML=''; $('#tabs').innerHTML=''; renderAbschluss(); return; }
-  if (S.ui.tab==='abschluss') S.ui.tab='tabelle';
+  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
   if (S.ui.tab==='ansehen'){
     $('#title').textContent='Ansehen';
     $('#subline').innerHTML='';
@@ -1626,6 +1629,7 @@ function render(){
     $('#view').innerHTML=S.ui.ansehenId?viewAnsehenDetail(S.ui.ansehenId):viewAnsehen();
     return;
   }
+  if (S.ui.tab==='aufab'){ renderAufAb(); return; }
   if (S.ui.tab==='supercup'){ renderSupercup(); return; }
   if (S.ui.tab==='derbys'){ renderDerbys(); return; }
   if (S.ui.tab==='verein'){ renderVerein(); return; }
@@ -1639,7 +1643,7 @@ function render(){
   const pr=seasonProgress(s), lp=leagueProgress(s,lid);
   let sub = 'Saison '+s.name+' · <a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · <span class="muted">Liga: '+lp.done+'/'+lp.total+' Spiele · alle Ligen: '+pr.done+'/'+pr.total+'</span>';
   if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button> · <button class="btn small primary" data-act="end">Saison abschließen</button>';
-  if (s.status==='ending') sub+=' · <button class="btn small primary" data-act="toEnd">Zum Saisonabschluss</button>';
+  if (s.status==='ending') sub+=' · <button class="btn small primary" data-act="toEnd">Auf/Abstiege</button>';
   if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison (nur Ansicht)</span>';
   $('#subline').innerHTML=sub;
   $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
@@ -3081,41 +3085,92 @@ function bindMap(){
   svg.addEventListener('pointerup', end);
   svg.addEventListener('pointercancel', end);
 }
-function renderAbschluss(){
-  const s=cur(), e=s.endData, v=$('#view');
-  if (!e){ v.innerHTML='<div class="box">Für diese Saison liegt kein Abschluss vor.</div>'; return; }
-  const pr=seasonProgress(s);
-  if (e.step===1){
-    let h='';
-    if (pr.done<pr.total) h+='<div class="notice">Achtung: '+(pr.total-pr.done)+' Spiele sind noch nicht eingetragen. Die Tabellen werden so gewertet, wie sie gerade stehen. <button class="btn small" data-act="endSimAll">Fehlende Spiele zufällig simulieren</button> <button class="btn small" data-act="endCancel">Zurück zur Saison</button></div>';
-    h+='<div class="box"><h3>Saisonrückblick '+s.name+'</h3><p class="muted">Meister, Aufsteiger und Absteiger aller Ligen. Danach wählst du die Aufsteiger aus der Amateurliga.</p></div>';
-    h+='<div class="grid2">';
-    LEAGUES.forEach(l=>{ const t=e.tables[l.id];
-      const up=e.moves.filter(m=>m.from===l.id&&m.type==='auf'), dn=e.moves.filter(m=>m.from===l.id&&m.type==='ab');
-      h+='<div class="box"><h3>'+esc(l.name)+'</h3><div style="margin-bottom:6px"><b>Meister:</b> '+esc(TEAMS[t[0].id].name)+' <span class="muted">('+t[0].pkt+' Pkt.)</span></div>'+
-      (up.length?'<div><b>Aufsteiger:</b> '+up.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div>':'')+
-      '<div><b>Absteiger'+(e.downOf&&e.downOf[l.id]!==l.down?' <span class="muted">(diesmal '+e.downOf[l.id]+' statt '+l.down+')</span>':'')+':</b> '+dn.map(m=>esc(TEAMS[m.id].name)+' <span class="muted">('+m.pl+'.) → '+esc(leagueName(m.to))+'</span>').join(', ')+'</div></div>'; });
-    h+='</div>';
-    h+=moveBoardHTML(e);
-    if (e.notes.length) h+='<div class="notice"><b>Abstiegszahlen in dieser Saison:</b><br>'+e.notes.map(esc).join('<br>')+'</div>';
-    h+='<div style="display:flex;gap:8px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="endStep2">Weiter: Aufsteiger aus der Amateurliga wählen</button></div>';
-    v.innerHTML=h; return;
-  }
-  let h=moveBoardHTML(e);
-  h+='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">Wähle pro Oberliga die Aufsteiger aus der Amateurliga desselben Gebiets. Die Anzahl ergibt sich aus den freien Plätzen (normal 2). Absteiger aus der Oberliga dieser Saison können nicht sofort wieder aufsteigen.</p>'+
+function moveLeagueLabel(id){
+  if (L[id]) return L[id].name;
+  if (P[id]) return 'Amateurliga';
+  return id||'';
+}
+function transitionOf(s){
+  if (s.endData) return s.endData;
+  return computeTransition(s);
+}
+function moveListHTML(e){
+  const items=(e.moves||[]).slice();
+  if (e.picks) Object.keys(e.picks).forEach(ol=>{
+    (e.picks[ol]||[]).forEach(id=>items.push({id, from:homeLeague(id,7), to:ol, type:'auf'}));
+  });
+  const groups={};
+  items.forEach(m=>{ (groups[m.from]||(groups[m.from]=[])).push(m); });
+  const order=LEAGUES.map(l=>l.id).concat(POOLS.map(p=>p.id));
+  let h='<div class="box"><h3>Wohin die Vereine wechseln</h3>';
+  let any=false;
+  order.forEach(from=>{
+    const list=groups[from]; if (!list||!list.length) return;
+    any=true;
+    h+='<h4>'+esc(leagueName(from))+'</h4>';
+    list.sort((a,b)=>(a.pl||99)-(b.pl||99)||TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de')).forEach(m=>{
+      h+='<div class="move-line">'+clubHTML(m.id,{nobl:true})+'<span>'+esc(moveLeagueLabel(m.from))+' → '+esc(moveLeagueLabel(m.to))+'</span></div>';
+    });
+  });
+  if (!any) h+='<p class="muted">Nach dem aktuellen Stand wechselt niemand die Liga.</p>';
+  h+='</div>';
+  return h;
+}
+function moveReasonHTML(s, e){
+  let h='<div class="box"><h3>Warum diese Zahlen</h3>';
+  LEAGUES.forEach(l=>{
+    const p=relegationProfile(s, l.id);
+    let text;
+    if (l.id==='BL') text='Die Bundesliga steigt nicht auf und gibt immer die letzten drei ab. Daran ändert nichts, was darunter passiert.';
+    else if (l.level<=4) text='Es bleiben '+l.up+' Aufsteiger und '+l.down+' Absteiger. Diese Zahlen sind fest.';
+    else if (p.down===p.nominal) text='Geplant sind '+p.nominal+' Absteiger, und dabei bleibt es. '+p.reason;
+    else text='Geplant waren '+p.nominal+' Absteiger, diesmal sind es '+p.down+'. '+p.reason;
+    h+='<p><b>'+esc(l.name)+'.</b> '+esc(text)+'</p>';
+  });
+  if (e && e.need) POOLS.forEach(p=>{
+    const n=e.need[p.ol];
+    h+='<p><b>'+esc(L[p.ol].name)+'.</b> Nach dem Abgang des Meisters und der Absteiger aus der Regionalliga fehlen '+n+' Plätze. Genau so viele Vereine kommen aus der '+esc(p.name)+' nach. Normal sind das zwei.</p>';
+  });
+  h+='</div>';
+  return h;
+}
+function pickBlockHTML(s, e){
+  let h='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">Wähle pro Oberliga die Aufsteiger aus der Amateurliga desselben Gebiets. Die Anzahl sind die freien Plätze. Absteiger aus der Oberliga dieser Saison können nicht sofort wieder aufsteigen.</p>'+
     '<button class="btn small" data-act="suggest">Vorschlag: jeweils die historisch stärksten übernehmen</button> <button class="btn small" data-act="clearPicks">Auswahl leeren</button> <label style="margin-left:10px"><input type="checkbox" id="allPools"'+(S.ui.allPools?' checked':'')+'> alle Amateurvereine anzeigen (auch andere Regionen)</label></div><div class="grid2">';
   let ok=true;
   POOLS.forEach(p=>{
-    const need=e.need[p.ol], picks=e.picks[p.ol]||[];
+    const need=e.need[p.ol], picks=(e.picks&&e.picks[p.ol])||[];
     if (picks.length!==need) ok=false;
     let cand = S.ui.allPools ? POOLS.flatMap(x=>e.pools[x.id]) : [...e.pools[p.id]];
     cand = cand.filter(id=>!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)).sort(byRang);
-    const takenElse = new Set(Object.entries(e.picks).filter(([k])=>k!==p.ol).flatMap(([,v])=>v));
+    const takenElse = new Set(Object.entries(e.picks||{}).filter(([k])=>k!==p.ol).flatMap(([,v])=>v));
     h+='<div class="box"><div class="pick-head"><h3 style="margin:0">'+esc(L[p.ol].name)+'</h3><span class="'+(picks.length===need?'ok':'bad')+'">'+picks.length+' / '+need+'</span></div><div class="muted" style="margin-bottom:6px">aus: '+esc(p.name)+' ('+esc(p.desc)+')</div><div class="pick-list" data-ol="'+esc(p.ol)+'">'+
       cand.filter(id=>!takenElse.has(id)).map(id=>'<label class="pick-row'+(picks.includes(id)?' sel':'')+'"><input type="checkbox" data-pick="'+p.ol+'" value="'+id+'"'+(picks.includes(id)?' checked':'')+'>'+clubHTML(id)+'<span class="r">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></label>').join('')+'</div></div>';
   });
-  h+='</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endStep1">Zurück</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
-  v.innerHTML=h;
+  h+='</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
+  return h;
+}
+function renderAufAb(){
+  const s=cur();
+  $('#title').textContent='Auf/Abstiege';
+  const pr=seasonProgress(s);
+  let sub='Saison '+s.name;
+  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button> · <button class="btn small primary" data-act="end">Saison abschließen</button>';
+  if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison</span>';
+  $('#subline').innerHTML=sub;
+  $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(k==='aufab'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  const e=transitionOf(s);
+  const preview=!s.endData;
+  let h='';
+  if (s.status==='ending' && pr.done<pr.total) h+='<div class="notice">Achtung: '+(pr.total-pr.done)+' Spiele sind noch nicht eingetragen. Die Tabellen werden so gewertet, wie sie gerade stehen. <button class="btn small" data-act="endSimAll">Fehlende Spiele zufällig simulieren</button> <button class="btn small" data-act="endCancel">Zurück zur Saison</button></div>';
+  else if (preview && pr.done<pr.total) h+='<div class="notice">Noch nicht alle Spiele sind eingetragen. Die Pyramide folgt dem aktuellen Tabellenstand und kann sich ändern.</div>';
+  else if (preview && (decidePending(s)||supercupPending(s))) h+='<div class="notice">Entscheidungsspiel oder Supercup ist noch offen. Die Aufsteiger wählst du, sobald das erledigt ist.</div>';
+  else if (preview && s.status==='running' && S.view===S.seasons.length-1) h+='<div class="box"><p>Alle Spiele sind eingetragen.</p><button class="btn primary" data-act="end">Aufsteiger aus der Amateurliga wählen</button></div>';
+  h+=moveBoardHTML(e);
+  h+=moveListHTML(e);
+  h+=moveReasonHTML(s, e);
+  if (s.status==='ending') h+=pickBlockHTML(s, e);
+  $('#view').innerHTML=h;
 }
 function moveChip(id, dest, dir){
   const t=TEAMS[id];
@@ -3346,7 +3401,7 @@ function renderSupercup(){
   if (s.status==='running' && S.view===S.seasons.length-1) sub+=' <button class="btn small" data-act="simSeason">Saison simulieren</button>';
   $('#subline').innerHTML=sub;
   const m=s.supercup;
-  let h='<div class="box"><p>Der Supercup steht vor der neuen Saison, sobald die Vorsaison einen Meister und einen DFB-Pokalsieger hat. Gewinnt derselbe Verein beides, spielt der Meister gegen den Zweiten der Bundesliga. Es gilt das Pokalrecht: bei Gleichstand n.V. und i.E.</p></div>';
+  let h='<div class="box"><p>Der Supercup steht vor der neuen Saison, sobald die Vorsaison einen Meister und einen DFB-Pokalsieger hat. Heimrecht hat immer der Meister. Gewinnt derselbe Verein beides, spielt er gegen den Zweiten der Bundesliga. Es gilt das Pokalrecht: bei Gleichstand n.V. und i.E.</p></div>';
   if (!m) h+='<div class="box"><h3>'+esc(s.name)+'</h3><p class="muted">In dieser Saison gibt es keinen Supercup. Die erste Saison hat noch keinen, und ohne beendeten DFB-Pokal auch nicht.</p></div>';
   else {
     h+='<div class="card"><div class="card-title"><span>Supercup '+esc(s.name)+'</span></div>';
@@ -3354,14 +3409,16 @@ function renderSupercup(){
     h+=supercupMatchHTML(s, m)+'</div>';
   }
   const past=S.seasons.filter(x=>x.supercup && supercupWinner(x.supercup));
-  h+='<div class="box"><h3>Sieger</h3>';
+  h+='<div class="box sieger-box"><h3>Sieger</h3>';
   if (!past.length) h+='<p class="muted">Noch kein entschiedener Supercup.</p>';
-  else past.slice().reverse().forEach(x=>{
-    const w=supercupWinner(x.supercup);
-    const opp=w===x.supercup.h?x.supercup.a:x.supercup.h;
-    const bits=cupScoreBits(x.supercup)||{main:'–', above:''};
-    h+='<div class="sc-past"><div class="muted">'+esc(x.name)+'</div><div class="final-line"><div class="side side-l">'+clubHTML(w,{nobl:true,crestRight:true})+'</div><div class="final-sc"><span class="br-ie">'+(bits.above?esc(bits.above):'')+'</span><b>'+esc(bits.main)+'</b></div><div class="side side-r">'+clubHTML(opp,{nobl:true})+'</div></div></div>';
-  });
+  else {
+    h+=siegerHead();
+    past.slice().reverse().forEach(x=>{
+      const w=supercupWinner(x.supercup);
+      const opp=w===x.supercup.h?x.supercup.a:x.supercup.h;
+      h+=siegerRow(x.name, w, opp, x.supercup, x);
+    });
+  }
   h+='</div>';
   $('#view').innerHTML=h;
 }
@@ -3659,7 +3716,7 @@ document.addEventListener('click', ev=>{
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
-  else if (act==='toEnd'){ S.view=S.seasons.length-1; S.ui.tab='abschluss'; render(); }
+  else if (act==='toEnd'){ S.view=S.seasons.length-1; S.ui.tab='aufab'; render(); }
   else if (act==='endCancel'){ cancelSeasonEnd(); }
   else if (act==='endSimAll'){ const l=latest(); LEAGUES.forEach(x=>{ simLeague(l,x.id); simDecide(l,x.id); }); simAllCups(l); l.endData=computeTransition(l); save(); render(); }
   else if (act==='endStep2'){ latest().endData.step=2; save(); render(); window.scrollTo(0,0); }
@@ -3670,7 +3727,7 @@ document.addEventListener('click', ev=>{
 });
 document.addEventListener('change', ev=>{
   const t=ev.target;
-  if (t.id==='seasonSelect'){ S.view=+t.value; S.ui.tab = cur().status==='ending' ? 'abschluss' : 'tabelle'; save(); render(); }
+  if (t.id==='seasonSelect'){ S.view=+t.value; if (S.ui.tab==='abschluss') S.ui.tab='aufab'; if (cur().status==='ending') S.ui.tab='aufab'; save(); render(); }
   else if (t.id==='mobileLeague'){ if(t.value==='pokal'){ S.ui.tab='pokal'; } else { S.ui.league=t.value; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='derbys') S.ui.tab='tabelle'; } save(); render(); }
   else if (t.id==='mdSelect'){ S.ui.md[S.view+':'+S.ui.league]=+t.value; save(); render(); }
   else if (t.id==='autoNext'){ S.ui.autoNext=t.checked; save(); }
@@ -3735,7 +3792,8 @@ S = load() || newGame();
 S.ui = Object.assign({league:'BL', tab:'tabelle', md:{}, autoNext:true, supercup:true, derbys:true}, S.ui||{});
 if (freshSave && (localStorage.getItem(OLD_KEY)||localStorage.getItem('fussballrechner_v1'))) S.ui.showMigrate = true;
 if (S.view==null || S.view>=S.seasons.length) S.view=S.seasons.length-1;
-if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='abschluss';
+if (S.ui.tab==='abschluss') S.ui.tab='aufab';
+if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='aufab';
 ensureAllCups();
 save(); render();
 
