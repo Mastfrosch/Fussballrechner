@@ -167,9 +167,10 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-row.wam{width:100%}
 .py-block{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 8px 10px;min-width:0}
 .py-block h3{margin:0 0 6px;font-size:12px;text-align:center;color:#234}
-.py-side{min-height:78px;border-radius:4px;padding:4px}
+.py-side{border-radius:4px;padding:4px}
 .py-side.up{background:#f3faf4}
 .py-side.dn{background:#fdf6f6;margin-top:4px}
+.py-label{font-size:10px;text-align:center;color:var(--muted);margin-bottom:2px}
 .py-clubs{display:flex;flex-wrap:wrap;gap:4px 6px;justify-content:center}
 .py-empty{color:#9aa;font-size:11px;align-self:center;padding:18px 0}
 .py-chip{display:flex;flex-direction:column;align-items:center;width:68px;text-align:center;gap:1px}
@@ -180,23 +181,15 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-chip span{font-size:10px;line-height:1.15;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .py-chip i{font-style:normal;color:var(--muted);font-size:9px;line-height:1.1}
 .pokal-bar .toggle{margin-bottom:0}
-.ov-card{overflow:visible}
-.ov-card .card-title .progress b{color:var(--green)}
-.ov-panel{background:radial-gradient(ellipse at 50% 0%,#24435a 0%,#16283a 55%,#0f1c29 100%);padding:12px 14px 14px;position:relative;overflow:visible}
-.ov-head{text-align:center;color:#fff;margin-bottom:10px}
-.ov-head .t{font-size:18px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-.ov-head .s{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9fb6c8;margin-top:2px}
-.ov-pot-title{text-align:center;color:#fff;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:12px;margin:2px 0 6px}
-.ov-groups{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:0 auto 10px;align-items:start}
-.ov-group{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:6px 8px 8px;box-sizing:border-box;min-width:0}
-.ov-group.full{grid-column:1 / -1}
-.ov-group.half{grid-column:auto}
-.ov-gh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:#dfe8ef;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:0 2px 4px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px}
-.ov-gh .c{flex:0 0 4.6em;text-align:right;font-weight:600;color:#8fa6b8;letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums}
-.ov-gh .c b{color:#7fdca4}
-.ov-grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);justify-content:center;gap:2px}
-.ov-c{position:relative;display:flex;align-items:center;justify-content:center;border-radius:50%}
-.ov-c img{width:calc(var(--cell) - 6px);height:calc(var(--cell) - 6px);object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));transition:transform .12s}
+.ov-plain{padding-bottom:8px}
+.ov-pot{margin:14px 0 6px;font-size:13px}
+.ov-lg{margin:0 0 10px}
+.ov-lg-h{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700;margin:0 0 4px}
+.ov-lg-h .c{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
+.ov-lg-h .c b{color:var(--green)}
+.ov-row{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.ov-c{position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.ov-c img{width:26px;height:26px;object-fit:contain;transition:transform .12s}
 .ov-c.out img{filter:grayscale(1) brightness(.75);opacity:.28}
 .ov-c:hover img,.ov-c.hover img{transform:scale(1.28)}
 .ov-c:hover::before,.ov-c.hover::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:rgba(255,255,255,.12);box-shadow:0 0 0 2px rgba(127,220,164,.9)}
@@ -207,7 +200,7 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .ov-tip .bl{font-size:10.5px;color:var(--muted)}
 .ov-tip .st{font-size:10.5px;color:var(--green);font-weight:600;margin-top:2px}
 .ov-tip .st.out{color:#a33}
-.ov-legend{display:flex;justify-content:center;gap:22px;margin-top:4px;color:#9fb6c8;font-size:11.5px}
+.ov-legend{display:flex;gap:16px;margin:8px 0 0;color:var(--muted);font-size:11.5px}
 .ov-legend span{display:inline-flex;align-items:center;gap:6px}
 .ov-legend img{width:20px;height:20px;object-fit:contain}
 .ov-legend .out img{filter:grayscale(1) brightness(.75);opacity:.3}
@@ -294,15 +287,14 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
 .sieger-box{overflow:auto}
-.sieger-row{display:grid;grid-template-columns:72px minmax(140px,1fr) minmax(140px,1fr) 14px minmax(420px,2.2fr);align-items:center;column-gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.sieger-row{display:flex;align-items:center;gap:16px;padding:5px 0;border-bottom:1px solid var(--line)}
 .sieger-head{color:var(--muted);font-size:11px;font-weight:600}
-.sieger-head .sieger-final span{font-size:11px}
-.sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
-.sieger-sep{width:1px;align-self:stretch;background:var(--line);justify-self:center}
-.sieger-final{display:grid;grid-template-columns:52px minmax(0,1fr) 22px 72px 22px minmax(0,1fr) 52px;align-items:center;column-gap:6px}
-.sieger-final .sieger-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
-.sieger-final .home-nm{text-align:right}
-.sieger-final img{width:22px;height:22px;object-fit:contain;cursor:pointer}
+.sieger-year{flex:0 0 72px;font-variant-numeric:tabular-nums;font-weight:600}
+.sieger-who{flex:0 1 210px;min-width:0}
+.sieger-final{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.sieger-final .sieger-nm{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.sieger-final .liga-edge{flex:0 0 auto;max-width:64px}
+.sieger-final img{width:22px;height:22px;object-fit:contain;cursor:pointer;flex:0 0 22px}
 .sieger-sc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:28px}
 .sieger-sc .br-ie{font-size:10px;color:var(--muted);min-height:12px;line-height:12px}
 .sieger-sc b{font-variant-numeric:tabular-nums}
