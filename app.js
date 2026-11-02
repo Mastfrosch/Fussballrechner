@@ -3136,44 +3136,42 @@ function renderAufAb(){
   if (s.status==='ending') h+=pickBlockHTML(s, e);
   $('#view').innerHTML=h;
 }
-function moveChip(id, from, dir){
+function moveChip(id, dest, dir){
   const t=TEAMS[id];
-  return '<span class="py-chip '+dir+'" title="'+esc(t.name+(from?' aus '+from:''))+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><span>'+esc(t.name)+'</span>'+(from?'<i>'+esc(from)+'</i>':'')+'</span>';
+  return '<span class="py-chip '+dir+'" title="'+esc(t.name+(dest?' → '+dest:''))+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><span>'+esc(t.name)+'</span>'+(dest?'<i>'+esc(dest)+'</i>':'')+'</span>';
 }
-function incomingOf(e, lid){
-  const up=(e.moves||[]).filter(m=>m.to===lid && m.type==='auf').map(m=>({id:m.id, from:leagueShort(m.from)}));
-  const down=(e.moves||[]).filter(m=>m.to===lid && m.type==='ab').map(m=>({id:m.id, from:leagueShort(m.from)}));
-  ((e.picks&&e.picks[lid])||[]).forEach(id=>up.push({id, from:'Amateur'}));
+function leavingOf(e, lid){
+  const up=(e.moves||[]).filter(m=>m.from===lid && m.type==='auf').map(m=>({id:m.id, dest:leagueShort(m.to)}));
+  const down=(e.moves||[]).filter(m=>m.from===lid && m.type==='ab').map(m=>({id:m.id, dest:leagueShort(m.to)}));
   return {up, down};
 }
-function moveBlock(l, ups, dns){
+function moveBlock(l, ups, dns, hideDown){
+  const side=(dir, label, list)=>{
+    let h='<div class="py-side '+dir+'"><div class="py-label">'+label+'</div><div class="py-clubs">';
+    if (!list.length) h+='<span class="py-empty">'+(dir==='up'?'kein Aufsteiger':'kein Absteiger')+'</span>';
+    list.forEach(x=>{ h+=moveChip(x.id, x.dest, dir); });
+    h+='</div></div>';
+    return h;
+  };
   let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>';
-  if (ups.length){
-    h+='<div class="py-side up"><div class="py-label">▲ von unten</div><div class="py-clubs">';
-    ups.forEach(x=>{ h+=moveChip(x.id, x.from, 'up'); });
-    h+='</div></div>';
-  }
-  if (dns.length){
-    h+='<div class="py-side dn"><div class="py-label">▼ von oben</div><div class="py-clubs">';
-    dns.forEach(x=>{ h+=moveChip(x.id, x.from, 'dn'); });
-    h+='</div></div>';
-  }
-  if (!ups.length && !dns.length) h+='<div class="py-empty">niemand kommt dazu</div>';
+  h+=side('up', '▲ Aufsteiger', ups);
+  if (!hideDown) h+=side('dn', '▼ Absteiger', dns);
   h+='</div>';
   return h;
 }
 function moveBoardHTML(e){
   const row=(cls, inner)=>'<div class="py-row '+cls+'">'+inner+'</div>';
-  const one=l=>{ const x=incomingOf(e, l.id); return moveBlock(l, x.up, x.down); };
-  const amDown=(e.moves||[]).filter(m=>P[m.to] && m.type==='ab').map(m=>({id:m.id, from:leagueShort(m.from)}));
-  let h='<div class="card move-card"><div class="card-title">Wer in die Liga kommt</div><div class="pyramid">';
+  const one=l=>{ const x=leavingOf(e, l.id); return moveBlock(l, x.up, x.down); };
+  const amUp=[];
+  POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
+  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
   h+=row('w1', one(L.BL));
   h+=row('w2', one(L.BL2));
   h+=row('w3', one(L.L3));
   h+=row('w4', one(L.L4));
   h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id])).join(''));
   h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id])).join(''));
-  h+=row('wam', moveBlock({name:'Amateurliga'}, [], amDown));
+  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], true));
   h+='</div></div>';
   return h;
 }
