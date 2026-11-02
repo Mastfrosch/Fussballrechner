@@ -2,7 +2,10 @@ Fußballrechner – Kurzanleitung
 ==============================
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
-- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter den Pokal.
+- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter Ansehen, Pokal, Supercup und Derbys.
+- Supercup: ab der zweiten Saison ein Spiel, Meister gegen den DFB-Pokalsieger der Vorsaison. Hat derselbe Verein beides gewonnen, spielt der Meister gegen den Zweiten der Bundesliga. Eingabe wie im Pokal (n.V., i.E.). Die erste Saison hat keinen Supercup. Schalter „Supercup“ in der Seitenleiste blendet ihn aus.
+- Vereinsseite: Klick auf ein Wappen in Tabelle, Spielplan, Pokal oder Ansehen. Darauf Ligakurve, Pokalrunden, Ansehen (Liga / DFB-Pokal / Landespokal), Titel, Stadionname und Derbys.
+- Derbys: Übersicht belegter Rivalitäten, ohne Markierung im Spielplan. Schalter „Derbys“ blendet die Liste aus. Die Daten stehen in derbies.js.
 - Pokal: DFB-Pokal und 16 Landespokale, dazu die Ansicht Übersicht. Im Landespokal hat die schwächere Liga Heimrecht, Freilose gehen an die Bestplatzierten des Vorjahres. Das Finale wird automatisch ausgelost. Unentschieden über das Fenster „i.E.“. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
 - Bei völliger Gleichheit nach der Saison gibt es ein Entscheidungsspiel (Hin- und Rückspiel). Der Saisonwechsel wartet darauf.
 - Ansehen: Pfeil zur Vorsaison, Filter nach Liga und Bundesland. Liga über 30 Jahre, Pokal über 15. Die Amateurliga hat je Bundesland einen Reiter.
