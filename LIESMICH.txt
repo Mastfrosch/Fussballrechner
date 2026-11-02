@@ -2,10 +2,9 @@ Fußballrechner – Kurzanleitung
 ==============================
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
-- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter Ansehen, Pokal, Supercup und Derbys.
+- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter Ansehen, Pokal und Supercup.
 - Supercup: ab der zweiten Saison ein Spiel, Meister gegen den DFB-Pokalsieger der Vorsaison. Hat derselbe Verein beides gewonnen, spielt der Meister gegen den Zweiten der Bundesliga. Eingabe wie im Pokal (n.V., i.E.). Die erste Saison hat keinen Supercup. Schalter „Supercup“ in der Seitenleiste blendet ihn aus.
-- Vereinsseite: Klick auf ein Wappen in Tabelle, Spielplan, Pokal oder Ansehen. Darauf Ligakurve, Pokalrunden, Ansehen (Liga / DFB-Pokal / Landespokal), Titel, Stadionname und Derbys.
-- Derbys: Übersicht belegter Derbys zwischen genau diesen Vereinen, ohne Markierung im Spielplan. Schalter „Derbys“ blendet die Liste aus. Die Daten stehen in derbies.js.
+- Vereinsseite: Klick auf ein Wappen in Tabelle, Spielplan, Pokal oder Ansehen. Darauf Ligakurve, Pokalrunden, Ansehen (Liga / DFB-Pokal / Landespokal), Titel und Stadionname.
 - Pokal: DFB-Pokal und 16 Landespokale, dazu die Ansicht Übersicht. Im Landespokal hat die schwächere Liga Heimrecht, Freilose gehen an die Bestplatzierten des Vorjahres. Das Finale wird automatisch ausgelost. Unentschieden über das Fenster „i.E.“. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
 - Bei völliger Gleichheit nach der Saison gibt es ein Entscheidungsspiel (Hin- und Rückspiel). Der Saisonwechsel wartet darauf.
 - Ansehen: Pfeil zur Vorsaison, Filter nach Liga und Bundesland. Liga über 30 Jahre, Pokal über 15. Die Amateurliga hat je Bundesland einen Reiter.
@@ -19,9 +18,9 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.
 - Tab "Karte": Vereinswappen am Spielort. Mausrad zoomt, Ziehen verschiebt, „Ansicht zurücksetzen“ holt die ganze Karte. Regionalliga und Oberliga zeigen nur ihre Bundesländer.
 - In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Unter der Legende stehen die Plätze, die niemand mehr ändern kann, als Wappen. Bei möglicher Punktgleichheit bleibt die Zeile normal.
-- "Saison simulieren" füllt alle offenen Spiele und Pokale, wählt die Aufsteiger aus der Amateurliga automatisch und startet die nächste Saison. Im Spielplan: "Spieltag simulieren" und "Block simulieren".
+- "Saison simulieren" füllt alle offenen Spiele und Pokale, entscheidet offene Entscheidungsspiele und den Supercup mit, wählt die Aufsteiger aus der Amateurliga automatisch und startet die nächste Saison. Es gibt keine Rückfrage. Im Spielplan: "Spieltag simulieren" und "Block simulieren".
 - Tab "Auf/Abstiege": in jeder Liga der Pyramide stehen ihre eigenen Aufsteiger und Absteiger, und in kurzen Sätzen, warum eine Staffel diesmal mehr oder weniger Absteiger hat. Die Aufsteiger aus der Amateurliga wählst du dort, sobald alle Spiele eingetragen sind.
-- "Saison abschließen" öffnet Auf/Abstiege. "Saison simulieren" wählt die Aufsteiger selbst und startet die neue Saison. Alte Saisons bleiben über die Saisonauswahl sichtbar.
+- "Saison abschließen" öffnet Auf/Abstiege. "Saison simulieren" fragt nicht nach, wählt die Aufsteiger selbst und startet die neue Saison. Alte Saisons bleiben über die Saisonauswahl sichtbar.
   Regionalliga und Oberliga bleiben in ihrer Region. Kommen mehr Absteiger von oben, steigen dort mehr Vereine ab.
 - Jede Saison ein neuer Spielplan: die Vereine werden den Positionen neu zugeordnet, Heim und Auswärts wechseln, höchstens zwei Breaks pro Verein (einer heim, einer auswärts).
 - Untere Ligen: alle Aufstiegsplätze hellgrün, auch der erste Platz.
