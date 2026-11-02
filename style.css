@@ -211,16 +211,21 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .match.cup .home .liga-edge{margin-right:auto}
 .match.cup .away .liga-edge{margin-left:auto}
 .liga-edge{font-size:9px;color:var(--muted);max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ie-box{display:flex;align-items:center;gap:4px;font-size:10px;color:#444;margin-top:2px}
+.ie-box{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;color:#444;margin:0}
 .ie-box input{margin:0}
 .ie-link{display:inline-block;margin:0;padding:0;border:none;background:none;color:#1d4e89;font:inherit;font-size:11px;font-weight:700;line-height:14px;height:14px;cursor:pointer;text-decoration:underline}
 .ie-static{text-decoration:none;cursor:default}
 .ie-slot{display:block;height:14px}
+.under{display:flex;justify-content:center;align-items:center;width:100%;min-height:16px}
+.km-line{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}
+.scorecol{min-width:72px}
 .cup-cols{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;column-gap:8px}
+.cup-cols.one{display:flex;justify-content:center}
+.cup-cols.one>.match{width:min(760px,100%)}
 .match.cup{padding:3px 4px;gap:4px}
 .match.cup .club .nm{font-size:11.5px}
-.br-crests{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;justify-items:center;gap:4px}
-.br-crests img{width:28px;height:28px;object-fit:contain}
+.br-crests{display:grid;grid-template-columns:18px minmax(0,1fr) 18px;align-items:center;justify-items:center;gap:2px}
+.br-crests img{width:18px;height:18px;object-fit:contain}
 .br-crests .win img{outline:2px solid #1d6b45;border-radius:3px}
 .br-crests .lose{opacity:.38}
 .br-sc{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:28px}
@@ -254,9 +259,9 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pen-colon{font-size:22px}
 .pen-step{flex-direction:row;gap:4px}
 .pen-actions{display:flex;justify-content:flex-end;gap:8px}
-.bracket{display:flex;gap:16px;overflow:auto;padding:4px 2px 14px;align-items:flex-start}
-.br-col{min-width:210px;flex:0 0 210px}
-.br-col h4{margin:0 0 6px;font-size:12px}
+.bracket{display:flex;gap:6px;width:100%;overflow:hidden;padding:4px 0 8px;align-items:flex-start}
+.br-col{flex:1 1 0;min-width:0}
+.br-col h4{margin:0 0 6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .br-m{border:1px solid var(--line);border-radius:3px;background:#fff;padding:4px 6px;margin:0 0 6px}
 .br-m .ln{display:flex;justify-content:space-between;gap:8px;font-size:11px;line-height:1.35}
 .br-m .ln.win{font-weight:700}
@@ -279,15 +284,23 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .sc-past>.muted{margin:0 0 2px}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
-.sieger-box{overflow:auto}
-.sieger-row{display:flex;align-items:center;gap:16px;padding:5px 0;border-bottom:1px solid var(--line)}
+.sieger-box{overflow:hidden}
+.sieger-row{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr) minmax(280px,1.7fr);column-gap:12px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
 .sieger-head{color:var(--muted);font-size:11px;font-weight:600}
-.sieger-year{flex:0 0 72px;font-variant-numeric:tabular-nums;font-weight:600}
-.sieger-who{flex:0 1 210px;min-width:0}
-.sieger-final{display:inline-flex;align-items:center;gap:4px;min-width:0}
-.sieger-final .sieger-nm{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
-.sieger-final .liga-edge{flex:0 0 auto;max-width:64px}
-.sieger-final img{width:22px;height:22px;object-fit:contain;cursor:pointer;flex:0 0 22px}
-.sieger-sc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:28px}
+.sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
+.sieger-who{min-width:0}
+.sieger-who .club{max-width:100%}
+.sieger-final{display:grid;grid-template-columns:max-content minmax(0,1fr) 20px 78px 20px minmax(0,1fr) max-content;align-items:center;column-gap:4px;min-width:0}
+.sieger-final .nm-home,.sieger-final .nm-away{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.sieger-final .nm-home{text-align:right}
+.sieger-final .nm-away{text-align:left}
+.sieger-final .liga-edge{max-width:72px}
+.sieger-final img{width:20px;height:20px;object-fit:contain;cursor:pointer}
+.sieger-sc{display:flex;flex-direction:column;align-items:center;justify-content:center;width:78px;min-height:28px;text-align:center}
 .sieger-sc .br-ie{font-size:10px;color:var(--muted);min-height:12px;line-height:12px}
 .sieger-sc b{font-variant-numeric:tabular-nums}
+.stay{display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:#1d6b45;vertical-align:middle;opacity:.8}
+.stay-leg{margin-left:8px}
+.ansehen-legend{margin:8px 0 12px}
+.ansehen-pts{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px}
+.ansehen-pts .tbl{margin:0}
