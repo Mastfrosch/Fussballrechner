@@ -197,6 +197,12 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .ov-c:hover .ov-tip,.ov-c.hover .ov-tip{display:block}
 .ov-tip::after{content:"";position:absolute;top:100%;left:50%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
 .ov-tip .nm{font-weight:700;font-size:13px}
+.ov-tip.wide{min-width:200px;text-align:center}
+.ov-tip img{width:22px;height:22px;object-fit:contain;filter:none !important;opacity:1 !important}
+.ov-lost{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px}
+.ov-lost .sc{font-size:12px;line-height:1.15;font-weight:700}
+.ov-lost .sc i{display:block;font-style:normal;font-size:10px;font-weight:700;color:#1d4e89}
+.ov-opp{font-size:11px;color:#333;margin-top:2px}
 .ov-tip .bl{font-size:10.5px;color:var(--muted)}
 .ov-tip .st{font-size:10.5px;color:var(--green);font-weight:600;margin-top:2px}
 .ov-tip .st.out{color:#a33}
@@ -210,7 +216,7 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .match.cup .home,.match.cup .away{align-items:center;gap:8px}
 .match.cup .home .liga-edge{margin-right:auto}
 .match.cup .away .liga-edge{margin-left:auto}
-.liga-edge{font-size:9px;color:var(--muted);max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.liga-edge{font-size:12px;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ie-box{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;color:#444;margin:0}
 .ie-box input{margin:0}
 .ie-link{display:inline-block;margin:0;padding:0;border:none;background:none;color:#1d4e89;font:inherit;font-size:11px;font-weight:700;line-height:14px;height:14px;cursor:pointer;text-decoration:underline}
@@ -301,6 +307,11 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .sieger-sc b{font-variant-numeric:tabular-nums}
 .stay{display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:#1d6b45;vertical-align:middle;opacity:.8}
 .stay-leg{margin-left:8px}
-.ansehen-legend{margin:8px 0 12px}
-.ansehen-pts{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px}
-.ansehen-pts .tbl{margin:0}
+.ansehen-legend{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 12px}
+.ansehen-card{background:#f7faf8;border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.ansehen-card h3{margin:0 0 6px;font-size:14px}
+.ansehen-card p{margin:0;font-size:13px;line-height:1.4}
+.ansehen-card .tbl{margin:0}
+.info-hits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.info-titles{margin:6px 0 0;padding-left:18px}
+.info-titles li{margin:3px 0}
