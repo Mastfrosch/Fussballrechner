@@ -71,8 +71,10 @@ function seasonYear(name){ return parseInt(String(name).slice(0,4),10)||0; }
 // Ansehen: Liga über 30 Saisons, die jüngsten 10 davon 1,5-fach.
 // Pokal über 15 Saisons, die jüngsten 5 davon 1,5-fach, Jahre ohne Start zählen 0.
 function windowEndYear(){
+  if (endYearGen===ansehenGen && endYearCache) return endYearCache;
   let y=2025;
   (S.chronicle||[]).forEach(r=>{ const k=seasonYear(r.season); if(k>y) y=k; });
+  endYearCache=y; endYearGen=ansehenGen;
   return y;
 }
 function seasonWeight(seasonName, endYear){
@@ -81,6 +83,34 @@ function seasonWeight(seasonName, endYear){
   return y>=endYear-9 ? 1.5 : 1;
 }
 function pokalWindowSum(){ return 10*1+5*1.5; }
+let ansehenGen=1, chronIndex=null, chronIndexGen=0, runIndex=null, runIndexGen=0, endYearCache=0, endYearGen=0;
+const ansehenMemo=new Map();
+let ansehenMemoGen=0;
+function touchAnsehen(){ ansehenGen++; ansehenMemo.clear(); endYearCache=0; }
+function chronicleById(id){
+  if (!chronIndex || chronIndexGen!==ansehenGen){
+    chronIndex=new Map();
+    (S.chronicle||[]).forEach(r=>{
+      let a=chronIndex.get(r.id);
+      if (!a){ a=[]; chronIndex.set(r.id, a); }
+      a.push(r);
+    });
+    chronIndexGen=ansehenGen;
+  }
+  return chronIndex.get(id)||[];
+}
+function runsById(id){
+  if (!runIndex || runIndexGen!==ansehenGen){
+    runIndex=new Map();
+    allPokalRuns().forEach(r=>{
+      let a=runIndex.get(r.id);
+      if (!a){ a=[]; runIndex.set(r.id, a); }
+      a.push(r);
+    });
+    runIndexGen=ansehenGen;
+  }
+  return runIndex.get(id)||[];
+}
 function historyEntries(id){
   const H=window.FR_HISTORY, out=[];
   if (H && H.rows && H.rows[id]){
@@ -88,8 +118,8 @@ function historyEntries(id){
       out.push({season:H.seasons[r[0]], liga:H.ligas[r[1]], ebene:r[2], n:r[3], pl:r[4], pts:r[5]/100, src:'historie'});
     });
   }
-  (S.chronicle||[]).forEach(r=>{
-    if (r.id===id) out.push({season:r.season, liga:r.liga, ebene:r.ebene, n:r.n, pl:r.pl, pts:r.pts, src:'rechner'});
+  chronicleById(id).forEach(r=>{
+    out.push({season:r.season, liga:r.liga, ebene:r.ebene, n:r.n, pl:r.pl, pts:r.pts, src:'rechner'});
   });
   out.sort((a,b)=>a.season<b.season?-1:a.season>b.season?1:0);
   return out;
@@ -109,9 +139,19 @@ function ansehenInfo(id, endYear){
   return {end, rows, n, sw, value, liga, dfb, land};
 }
 function ansehenValue(id){
-  const info=ansehenInfo(id);
-  if (info.value!=null) return info.value;
-  return TEAMS[id].schnitt || 12;
+  const tr=window.FR_TIMING;
+  const t0=tr?performance.now():0;
+  if (ansehenMemoGen!==ansehenGen){ ansehenMemo.clear(); ansehenMemoGen=ansehenGen; }
+  const end=windowEndYear();
+  const key=id+'|'+end;
+  let v=ansehenMemo.get(key);
+  if (v==null){
+    const info=ansehenInfo(id, end);
+    v=info.value!=null ? info.value : (TEAMS[id].schnitt || 12);
+    ansehenMemo.set(key, v);
+  }
+  if (tr){ tr.ansehenMs+=performance.now()-t0; tr.ansehenN++; }
+  return v;
 }
 const DFB_ROUND_PTS={'1. Runde':6,'2. Runde':8,'Achtelfinale':10,'Viertelfinale':12,'Halbfinale':14,'Finale':16};
 const DFB_TITLE_PTS=6;
@@ -138,7 +178,7 @@ function allPokalRuns(){
   return out;
 }
 function pokalPart(id, comp, end){
-  const runs=allPokalRuns().filter(r=>r.id===id && r.comp===comp);
+  const runs=runsById(id).filter(r=>r.comp===comp);
   const sw=pokalWindowSum();
   let sp=0;
   const rows=[];
@@ -166,6 +206,11 @@ function clubLeagueId(season, id){
 // Gleiche Punkte gelten nicht als sicher, weil die Tordifferenz offen ist.
 function pointsEnvelope(season, lid){
   const lg=season.leagues[lid]; if(!lg) return {};
+  if (!lg.md){
+    const out={};
+    leagueTable(season, lid).forEach(r=>{ out[r.id]={min:r.pkt, max:r.pkt}; });
+    return out;
+  }
   const rem={}; lg.teams.forEach(id=>rem[id]=0);
   lg.md.forEach(md=>md.forEach(m=>{
     if (m[2]==null||m[3]==null){ rem[lg.teams[m[0]]]++; rem[lg.teams[m[1]]]++; }
@@ -194,7 +239,7 @@ function certaintyMap(season, lid){
   const table=leagueTable(season, lid);
   const rem={};
   lg.teams.forEach(id=>rem[id]=0);
-  lg.md.forEach(md=>md.forEach(m=>{ if(m[2]==null||m[3]==null){ rem[lg.teams[m[0]]]++; rem[lg.teams[m[1]]]++; } }));
+  if (lg.md) lg.md.forEach(md=>md.forEach(m=>{ if(m[2]==null||m[3]==null){ rem[lg.teams[m[0]]]++; rem[lg.teams[m[1]]]++; } }));
   const threat={};
   if (lg.decide && lg.decide.length){
     const byG={};
@@ -378,8 +423,18 @@ function newGame(){
   season.cups = buildCups(season, null);
   return {v:1, created:new Date().toISOString(), seasons:[season], view:0, ui:{league:'BL', tab:'tabelle', md:{}, autoNext:true}};
 }
+let saveHold=0;
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  if (saveHold){ saveHold=2; return; }
+  const tr=window.FR_TIMING;
+  const t0=tr?performance.now():0;
+  try {
+    const json=JSON.stringify(S);
+    if (tr){ tr.stringifyMs+=performance.now()-t0; tr.bytes=json.length; tr.saves=(tr.saves||0)+1; }
+    const t1=tr?performance.now():0;
+    localStorage.setItem(KEY, json);
+    if (tr) tr.writeMs=(tr.writeMs||0)+performance.now()-t1;
+  }
   catch(e){ alert('Speichern im Browser fehlgeschlagen ('+e.name+'). Bitte den Spielstand exportieren, damit nichts verloren geht.'); }
 }
 function structureOk(d){
@@ -397,7 +452,7 @@ const isEditable = () => S.view === S.seasons.length-1 && cur().status === 'runn
 
 // ---------- Tabellen-Berechnung ----------
 function matchesOf(season, lid, filt){
-  const lg = season.leagues[lid]; if (!lg) return [];
+  const lg = season.leagues[lid]; if (!lg || !lg.md) return [];
   const half = lg.teams.length-1, out=[];
   lg.md.forEach((md,mi) => {
     if (filt==='hin' && mi>=half) return;
@@ -461,6 +516,7 @@ function computeTable(teamIds, matches, mode){
 }
 function leagueFinished(season, lid){
   const lg=season.leagues[lid]; if (!lg) return false;
+  if (season.compact || !lg.md) return !!season.compact;
   return lg.md.every(md=>md.every(m=>m[2]!=null && m[3]!=null));
 }
 function twoLegWinner(leg1, leg2){
@@ -533,7 +589,13 @@ function applyDecide(season, lid, rows){
   return out;
 }
 function leagueTable(season, lid, mode, filt){
-  const rows=computeTable(season.leagues[lid].teams, matchesOf(season,lid,filt), mode||'all');
+  const lg=season.leagues[lid];
+  if (lg && lg.tables && !lg.md){
+    const key=filt==='hin'?'hin':filt==='rueck'?'rueck':mode==='home'?'home':mode==='away'?'away':'all';
+    const rows=lg.tables[key]||lg.tables.all||[];
+    return rows.map(r=>Object.assign({}, r, {form:(r.form||[]).slice()}));
+  }
+  const rows=computeTable(lg.teams, matchesOf(season,lid,filt), mode||'all');
   if ((mode && mode!=='all') || filt) return rows;
   return applyDecide(season, lid, rows);
 }
@@ -578,6 +640,7 @@ function fixedPlaces(season, lid){
   const table=leagueTable(season, lid);
   const rem={};
   lg.teams.forEach(id=>rem[id]=0);
+  if (!lg.md){ const fixed={}; table.forEach(r=>{ fixed[r.pl]=r.id; }); return fixed; }
   lg.md.forEach(md=>md.forEach(m=>{ if (m[2]==null||m[3]==null){ rem[lg.teams[m[0]]]++; rem[lg.teams[m[1]]]++; } }));
   const info=table.map(r=>({id:r.id, pl:r.pl, min:r.pkt, max:r.pkt+3*(rem[r.id]||0), rem:rem[r.id]||0}));
   const fixed={};
@@ -596,7 +659,9 @@ function fixedPlaces(season, lid){
   return fixed;
 }
 function leagueProgress(season, lid){
-  let done=0,total=0; season.leagues[lid].md.forEach(md=>md.forEach(m=>{total++; if(m[2]!=null&&m[3]!=null) done++;})); return {done,total};
+  const lg=season.leagues[lid]; if (!lg) return {done:0,total:0};
+  if (!lg.md){ const n=lg.teams.length, total=n*(n-1); return {done:total, total}; }
+  let done=0,total=0; lg.md.forEach(md=>md.forEach(m=>{total++; if(m[2]!=null&&m[3]!=null) done++;})); return {done,total};
 }
 function seasonProgress(season){ let d=0,t=0; LEAGUES.forEach(l=>{const p=leagueProgress(season,l.id); d+=p.done; t+=p.total;}); return {done:d,total:t}; }
 function zoneOf(lg, pl, n, down){
@@ -738,21 +803,87 @@ function cancelSeasonEnd(){ const s=latest(); delete s.endData; s.status='runnin
 function suggestPicks(e){
   POOLS.forEach(p=>{ const need=e.need[p.ol]; e.picks[p.ol]=[...e.pools[p.id]].filter(id=>!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)).sort(byRang).slice(0,need); });
 }
+function snapRows(rows){
+  return rows.map(r=>({id:r.id, pl:r.pl, sp:r.sp, s:r.s, u:r.u, n:r.n, tg:r.tg, gt:r.gt, diff:r.diff, pkt:r.pkt, form:(r.form||[]).slice()}));
+}
+function compactOneCup(cup){
+  if (!cup || cup.archived) return;
+  const rounds=cup.rounds||[];
+  rounds.forEach((round, ri)=>{
+    const last=ri===rounds.length-1;
+    const m=last && round.matches && round.matches.length===1 ? round.matches[0] : null;
+    if (m && cupWinner(m)){
+      round.matches=[{h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:!!m.et, peh:m.peh==null?null:m.peh, pea:m.pea==null?null:m.pea, neutral:!!(m.neutral||round.neutral)}];
+      round.drawn=true;
+      return;
+    }
+    round.matches=[];
+    round.drawn=true;
+    round.archived=true;
+    if (round.field) delete round.field;
+  });
+  cup.archived=true;
+}
+function compactCups(cups){
+  if (!cups) return;
+  compactOneCup(cups.dfb);
+  if (cups.land) Object.keys(cups.land).forEach(bl=>compactOneCup(cups.land[bl]));
+}
+function compactSeason(season){
+  if (!season || season.status!=='done' || season.compact) return false;
+  LEAGUES.forEach(l=>{
+    const lg=season.leagues[l.id];
+    if (!lg || !lg.md) return;
+    lg.tables={
+      all:snapRows(leagueTable(season, l.id)),
+      home:snapRows(leagueTable(season, l.id, 'home')),
+      away:snapRows(leagueTable(season, l.id, 'away')),
+      hin:snapRows(leagueTable(season, l.id, 'all', 'hin')),
+      rueck:snapRows(leagueTable(season, l.id, 'all', 'rueck'))
+    };
+    delete lg.md;
+    delete lg.decide;
+  });
+  if (season.kickoffs) delete season.kickoffs;
+  compactCups(season.cups);
+  season.compact=true;
+  return true;
+}
+function migrateArchive(){
+  let n=0;
+  (S.seasons||[]).forEach(s=>{
+    if (!s || s.status!=='done' || s.compact) return;
+    if (!S.pokalRuns || !S.pokalRuns.some(r=>r.season===s.name)) recordCupHistory(s);
+    if (compactSeason(s)) n++;
+  });
+  return n;
+}
 function rollSimulatedSeason(){
   const s=latest();
   if (!s || s.status!=='running') return {c:0, rolled:false};
-  let c=simSeason(s);
-  for (let i=0; i<4 && (decidePending(s) || supercupPending(s)); i++){
-    LEAGUES.forEach(l=>{ c+=simDecide(s, l.id); });
-    c+=simSupercup(s);
+  saveHold=1;
+  let c=0, rolled=false;
+  try {
+    c=simSeason(s);
+    for (let i=0; i<4 && (decidePending(s) || supercupPending(s)); i++){
+      LEAGUES.forEach(l=>{ c+=simDecide(s, l.id); });
+      c+=simSupercup(s);
+    }
+    if (decidePending(s) || supercupPending(s)) rolled=false;
+    else {
+      s.endData=computeTransition(s);
+      s.status='ending';
+      suggestPicks(s.endData);
+      const before=S.seasons.length;
+      finalizeSeason({quiet:true, batch:true});
+      rolled=S.seasons.length>before;
+    }
+  } finally {
+    saveHold=0;
   }
-  if (decidePending(s) || supercupPending(s)) return {c, rolled:false};
-  s.endData=computeTransition(s);
-  s.status='ending';
-  suggestPicks(s.endData);
-  const before=S.seasons.length;
-  finalizeSeason({quiet:true});
-  return {c, rolled:S.seasons.length>before};
+  save();
+  render();
+  return {c, rolled};
 }
 function finalizeSeason(opts){
   const quiet=!!(opts && opts.quiet);
@@ -787,11 +918,14 @@ function finalizeSeason(opts){
       S.chronicle.push({season:s.name, id:r.id, liga:l.name, ebene:l.level, n:t.length, pl:r.pl, pts:Math.round(pts*100)/100});
     });
   });
+  recordCupHistory(s);
+  touchAnsehen();
   ns.cups = buildCups(ns, s);
   ns.supercup = buildSupercup(s);
-  recordCupHistory(s);
+  compactSeason(s);
   S.seasons.push(ns); S.view=S.seasons.length-1; S.ui.tab='tabelle'; S.ui.md={};
-  save(); render(); toast('Saison '+ns.name+' wurde erstellt.');
+  if (!(opts && opts.batch)){ save(); render(); }
+  toast('Saison '+ns.name+' wurde erstellt.');
 }
 
 // ---------- Pokal ----------
@@ -1312,11 +1446,15 @@ function viewCupRound(s, cup, ed){
   }
   S.ui.cupRound=ri;
   const round=cup.rounds[ri];
-  const done=round.matches.filter(cupWinner).length;
-  let h='<div class="card"><div class="card-title"><span>'+esc(round.name)+' <span class="progress">('+(round.drawn?done+'/'+round.matches.length+' entschieden':'nicht ausgelost')+')</span></span>';
+  const done=(round.matches||[]).filter(cupWinner).length;
+  let h='<div class="card"><div class="card-title"><span>'+esc(round.name)+' <span class="progress">('+(round.drawn?done+'/'+(round.matches||[]).length+' entschieden':'nicht ausgelost')+')</span></span>';
   h+='<span class="md-nav"><button class="btn" data-act="cupPrev">‹</button><select id="cupRound">';
   cup.rounds.forEach((r,i)=>{ h+='<option value="'+i+'"'+(i===ri?' selected':'')+'>'+esc(r.name)+(roundComplete(r)?' ✓':'')+'</option>'; });
   h+='</select><button class="btn" data-act="cupNext">›</button></span></div>';
+  if (round.archived && !(round.matches&&round.matches.length)){
+    h+='<p class="muted">Die einzelnen Spiele dieser Runde sind nicht mehr gespeichert. Wer welche Runde erreicht hat, steht auf der Vereinsseite. Das Finale bleibt in der Siegerliste.</p></div>';
+    return h;
+  }
   if (cup.kind==='dfb' && ri===0){
     h+='<p class="cup-note">64 Mannschaften. Profitopf: die 20 der Bundesliga und die Plätze 1–12 der 2. Bundesliga. Amateurtopf: Plätze 13–20 der 2. Bundesliga, Plätze 1–8 der 3. Liga und 16 über die Landespokale. In der 1. Runde spielt jeder Amateurverein zu Hause gegen einen Profi.</p>';
   }
@@ -1384,6 +1522,12 @@ function leagueBucket(season, id){
   return 'Amateurliga';
 }
 function cupAliveSet(cup){
+  if (cup && cup.archived){
+    const fin=cupFinalists(cup);
+    const alive=new Set();
+    if (fin && fin.winner) alive.add(fin.winner);
+    return alive;
+  }
   const alive=new Set(cup.entrants||[]);
   (cup.rounds||[]).forEach((round, ri)=>{
     (round.byes||[]).forEach(id=>alive.add(id));
@@ -1506,7 +1650,8 @@ function viewCupTree(s, cup){
   let h='<div class="card" style="padding:10px"><div class="bracket">';
   cup.rounds.forEach(round=>{
     h+='<div class="br-col"><h4>'+esc(round.name)+'</h4>';
-    if (!round.drawn) h+='<div class="br-m bye">noch nicht ausgelost</div>';
+    if (round.archived && !(round.matches&&round.matches.length)) h+='<div class="br-m bye">Spiele nicht gespeichert</div>';
+    else if (!round.drawn) h+='<div class="br-m bye">noch nicht ausgelost</div>';
     else round.matches.forEach(m=>{
       const w=cupWinner(m);
       const b=cupScoreBits(m);
@@ -1664,8 +1809,10 @@ function render(){
 }
 function currentMd(s,lid){
   const key=S.view+':'+lid;
+  const lg=s.leagues[lid];
+  if (!lg || !lg.md) return 0;
   if (S.ui.md[key]!=null) return S.ui.md[key];
-  const md=s.leagues[lid].md; const i=md.findIndex(d=>d.some(m=>m[2]==null||m[3]==null));
+  const md=lg.md; const i=md.findIndex(d=>d.some(m=>m[2]==null||m[3]==null));
   return i<0 ? md.length-1 : i;
 }
 function viewTabelle(s,lid){
@@ -1673,7 +1820,9 @@ function viewTabelle(s,lid){
 }
 let shownMd=0;
 function spielplanHTML(s,lid){
-  const lg=s.leagues[lid], mi=currentMd(s,lid);
+  const lg=s.leagues[lid];
+  if (!lg || !lg.md) return '<div class="card-title"><span>Spielplan</span></div><p class="muted">Die einzelnen Spiele dieser Saison sind nicht mehr gespeichert. Tabelle, Heim/Auswärts und Hin/Rückrunde bleiben erhalten.</p>';
+  const mi=currentMd(s,lid);
   shownMd=mi; S.ui.md[S.view+':'+lid]=mi;
   const md=lg.md[mi], ed=isEditable();
   const done=md.filter(m=>m[2]!=null&&m[3]!=null).length;
@@ -1757,7 +1906,8 @@ function viewEwig(lid){
   const agg={}, seasons={};
   S.seasons.forEach(s=>{ if(!s.leagues[lid]) return;
     s.leagues[lid].teams.forEach(id=>{ seasons[id]=(seasons[id]||0)+1; });
-    computeTable(s.leagues[lid].teams, matchesOf(s,lid), 'all').forEach(r=>{
+    const rows = s.leagues[lid].tables && !s.leagues[lid].md ? s.leagues[lid].tables.all : computeTable(s.leagues[lid].teams, matchesOf(s,lid), 'all');
+    rows.forEach(r=>{
       const a=agg[r.id]||(agg[r.id]=emptyRow(r.id)); ['sp','s','u','n','tg','gt','pkt'].forEach(k=>a[k]+=r[k]); });
   });
   const rows=Object.values(agg); rows.forEach(r=>r.diff=r.tg-r.gt);
@@ -2894,7 +3044,9 @@ function maybeAdvance(season, lid){
 }
 function maxRun(str){ let m=0,c=0,p=''; for (const ch of str){ if(ch===p){c++;} else {c=1;p=ch;} if(c>m)m=c; } return m; }
 function viewTerminierung(s, lid){
-  const lg=s.leagues[lid], n=lg.teams.length, half=n-1, total=lg.md.length;
+  const lg=s.leagues[lid];
+  if (!lg || !lg.md) return '<div class="box"><p class="muted">Die einzelnen Spiele und Anstoßzeiten dieser Saison sind nicht mehr gespeichert.</p></div>';
+  const n=lg.teams.length, half=n-1, total=lg.md.length;
   const fix=validateFixtures(lg.md);
   const tmpl=slotTemplate(lid);
   const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
@@ -3665,7 +3817,7 @@ document.addEventListener('click', ev=>{
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
-  else if (act==='simSeason'){ const r=rollSimulatedSeason(); if(!r.rolled){ save(); render(); toast('Die Saison konnte nicht gewechselt werden.'); return; } toast(r.c+' Spiele simuliert.'); }
+  else if (act==='simSeason'){ const r=rollSimulatedSeason(); if(!r.rolled){ toast('Die Saison konnte nicht gewechselt werden.'); return; } toast(r.c+' Spiele simuliert.'); }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ openModal(rulesHTML()); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -3748,8 +3900,9 @@ if (S.ui.tab==='abschluss') S.ui.tab='aufab';
 if (S.ui.tab==='derbys') S.ui.tab='tabelle';
 if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='aufab';
 ensureAllCups();
+migrateArchive();
 save(); render();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, DFB_ROUNDS};
+window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, DFB_ROUNDS};
 })();
