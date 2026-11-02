@@ -3372,11 +3372,24 @@ function renderDerbys(){
   $('#title').textContent='Derbys';
   const rows=derbyList();
   $('#subline').innerHTML=rows.length+' belegte Derbys. Keine Markierung im Spielplan.';
-  let h='<div class="box"><p>Jede Zeile ist ein belegtes Derby zwischen genau diesen beiden Vereinen. Dieselbe Stadt allein reicht nicht.</p></div><div class="card"><table class="tbl"><thead><tr><th class="l">Derby</th><th class="l">Verein</th><th class="l">Verein</th></tr></thead><tbody>';
+  const by={};
   rows.forEach(d=>{
-    h+='<tr><td class="l">'+(d.name?esc(d.name):'<span class="muted">Derby</span>')+'</td><td class="l">'+clubHTML(d.a,{nobl:true})+'</td><td class="l">'+clubHTML(d.b,{nobl:true})+'</td></tr>';
+    [d.a,d.b].forEach(id=>{
+      const other=id===d.a?d.b:d.a;
+      (by[id]||(by[id]=[])).push({id:other, name:d.name||''});
+    });
   });
-  h+='</tbody></table></div>';
+  const ids=Object.keys(by).sort((a,b)=>TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+  let h='<div class="box"><p>Jeder Verein mit mindestens einem belegten Derby. Dasselbe Duell steht bei beiden Vereinen.</p></div><div class="card derby-list">';
+  ids.forEach(id=>{
+    const opps=by[id].slice().sort((a,b)=>TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de')||a.name.localeCompare(b.name,'de'));
+    h+='<div class="derby-club"><div class="derby-head">'+clubHTML(id,{nobl:true})+'</div>';
+    opps.forEach(o=>{
+      h+='<div class="derby-opp">'+clubHTML(o.id,{nobl:true})+(o.name?'<span class="muted">'+esc(o.name)+'</span>':'')+'</div>';
+    });
+    h+='</div>';
+  });
+  h+='</div>';
   $('#view').innerHTML=h;
 }
 function openVerein(id){
