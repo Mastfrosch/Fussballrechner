@@ -1384,23 +1384,20 @@ function cupAliveSet(cup){
   });
   return alive;
 }
-function ovGroupsHTML(season, ids, alive, maxCols){
+function ovGroupsHTML(season, ids, alive){
   const G={};
   ids.forEach(id=>{ const g=leagueBucket(season, id); (G[g]=G[g]||[]).push(id); });
-  let h='<div class="ov-groups">';
+  let h='';
   OV_ORDER.filter(g=>G[g]&&G[g].length).forEach(g=>{
     const list=G[g].slice().sort(byRang);
     const n=list.length, left=list.filter(id=>alive.has(id)).length;
-    const cols=Math.min(n, maxCols);
-    const half=n<=8 && g!=='Bundesliga' && g!=='2. Bundesliga' && g!=='Amateurliga';
-    h+='<div class="ov-group '+(half?'half':'full')+'"><div class="ov-gh"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-grid" style="--cols:'+cols+'">';
+    h+='<div class="ov-lg"><div class="ov-lg-h"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-row">';
     list.forEach(id=>{
       const t=TEAMS[id], out=!alive.has(id);
       h+='<div class="ov-c'+(out?' out':'')+'" data-club="'+id+'"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div class="ov-tip"><div class="nm">'+esc(t.name)+'</div><div class="bl">'+esc(t.bl)+' · '+esc(g)+'</div><div class="st'+(out?' out':'')+'">'+(out?'ausgeschieden':'noch im Wettbewerb')+'</div></div></div>';
     });
     h+='</div></div>';
   });
-  h+='</div>';
   return h;
 }
 function viewCupOverview(s, cup){
@@ -1414,23 +1411,18 @@ function viewCupOverview(s, cup){
     else { nextName=r.name; break; }
   }
   const stand=doneName ? 'nach '+doneName : 'vor dem Start';
-  const noch=left===1?'Team':'Teams';
-  const sub=nextName ? nextName+' · '+left+' '+noch+' noch dabei' : 'Sieger steht';
-  const cell=cup.kind==='dfb'?40:(total>80?32:36);
-  const maxCols=cup.kind==='dfb'?12:14;
   let legendId=[...alive][0] || (cup.entrants||[])[0];
   let outId=(cup.entrants||[]).find(id=>!alive.has(id)) || legendId;
-  let h='<div class="card ov-card"><div class="card-title"><span>Übersicht <span class="progress">('+esc(stand)+' · <b>'+left+'</b> von '+total+' noch dabei)</span></span><span class="muted" style="font-weight:400;font-size:12px">Name beim Drüberfahren</span></div>';
-  h+='<div class="ov-panel" style="--cell:'+cell+'px"><div class="ov-head"><div class="t">'+esc(cup.name)+' '+esc(s.name)+'</div><div class="s">'+esc(sub)+'</div></div>';
+  const crest=id=>id&&TEAMS[id]?'<img src="'+esc(TEAMS[id].crest)+'" alt="">':'';
+  let h='<div class="box ov-plain"><p class="muted">'+esc(cup.name)+' '+esc(s.name)+' · '+esc(stand)+' · '+left+' von '+total+' noch dabei. Name beim Drüberfahren.</p>';
   if (cup.kind==='dfb'){
     const pro=new Set(cup.pro||[]);
     const pros=(cup.entrants||[]).filter(id=>pro.has(id));
     const ams=(cup.entrants||[]).filter(id=>!pro.has(id));
-    h+='<div class="ov-pot-title">Profitopf</div>'+ovGroupsHTML(s, pros, alive, maxCols);
-    h+='<div class="ov-pot-title">Amateurtopf</div>'+ovGroupsHTML(s, ams, alive, maxCols);
-  } else h+=ovGroupsHTML(s, cup.entrants||[], alive, maxCols);
-  const crest=id=>id&&TEAMS[id]?'<img src="'+esc(TEAMS[id].crest)+'" alt="">':'';
-  h+='<div class="ov-legend"><span>'+crest(legendId)+'noch im Wettbewerb</span><span class="out">'+crest(outId)+'ausgeschieden</span></div></div></div>';
+    h+='<h3 class="ov-pot">Profitopf</h3>'+ovGroupsHTML(s, pros, alive);
+    h+='<h3 class="ov-pot">Amateurtopf</h3>'+ovGroupsHTML(s, ams, alive);
+  } else h+=ovGroupsHTML(s, cup.entrants||[], alive);
+  h+='<p class="ov-legend"><span>'+crest(legendId)+'noch dabei</span><span class="out">'+crest(outId)+'ausgeschieden</span></p></div>';
   return h;
 }
 function cupMatchHTML(s, m, key, ri, i, ed){
@@ -1532,10 +1524,10 @@ function siegerRow(year, winnerId, finalistId, match, season){
   const home=match ? match.h : winnerId;
   const away=match ? match.a : finalistId;
   const sc='<span class="br-ie">'+(b&&b.above?esc(b.above):'')+'</span><b>'+(b?esc(b.main):'–')+'</b>';
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+clubHTML(winnerId,{nobl:true})+'</div><div class="sieger-who">'+clubHTML(finalistId,{nobl:true})+'</div><div class="sieger-sep"></div><div class="sieger-final"><span class="liga-edge">'+esc(seasonLeagueTag(season, home))+'</span><span class="sieger-nm home-nm">'+esc(TEAMS[home].name)+'</span>'+siegerCrest(home)+'<span class="sieger-sc">'+sc+'</span>'+siegerCrest(away)+'<span class="sieger-nm">'+esc(TEAMS[away].name)+'</span><span class="liga-edge">'+esc(seasonLeagueTag(season, away))+'</span></div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+clubHTML(winnerId,{nobl:true})+'</div><div class="sieger-who">'+clubHTML(finalistId,{nobl:true})+'</div><div class="sieger-final"><span class="liga-edge">'+esc(seasonLeagueTag(season, home))+'</span><span class="sieger-nm">'+esc(TEAMS[home].name)+'</span>'+siegerCrest(home)+'<span class="sieger-sc">'+sc+'</span>'+siegerCrest(away)+'<span class="sieger-nm">'+esc(TEAMS[away].name)+'</span><span class="liga-edge">'+esc(seasonLeagueTag(season, away))+'</span></div></div>';
 }
 function siegerHead(){
-  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div></div><div class="sieger-final"><span></span><span>Heim</span><span></span><span>Ergebnis</span><span></span><span>Auswärts</span><span></span></div></div>';
+  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div class="sieger-final">Finale</div></div>';
 }
 function viewCupWinners(){
   const key=S.ui.cup||'dfb';
@@ -3085,36 +3077,9 @@ function bindMap(){
   svg.addEventListener('pointerup', end);
   svg.addEventListener('pointercancel', end);
 }
-function moveLeagueLabel(id){
-  if (L[id]) return L[id].name;
-  if (P[id]) return 'Amateurliga';
-  return id||'';
-}
 function transitionOf(s){
   if (s.endData) return s.endData;
   return computeTransition(s);
-}
-function moveListHTML(e){
-  const items=(e.moves||[]).slice();
-  if (e.picks) Object.keys(e.picks).forEach(ol=>{
-    (e.picks[ol]||[]).forEach(id=>items.push({id, from:homeLeague(id,7), to:ol, type:'auf'}));
-  });
-  const groups={};
-  items.forEach(m=>{ (groups[m.from]||(groups[m.from]=[])).push(m); });
-  const order=LEAGUES.map(l=>l.id).concat(POOLS.map(p=>p.id));
-  let h='<div class="box"><h3>Wohin die Vereine wechseln</h3>';
-  let any=false;
-  order.forEach(from=>{
-    const list=groups[from]; if (!list||!list.length) return;
-    any=true;
-    h+='<h4>'+esc(leagueName(from))+'</h4>';
-    list.sort((a,b)=>(a.pl||99)-(b.pl||99)||TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de')).forEach(m=>{
-      h+='<div class="move-line">'+clubHTML(m.id,{nobl:true})+'<span>'+esc(moveLeagueLabel(m.from))+' → '+esc(moveLeagueLabel(m.to))+'</span></div>';
-    });
-  });
-  if (!any) h+='<p class="muted">Nach dem aktuellen Stand wechselt niemand die Liga.</p>';
-  h+='</div>';
-  return h;
 }
 function moveReasonHTML(s, e){
   let h='<div class="box"><h3>Warum diese Zahlen</h3>';
@@ -3167,45 +3132,48 @@ function renderAufAb(){
   else if (preview && (decidePending(s)||supercupPending(s))) h+='<div class="notice">Entscheidungsspiel oder Supercup ist noch offen. Die Aufsteiger wählst du, sobald das erledigt ist.</div>';
   else if (preview && s.status==='running' && S.view===S.seasons.length-1) h+='<div class="box"><p>Alle Spiele sind eingetragen.</p><button class="btn primary" data-act="end">Aufsteiger aus der Amateurliga wählen</button></div>';
   h+=moveBoardHTML(e);
-  h+=moveListHTML(e);
   h+=moveReasonHTML(s, e);
   if (s.status==='ending') h+=pickBlockHTML(s, e);
   $('#view').innerHTML=h;
 }
-function moveChip(id, dest, dir){
+function moveChip(id, from, dir){
   const t=TEAMS[id];
-  return '<span class="py-chip '+dir+'" title="'+esc(t.name+(dest?' → '+dest:''))+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><span>'+esc(t.name)+'</span>'+(dest?'<i>'+esc(dest)+'</i>':'')+'</span>';
+  return '<span class="py-chip '+dir+'" title="'+esc(t.name+(from?' aus '+from:''))+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><span>'+esc(t.name)+'</span>'+(from?'<i>'+esc(from)+'</i>':'')+'</span>';
 }
-function moveBlock(l, ups, dns, hideDown){
+function incomingOf(e, lid){
+  const up=(e.moves||[]).filter(m=>m.to===lid && m.type==='auf').map(m=>({id:m.id, from:leagueShort(m.from)}));
+  const down=(e.moves||[]).filter(m=>m.to===lid && m.type==='ab').map(m=>({id:m.id, from:leagueShort(m.from)}));
+  ((e.picks&&e.picks[lid])||[]).forEach(id=>up.push({id, from:'Amateur'}));
+  return {up, down};
+}
+function moveBlock(l, ups, dns){
   let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>';
-  h+='<div class="py-side up"><div class="py-clubs">';
-  if (!ups.length) h+='<span class="py-empty">kein Aufsteiger</span>';
-  ups.forEach(x=>{ h+=moveChip(x.id, x.dest, 'up'); });
-  h+='</div></div>';
-  if (!hideDown){
-    h+='<div class="py-side dn"><div class="py-clubs">';
-    if (!dns.length) h+='<span class="py-empty">kein Absteiger</span>';
-    dns.forEach(x=>{ h+=moveChip(x.id, x.dest, 'dn'); });
+  if (ups.length){
+    h+='<div class="py-side up"><div class="py-label">▲ von unten</div><div class="py-clubs">';
+    ups.forEach(x=>{ h+=moveChip(x.id, x.from, 'up'); });
     h+='</div></div>';
   }
+  if (dns.length){
+    h+='<div class="py-side dn"><div class="py-label">▼ von oben</div><div class="py-clubs">';
+    dns.forEach(x=>{ h+=moveChip(x.id, x.from, 'dn'); });
+    h+='</div></div>';
+  }
+  if (!ups.length && !dns.length) h+='<div class="py-empty">niemand kommt dazu</div>';
   h+='</div>';
   return h;
 }
 function moveBoardHTML(e){
-  const ups=id=>e.moves.filter(m=>m.from===id && m.type==='auf').map(m=>({id:m.id, dest:leagueShort(m.to)}));
-  const dns=id=>e.moves.filter(m=>m.from===id && m.type==='ab').map(m=>({id:m.id, dest:leagueShort(m.to)}));
   const row=(cls, inner)=>'<div class="py-row '+cls+'">'+inner+'</div>';
-  const one=l=>moveBlock(l, ups(l.id), dns(l.id));
-  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
+  const one=l=>{ const x=incomingOf(e, l.id); return moveBlock(l, x.up, x.down); };
+  const amDown=(e.moves||[]).filter(m=>P[m.to] && m.type==='ab').map(m=>({id:m.id, from:leagueShort(m.from)}));
+  let h='<div class="card move-card"><div class="card-title">Wer in die Liga kommt</div><div class="pyramid">';
   h+=row('w1', one(L.BL));
   h+=row('w2', one(L.BL2));
   h+=row('w3', one(L.L3));
   h+=row('w4', one(L.L4));
   h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id])).join(''));
   h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id])).join(''));
-  const amUp=[];
-  POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
-  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], true));
+  h+=row('wam', moveBlock({name:'Amateurliga'}, [], amDown));
   h+='</div></div>';
   return h;
 }
