@@ -275,13 +275,6 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .title-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .title-grid>div{background:#f7faf8;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
 .title-grid .seasons{color:#555;font-size:12px;line-height:1.35}
-.derby-line{display:flex;align-items:center;gap:12px;padding:4px 0;border-bottom:1px solid var(--line)}
-.derby-line>.muted{flex:0 0 200px}
-.derby-club{padding:8px 12px 6px}
-.derby-club+.derby-club{border-top:1px solid var(--line)}
-.derby-head .nm{font-weight:700}
-.derby-opp{display:flex;align-items:center;gap:12px;padding:2px 0 2px 28px}
-.derby-opp .muted{font-size:12px}
 .sc-past{margin:8px 0}
 .sc-past>.muted{margin:0 0 2px}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
