@@ -3145,7 +3145,8 @@ function leavingOf(e, lid){
   const down=(e.moves||[]).filter(m=>m.from===lid && m.type==='ab').map(m=>({id:m.id, dest:leagueShort(m.to)}));
   return {up, down};
 }
-function moveBlock(l, ups, dns, hideDown){
+function moveBlock(l, ups, dns, opts){
+  opts=opts||{};
   const side=(dir, label, list)=>{
     let h='<div class="py-side '+dir+'"><div class="py-label">'+label+'</div><div class="py-clubs">';
     if (!list.length) h+='<span class="py-empty">'+(dir==='up'?'kein Aufsteiger':'kein Absteiger')+'</span>';
@@ -3154,8 +3155,8 @@ function moveBlock(l, ups, dns, hideDown){
     return h;
   };
   let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>';
-  h+=side('up', '▲ Aufsteiger', ups);
-  if (!hideDown) h+=side('dn', '▼ Absteiger', dns);
+  if (!opts.hideUp) h+=side('up', '▲ Aufsteiger', ups);
+  if (!opts.hideDown) h+=side('dn', '▼ Absteiger', dns);
   h+='</div>';
   return h;
 }
@@ -3165,13 +3166,13 @@ function moveBoardHTML(e){
   const amUp=[];
   POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
   let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
-  h+=row('w1', one(L.BL));
+  h+=row('w1', moveBlock(L.BL, [], leavingOf(e, 'BL').down, {hideUp:true}));
   h+=row('w2', one(L.BL2));
   h+=row('w3', one(L.L3));
   h+=row('w4', one(L.L4));
   h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id])).join(''));
   h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id])).join(''));
-  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], true));
+  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], {hideDown:true}));
   h+='</div></div>';
   return h;
 }
