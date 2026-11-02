@@ -3370,9 +3370,9 @@ function derbiesOf(id){ return derbyList().filter(d=>d.a===id||d.b===id); }
 function renderDerbys(){
   $('#tabs').innerHTML='';
   $('#title').textContent='Derbys';
-  $('#subline').innerHTML='Nur belegte Rivalitäten. Keine Markierung im Spielplan.';
   const rows=derbyList();
-  let h='<div class="box"><p>Jede Zeile ist ein bekanntes Derby oder ein echtes Stadtderby zwischen zwei Vereinen in diesem Datenbestand. Unsichere Paare fehlen.</p></div><div class="card"><table class="tbl"><thead><tr><th class="l">Derby</th><th class="l">Verein</th><th class="l">Verein</th></tr></thead><tbody>';
+  $('#subline').innerHTML=rows.length+' belegte Derbys. Keine Markierung im Spielplan.';
+  let h='<div class="box"><p>Jede Zeile ist ein belegtes Derby oder ein Stadtderby zweier Vereine aus derselben Stadt. Nachbarorte ohne belegte Rivalität fehlen.</p></div><div class="card"><table class="tbl"><thead><tr><th class="l">Derby</th><th class="l">Verein</th><th class="l">Verein</th></tr></thead><tbody>';
   rows.forEach(d=>{
     h+='<tr><td class="l">'+(d.name?esc(d.name):'<span class="muted">Derby</span>')+'</td><td class="l">'+clubHTML(d.a,{nobl:true})+'</td><td class="l">'+clubHTML(d.b,{nobl:true})+'</td></tr>';
   });
