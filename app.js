@@ -2075,17 +2075,39 @@ function legendHTML(lg, season){
   return '<div class="legend">'+it.join('')+'</div>';
 }
 
+function setActions(html){
+  const el=$('#headActions');
+  if (el) el.innerHTML=html||'';
+}
+function seasonActions(s, withEnd){
+  if (!s) return '';
+  const live=s.status==='running' && S.view===S.seasons.length-1;
+  if (live){
+    let h='<button class="btn" data-act="simSeason">Saison simulieren</button>';
+    if (withEnd!==false) h+='<button class="btn primary" data-act="end">Saison abschließen</button>';
+    return h;
+  }
+  if (withEnd!==false && s.status==='ending') return '<button class="btn primary" data-act="toEnd">Auf/Abstiege</button>';
+  return '';
+}
 function renderNav(){
   const tab=S.ui.tab, pokal=tab==='pokal', ansehen=tab==='ansehen', amateur=S.ui.league==='AM'||!!P[S.ui.league];
   const special=pokal||ansehen||tab==='verein'||tab==='supercup'||tab==='info';
   let amN=0; POOLS.forEach(p=>amN+=(cur().pools[p.id]||[]).length);
-  let h='';
-  LEAGUES.forEach(l=>{ h+='<a class="nav-item'+(!special && !amateur && S.ui.league===l.id?' active':'')+'" data-league="'+l.id+'">'+esc(l.name)+'</a>'; });
-  h+='<a class="nav-item'+(!special && amateur?' active':'')+'" data-league="AM">Amateurliga<span class="cnt">'+amN+'</span></a>';
-  h+='<a class="nav-item nav-extra'+(tab==='info'?' active':'')+'" data-tab="info">Vereinsinfo</a>';
-  h+='<a class="nav-item nav-extra'+(ansehen?' active':'')+'" data-tab="ansehen">Ansehen</a>';
-  h+='<a class="nav-item'+(pokal?' active':'')+'" data-tab="pokal">Pokal</a>';
-  if (featOn('supercup')) h+='<a class="nav-item'+(tab==='supercup'?' active':'')+'" data-tab="supercup">Supercup</a>';
+  const link=(label, active, attrs, title)=>'<a class="nav-item'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
+  const grp=(title, body)=>'<div class="nav-group"><div class="nav-group-title">'+title+'</div>'+body+'</div>';
+  const leagueOn=id=>!special && !amateur && S.ui.league===id;
+  const profi=LEAGUES.filter(l=>l.level<=4).map(l=>link(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"')).join('');
+  const rl=LEAGUES.filter(l=>l.level===5).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
+  const ol=LEAGUES.filter(l=>l.level===6).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
+  let h=grp('Ligen', profi);
+  h+=grp('Regionalliga', rl);
+  h+=grp('Oberliga', ol);
+  h+=grp('Breitensport', link('Amateurliga<span class="cnt">'+amN+'</span>', !special && amateur, 'data-league="AM"'));
+  let comp=link('Pokal', pokal, 'data-tab="pokal"');
+  if (featOn('supercup')) comp+=link('Supercup', tab==='supercup', 'data-tab="supercup"');
+  h+=grp('Wettbewerbe', comp);
+  h+=grp('Verein', link('Vereinsinfo', tab==='info', 'data-tab="info"')+link('Ansehen', ansehen, 'data-tab="ansehen"'));
   $('#leagueNav').innerHTML=h;
   const sel=id=>!pokal && S.ui.league===id?' selected':'';
   let o=LEAGUES.map(l=>'<option value="'+l.id+'"'+sel(l.id)+'>'+esc(l.name)+'</option>').join('');
@@ -2116,10 +2138,10 @@ function renderPokal(s){
   const cup=getCup(s, key);
   const view=S.ui.cupView||'spiele';
   $('#title').textContent=cup?cup.name:'Pokal';
-  let sub='Saison '+s.name+' · DFB-Pokal und 16 Landespokale';
-  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button>';
-  if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison</span>';
+  let sub='DFB-Pokal und 16 Landespokale';
+  if (s.status==='done') sub+=' · abgeschlossene Saison';
   $('#subline').innerHTML=sub;
+  setActions(seasonActions(s, false));
   $('#tabs').innerHTML='';
   $('#view').innerHTML=viewPokal(s, cup, view);
 }
@@ -2492,6 +2514,7 @@ function render(){
   renderMigrate();
   renderSettings();
   renderNav();
+  setActions('');
   const s=cur(), lid=S.ui.league;
   if (S.ui.tab==='info'){ renderInfo(); return; }
   if (S.ui.tab==='ansehen'){
@@ -2512,11 +2535,10 @@ function render(){
   const lg=L[lid];
   $('#title').textContent=lg.name;
   const pr=seasonProgress(s), lp=leagueProgress(s,lid);
-  let sub = 'Saison '+s.name+' · <a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · <span class="muted">Liga: '+lp.done+'/'+lp.total+' Spiele · alle Ligen: '+pr.done+'/'+pr.total+'</span>';
-  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button> · <button class="btn small primary" data-act="end">Saison abschließen</button>';
-  if (s.status==='ending') sub+=' · <button class="btn small primary" data-act="toEnd">Auf/Abstiege</button>';
-  if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison (nur Ansicht)</span>';
+  let sub = '<a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · Liga '+lp.done+'/'+lp.total+' · alle Ligen '+pr.done+'/'+pr.total;
+  if (s.status==='done') sub+=' · abgeschlossene Saison';
   $('#subline').innerHTML=sub;
+  setActions(seasonActions(s));
   $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
   if (S.ui.tab==='tabelle') v.innerHTML=viewTabelle(s,lid);
@@ -2733,7 +2755,8 @@ function renderAmateur(){
   if (!S.ui.amateurBl || !counts[S.ui.amateurBl]) S.ui.amateurBl=BL_ORDER.find(bl=>counts[bl])||BL_ORDER[0];
   const bl=S.ui.amateurBl;
   $('#title').textContent='Amateurliga';
-  $('#subline').innerHTML='Saison '+s.name+' · '+esc(bl)+' · kein Spielbetrieb. Zum Saisonende wählst du je Oberliga zwei Aufsteiger.';
+  $('#subline').innerHTML=esc(bl)+' · kein Spielbetrieb. Zum Saisonende wählst du je Oberliga zwei Aufsteiger.';
+  setActions(seasonActions(s));
   $('#tabs').innerHTML=BL_ORDER.filter(b=>counts[b]).map(b=>'<a class="tab'+(b===bl?' active':'')+'" data-amateur="'+esc(b)+'">'+esc(b)+'</a>').join('');
   const list=ids.filter(id=>TEAMS[id].bl===bl).sort(byRang);
   let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine in '+esc(bl)+'.</p><div class="amateur-list">'+
@@ -4085,10 +4108,9 @@ function renderAufAb(){
   const s=cur();
   $('#title').textContent='Auf/Abstiege';
   const pr=seasonProgress(s);
-  let sub='Saison '+s.name;
-  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' · <button class="btn small" data-act="simSeason">Saison simulieren</button> · <button class="btn small primary" data-act="end">Saison abschließen</button>';
-  if (s.status==='done') sub+=' · <span class="muted">abgeschlossene Saison</span>';
+  let sub=s.status==='done'?'Abgeschlossene Saison':'Auf- und Absteiger dieser Saison';
   $('#subline').innerHTML=sub;
+  setActions(seasonActions(s));
   $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(k==='aufab'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const e=transitionOf(s);
   const preview=!s.endData;
@@ -5010,9 +5032,8 @@ function renderSupercup(){
   $('#tabs').innerHTML='';
   $('#title').textContent='Supercup';
   const s=cur();
-  let sub='Ein Spiel: Meister gegen den DFB-Pokalsieger der Vorsaison.';
-  if (s.status==='running' && S.view===S.seasons.length-1) sub+=' <button class="btn small" data-act="simSeason">Saison simulieren</button>';
-  $('#subline').innerHTML=sub;
+  $('#subline').innerHTML='Meister gegen den DFB-Pokalsieger der Vorsaison.';
+  setActions(seasonActions(s, false));
   const m=s.supercup;
   let h='<div class="box"><p>Der Supercup steht vor der neuen Saison, sobald die Vorsaison einen Meister und einen DFB-Pokalsieger hat. Heimrecht hat immer der Meister. Gewinnt derselbe Verein beides, spielt er gegen den Zweiten der Bundesliga. Es gilt das Pokalrecht: bei Gleichstand n.V. und i.E.</p></div>';
   if (!m) h+='<div class="box"><h3>'+esc(s.name)+'</h3><p class="muted">In dieser Saison gibt es keinen Supercup. Die erste Saison hat noch keinen, und ohne beendeten DFB-Pokal auch nicht.</p></div>';

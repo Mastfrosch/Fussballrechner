@@ -9,7 +9,7 @@
 <body>
 <div id="app">
   <aside id="sidebar">
-    <div class="brand">⚽ Fußballrechner</div>
+    <div class="brand">Fußballrechner</div>
     <nav id="leagueNav"></nav>
     <div class="side-tools">
       <button id="btnExport" class="btn small">Spielstand exportieren</button>
@@ -20,12 +20,15 @@
   <main id="main">
     <div class="mobile-nav"><select id="mobileLeague"></select></div>
     <header class="head">
-      <h1 id="title">Fußballrechner</h1>
+      <div class="head-main">
+        <h1 id="title">Fußballrechner</h1>
+        <div id="subline" class="subline"></div>
+      </div>
       <div class="head-right">
-        <select id="seasonSelect" title="Saison"></select>
+        <div id="headActions" class="head-actions"></div>
+        <label class="season-field">Saison <select id="seasonSelect" title="Saison"></select></label>
       </div>
     </header>
-    <div id="subline" class="subline"></div>
     <nav id="tabs" class="tabs"></nav>
     <section id="view"></section>
   </main>
