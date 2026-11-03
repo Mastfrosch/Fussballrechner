@@ -1974,6 +1974,37 @@ function clubHTML(id, opts={}){
   const txt='<div class="txt"><div class="nm">'+nm+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
   return '<div class="club'+(opts.crestRight?' crest-right':'')+'" data-club="'+id+'" title="'+esc(t.name)+'">'+(opts.crestRight?txt+img:img+txt)+'</div>';
 }
+// Jede Partie: Heimname, Wappen, Ergebnis, Wappen, Auswärtsname.
+function matchLineHTML(o){
+  const h=o.h, a=o.a;
+  if (!h || !a || !TEAMS[h] || !TEAMS[a]) return '';
+  const crest=id=>'<img class="ml-crest" src="'+esc(TEAMS[id].crest)+'" alt="" data-club="'+id+'" title="'+esc(TEAMS[id].name)+'">';
+  const nm=id=>{
+    const mk=o.marker && o.marker[id];
+    const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
+    return '<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
+  };
+  const played=o.hg!=null && o.ag!=null && !o.open;
+  const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
+  const nv=played && o.et && o.hg!==o.ag;
+  const above=o.above!=null?o.above:(pen?'<span class="ie-link ie-static">'+o.peh+':'+o.pea+' i.E.</span>':'<span class="ie-slot"></span>');
+  const below=o.below!=null?o.below:(nv?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>');
+  const step0=o.step?o.step(0):'';
+  const step1=o.step?o.step(1):'';
+  const score=o.open
+    ? '<span class="tone-open">offen</span>'
+    : '<span class="scoreline"><span class="goals" data-side="0">'+(played?o.hg:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(played?o.ag:'-')+'</span></span>';
+  const km=o.km!=null?'<div class="km-line">'+o.km+' km</div>':'';
+  const edge=id=>(o.liga && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
+  const cls=['match'];
+  if (o.cup) cls.push('cup');
+  if (played || o.done) cls.push('done');
+  if (o.klass) cls.push(o.klass);
+  if (o.tone) cls.push('tone-'+o.tone);
+  if (o.nodel) cls.push('match-nodel');
+  const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
+  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+edge(h)+nm(h)+crest(h)+'</div><div class="scorecol">'+above+'<div class="score">'+step0+score+step1+'</div><div class="under">'+below+'</div>'+km+'</div><div class="side side-away">'+crest(a)+nm(a)+edge(a)+'</div>'+del+'</div>';
+}
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
@@ -2223,10 +2254,7 @@ function ovLostCard(cup, id){
   const t=TEAMS[id];
   const m=cupExitMatch(cup, id);
   if (!m) return '<div class="nm">'+esc(t.name)+'</div>';
-  const opp=m.h===id?m.a:m.h;
-  const b=cupScoreBits(m);
-  const crest=cid=>'<img src="'+esc(TEAMS[cid].crest)+'" alt="">';
-  return '<div class="nm">'+esc(t.name)+'</div><div class="ov-lost">'+crest(m.h)+'<div class="sc">'+(b&&b.above?'<i>'+esc(b.above)+'</i>':'')+'<b>'+(b?esc(b.main):'–')+'</b></div>'+crest(m.a)+'</div><div class="ov-opp">'+esc(TEAMS[opp].name)+'</div>';
+  return '<div class="nm">'+esc(t.name)+'</div>'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, klass:'tip-match'});
 }
 function ovGroupsHTML(season, ids, alive, cup){
   const G={};
@@ -2279,9 +2307,6 @@ function viewCupOverview(s, cup){
   h+='</div>';
   return h;
 }
-function scoreFoot(below, km){
-  return '<div class="under">'+below+'</div>'+(km!=null?'<div class="km-line">'+km+' km</div>':'');
-}
 function cupMatchHTML(s, m, key, ri, i, ed){
   const played=m.hg!=null && m.ag!=null;
   const win=cupWinner(m);
@@ -2303,11 +2328,7 @@ function cupMatchHTML(s, m, key, ri, i, ed){
   } else if (!draw && ed){
     below='<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+((played && m.et)?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
   } else if (!draw && m.et) below='<span class="ie-box">n.V.</span>';
-  return '<div class="match cup'+(win?' done':'')+'" data-mi="'+i+'"><div class="home"><span class="liga-edge">'+esc(ligaEdge(s,m.h))+'</span>'+clubHTML(m.h,{crestRight:true})+'</div>'+
-    '<div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+ (played?m.hg:'-') +'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+
-    scoreFoot(below, meta?km:null)+'</div>'+
-    '<div class="away">'+clubHTML(m.a)+'<span class="liga-edge">'+esc(ligaEdge(s,m.a))+'</span></div>'+
-    (ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>')+'</div>';
+  return matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, liga:true, cup:true, done:!!win, step, above, below, km:meta?km:null, attr:' data-mi="'+i+'"', del:ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>'});
 }
 let penEdit=null;
 function openPenDialog(cupKey, ri, mi){
@@ -2349,13 +2370,7 @@ function viewCupTree(s, cup){
     if (round.archived && !(round.matches&&round.matches.length)) h+='<div class="br-m bye">Spiele nicht gespeichert</div>';
     else if (!round.drawn) h+='<div class="br-m bye">noch nicht ausgelost</div>';
     else round.matches.forEach(m=>{
-      const w=cupWinner(m);
-      const b=cupScoreBits(m);
-      const cls=id=>w?(w===id?'win':'lose'):'';
-      const sc=b
-        ? '<span class="br-sc"><span class="br-ie">'+(b.above?esc(b.above):'')+'</span><b>'+esc(b.main)+'</b></span>'
-        : '<span class="br-sc"><span class="br-ie"></span><b>–</b></span>';
-      h+='<div class="br-m"><div class="br-crests"><span class="'+cls(m.h)+'">'+crestTip(m.h)+'</span>'+sc+'<span class="'+cls(m.a)+'">'+crestTip(m.a)+'</span></div></div>';
+      h+='<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, klass:'br-line'})+'</div>';
     });
     (round.byes||[]).forEach(id=>{ h+='<div class="br-m bye"><span class="br-crests"><span>'+crestTip(id,'Freilos')+'</span><span class="br-sc"><span class="br-ie"></span><b>Freilos</b></span><span></span></span></div>'; });
     h+='</div>';
@@ -2369,16 +2384,10 @@ function seasonLeagueTag(season, id){
   if (P[lid]) return 'Amateur';
   return '';
 }
-function siegerCrest(id){
-  const t=TEAMS[id]; if(!t) return '';
-  return '<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
-}
-function siegerRow(year, winnerId, finalistId, match, season){
-  const b=match ? cupScoreBits(match) : null;
+function siegerRow(year, winnerId, finalistId, match, season, liga){
   const home=match ? match.h : winnerId;
   const away=match ? match.a : finalistId;
-  const sc='<span class="br-ie">'+(b&&b.above?esc(b.above):'')+'</span><b>'+(b?esc(b.main):'–')+'</b>';
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+clubHTML(winnerId,{nobl:true})+'</div><div class="sieger-who">'+clubHTML(finalistId,{nobl:true})+'</div><div class="sieger-final"><span class="liga-edge">'+esc(seasonLeagueTag(season, home))+'</span><span class="nm-home">'+esc(TEAMS[home].name)+'</span>'+siegerCrest(home)+'<span class="sieger-sc">'+sc+'</span>'+siegerCrest(away)+'<span class="nm-away">'+esc(TEAMS[away].name)+'</span><span class="liga-edge">'+esc(seasonLeagueTag(season, away))+'</span></div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+clubHTML(winnerId,{nobl:true})+'</div><div class="sieger-who">'+clubHTML(finalistId,{nobl:true})+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, liga:!!liga, nodel:true, klass:'sieger-match'})+'</div></div>';
 }
 function siegerHead(){
   return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Finale</div></div>';
@@ -2390,7 +2399,7 @@ function viewCupWinners(){
     if (!sea.cups) return;
     const cup=key==='dfb' ? sea.cups.dfb : (sea.cups.land && sea.cups.land[key]);
     const fin=cupFinalists(cup);
-    if (fin) rows.push(siegerRow(sea.name, fin.winner, fin.finalist, fin.match, sea));
+    if (fin) rows.push(siegerRow(sea.name, fin.winner, fin.finalist, fin.match, sea, true));
   });
   const title=key==='dfb' ? 'DFB-Pokal' : key;
   if (!rows.length) return '<div class="box"><h3>Sieger '+esc(title)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
@@ -2532,10 +2541,8 @@ function spielplanHTML(s,lid){
     md.forEach((m,k)=>{
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
       const mk=id=>(s.markers&&s.markers[id])||null;
-      h+='<div class="match unscheduled" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid),markerBefore:true})+'</div>'+
-        '<div class="scorecol"><div class="score"><span class="scoreline"><span class="goals">-</span><b>:</b><span class="goals">-</span></span></div>'+
-        '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-        '<div class="away">'+clubHTML(aid,{marker:mk(aid)})+'</div><span></span></div>';
+      const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
+      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, klass:'unscheduled', attr:' data-k="'+k+'"'});
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -2552,10 +2559,8 @@ function spielplanHTML(s,lid){
     const km=kmBetween(hid,aid);
     const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
-    h+='<div class="match'+(has?' done':'')+'" data-k="'+k+'"><div class="home">'+clubHTML(hid,{crestRight:true,marker:mk(hid),markerBefore:true})+'</div>'+
-      '<div class="scorecol"><div class="score">'+step(0)+'<span class="scoreline"><span class="goals" data-side="0">'+(has?m[2]:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(has?m[3]:'-')+'</span></span>'+step(1)+'</div>'+
-      '<div class="meta">'+(km==null?'':km+' km')+'</div></div>'+
-      '<div class="away">'+clubHTML(aid,{marker:mk(aid)})+'</div>'+(ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>')+'</div>';
+    const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
+    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -2587,10 +2592,7 @@ function decideHTML(s, lid){
       else if (ed) below='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
       else below=m.et?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>';
     }
-    h+='<div class="match cup'+(twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2))?' done':'')+'"><div class="home">'+clubHTML(m.h,{crestRight:true})+'</div>'+
-      '<div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+(played?m.hg:'-')+'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+scoreFoot(below, km)+'</div>'+
-      '<div class="away">'+clubHTML(m.a)+'</div>'+
-      (ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>')+'</div>';
+    h+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, cup:true, done:!!twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2)), step, above, below, km, del:ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>'});
   });
   return h;
 }
@@ -2654,20 +2656,22 @@ function viewHistorie(lid){
   if (!done.length) h+='<p class="muted">Noch keine abgeschlossene Saison. Nach dem ersten Saisonabschluss stehen hier Meister, Aufsteiger und Absteiger.</p>';
   else {
     const bl=lid==='BL';
-    const crest=id=>{
+    const slot=item=>{
+      const id=item.id||item;
       const t=TEAMS[id]; if(!t) return '';
-      return '<img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
+      const pl=item.pl!=null?item.pl:'';
+      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
     };
     const slots=list=>{
-      const ids=list.slice().sort((a,b)=>(a.pl||0)-(b.pl||0)).map(x=>x.id||x);
-      return ids.length?ids.map(crest).join(''):'<span class="muted">–</span>';
+      const items=list.slice().sort((a,b)=>(a.pl||0)-(b.pl||0));
+      return items.length?items.map(slot).join(''):'<span class="muted">–</span>';
     };
     h+='<table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th>'+(bl?'<th class="l">Top 4</th>':'<th class="l">Aufsteiger</th>')+'<th class="l">Absteiger</th></tr></thead><tbody>';
     done.slice().reverse().forEach(s=>{ const e=s.endData, t=e.tables[lid]||[];
       const up=e.moves.filter(m=>m.from===lid&&m.type==='auf');
       const dn=e.moves.filter(m=>m.from===lid&&m.type==='ab');
-      const top=bl?t.filter(r=>r.pl<=4).sort((a,b)=>a.pl-b.pl):[];
-      const left=bl?top.map(r=>'<span class="hist-slot"><b>'+r.pl+'</b>'+crest(r.id)+'</span>').join(''):slots(up);
+      const top=bl?t.filter(r=>r.pl<=4):[];
+      const left=bl?slots(top):slots(up);
       h+='<tr><td class="l">'+s.name+'</td><td class="l names"><div class="hist-row">'+left+'</div></td><td class="l names"><div class="hist-row">'+slots(dn)+'</div></td></tr>';
     });
     h+='</tbody></table>';
@@ -4326,13 +4330,6 @@ function cupRunLine(run){
   const verb=run.won?'': 'Aus ';
   return '<span class="cup-round">'+esc(label)+'</span><span class="cup-detail">('+verb+esc(sc)+' gegen <img class="mini-crest" src="'+esc(opp.crest)+'" alt="" title="'+esc(opp.name)+'">'+esc(opp.name)+')</span>';
 }
-function miniClub(id, side){
-  const t=TEAMS[id];
-  if (!t) return '';
-  const img='<img class="mini-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
-  const nm='<span>'+esc(t.name)+'</span>';
-  return '<a class="mini-club'+(side==='away'?' away':'')+'" data-club="'+id+'" title="'+esc(t.name)+'">'+(side==='away'?nm+img:img+nm)+'</a>';
-}
 function resultTone(clubIsHome, hg, ag, peh, pea){
   if (hg==null || ag==null) return 'open';
   const mine=clubIsHome?hg:ag, theirs=clubIsHome?ag:hg;
@@ -4343,12 +4340,6 @@ function resultTone(clubIsHome, hg, ag, peh, pea){
   }
   return 'draw';
 }
-function matchScoreHTML(hg, ag, et, peh, pea){
-  if (hg==null || ag==null) return '<span class="tone-open">offen</span>';
-  const pen=hg===ag && peh!=null && pea!=null && +peh!==+pea;
-  const nv=hg!==ag && et;
-  return (pen?'<i class="ie">'+peh+':'+pea+' i.E.</i>':'')+'<b>'+hg+':'+ag+'</b>'+(nv?'<i class="nv">n.V.</i>':'');
-}
 function shortComp(comp){
   if (L[comp]) return L[comp].short;
   if (comp==='dfb') return 'DFB-Pokal';
@@ -4358,8 +4349,8 @@ function shortComp(comp){
   return compLabel(comp);
 }
 function pairRow(comp, h, a, hg, ag, et, peh, pea, tone){
-  if (!TEAMS[h]||!TEAMS[a]) return '';
-  return '<div class="pair"><span class="pair-comp">'+esc(comp)+'</span><span class="pair-side home">'+miniClub(h)+'</span><span class="pair-score'+(tone?' tone-'+tone:'')+'">'+matchScoreHTML(hg, ag, et, peh, pea)+'</span><span class="pair-side away">'+miniClub(a,'away')+'</span></div>';
+  const open=hg==null || ag==null;
+  return '<div class="pair"><span class="pair-comp">'+esc(comp)+'</span>'+matchLineHTML({h, a, hg, ag, et, peh, pea, tone:open?'open':tone, open, nodel:true, klass:'pair-match'})+'</div>';
 }
 function roundTitle(season, kind, idx, clubId){
   if (kind==='D') return (DFB_ROUNDS[idx]&&DFB_ROUNDS[idx].name)||('Runde '+(idx+1));
@@ -4754,9 +4745,9 @@ function renderInfo(){
       const here=py[id];
       const dfb=cupRunOf(id, season.name, 'dfb');
       const land=cupRunOf(id, season.name, 'land');
-      rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+(here?esc(here.liga)+' – '+here.pl+'.':'<span class="muted">–</span>')+'</td><td class="l cup">'+cupRunLine(dfb)+'</td><td class="l cup">'+cupRunLine(land)+'</td></tr>';
+      rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+(here?esc(here.liga):'<span class="muted">–</span>')+'</td><td class="pl">'+(here?here.pl+'.':'<span class="muted">–</span>')+'</td><td class="l cup">'+cupRunLine(dfb)+'</td><td class="l cup">'+cupRunLine(land)+'</td></tr>';
     });
-    h+='<table class="tbl compact fit info-hist"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="l">DFB-Pokal</th><th class="l">Landespokal</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    h+='<table class="tbl compact info-hist"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="pl">Platz</th><th class="l">DFB-Pokal</th><th class="l">Landespokal</th></tr></thead><tbody>'+rows+'</tbody></table>';
   } else if (sec==='bilanz'){
     h+=bilanzTable(id);
   } else if (sec==='gegner'){
@@ -4944,7 +4935,7 @@ function supercupMatchHTML(s, m){
   else if (!draw && ed) below='<label class="ie-box"><input type="checkbox" data-sc-et="1"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
   else if (!draw && m.et) below='<span class="ie-box">n.V.</span>';
   const km=kmBetween(m.h, m.a);
-  return '<div class="match cup'+(supercupWinner(m)?' done':'')+'"><div class="home">'+clubHTML(m.h,{crestRight:true})+'</div><div class="scorecol">'+above+'<div class="score">'+step(0)+'<span class="scoreline"><span class="goals">'+(played?m.hg:'-')+'</span><b>:</b><span class="goals">'+(played?m.ag:'-')+'</span></span>'+step(1)+'</div>'+scoreFoot(below, km)+'</div><div class="away">'+clubHTML(m.a)+'</div>'+(ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>')+'</div>';
+  return '<div class="match-solo">'+matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, cup:true, done:!!supercupWinner(m), step, above, below, km, del:ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>'})+'</div>';
 }
 function renderSupercup(){
   $('#tabs').innerHTML='';
