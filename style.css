@@ -84,33 +84,30 @@ table.tbl.fit{width:auto;max-width:100%}
 .md-nav{display:flex;align-items:center;gap:6px}
 .md-nav select{padding:3px 6px}
 .md-nav .btn{padding:2px 9px}
-.match{display:grid;grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr) 18px;align-items:center;gap:6px;padding:3px 8px;border-top:1px solid var(--line)}
-.match-nodel{grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr)}
+.match{display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr) 18px;align-items:center;gap:4px;padding:2px 6px;border-top:1px solid var(--line)}
+.match-nodel{grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr)}
 .side{display:flex;align-items:center;gap:6px;min-width:0}
 .side-home{justify-content:flex-end;text-align:right}
 .side-away{justify-content:flex-start;text-align:left}
-.ml-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:1.2}
-.ml-crest{width:18px;height:18px;object-fit:contain;flex:0 0 18px}
+.ml-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:1.2;color:#1c1c1c}
+.ml-crest{width:16px;height:16px;object-fit:contain;flex:0 0 16px}
 .match-solo{display:flex;justify-content:center}
 .match-solo>.match{width:min(680px,100%)}
-.scorecol{display:flex;flex-direction:column;align-items:center;gap:2px}
+.scorecol{display:flex;flex-direction:column;align-items:center;gap:0}
 .score{display:flex;align-items:center;justify-content:center;gap:5px}
 .meta{font-size:10px;color:var(--muted);text-align:center;line-height:1.25}
 .meta .kick{display:block}
 .slot-head{background:#eef3f8;color:#234;font-size:11px;font-weight:700;letter-spacing:.02em;padding:5px 10px;border-top:1px solid var(--line)}
 .scoreline{display:flex;align-items:center;justify-content:center;gap:1px;min-width:2.4em}
 .score b{font-weight:700}
-.goals{min-width:.7em;text-align:center;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.goals{min-width:.7em;text-align:center;font-weight:700;font-size:13px;line-height:16px;font-variant-numeric:tabular-nums}
 .stepper{display:flex;flex-direction:column;gap:1px}
 .stepper button{width:20px;height:16px;padding:0;line-height:14px;border:1px solid #ccc;background:#fafafa;border-radius:2px;cursor:pointer;font-size:13px;color:#333;user-select:none}
 .stepper button:hover{background:#eef4f0;border-color:var(--green)}
 .match.done .goals{color:#145c38}
-.match.tone-win .goals{color:#1b7a3a}
-.match.tone-draw .goals{color:#c47a12}
-.match.tone-loss .goals{color:#b42318}
-.match.tone-win .ie-link,.match.tone-win .ie-static,.match.tone-win .ie-box,
-.match.tone-draw .ie-link,.match.tone-draw .ie-static,.match.tone-draw .ie-box,
-.match.tone-loss .ie-link,.match.tone-loss .ie-static,.match.tone-loss .ie-box{color:inherit}
+.match.tone-win .goals,.match.tone-win .score b,.match.tone-win .ie-link,.match.tone-win .ie-static,.match.tone-win .ie-box{color:#1b7a3a}
+.match.tone-draw .goals,.match.tone-draw .score b,.match.tone-draw .ie-link,.match.tone-draw .ie-static,.match.tone-draw .ie-box{color:#c47a12}
+.match.tone-loss .goals,.match.tone-loss .score b,.match.tone-loss .ie-link,.match.tone-loss .ie-static,.match.tone-loss .ie-box{color:#b42318}
 .match.unscheduled{opacity:.72}
 .term-md{margin:0 0 10px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .term-md-title{background:var(--head);padding:4px 8px;font-weight:700}
@@ -228,10 +225,10 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .liga-edge{font-size:12px;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ie-box{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;color:#444;margin:0}
 .ie-box input{margin:0}
-.ie-link{display:inline-block;margin:0;padding:0;border:none;background:none;color:#1d4e89;font:inherit;font-size:11px;font-weight:700;line-height:14px;height:14px;cursor:pointer;text-decoration:underline}
+.ie-link{display:inline-block;margin:0;padding:0;border:none;background:none;color:#1d4e89;font:inherit;font-size:10px;font-weight:700;line-height:11px;height:auto;cursor:pointer;text-decoration:underline}
 .ie-static{text-decoration:none;cursor:default}
-.ie-slot{display:block;height:14px}
-.under{display:flex;justify-content:center;align-items:center;width:100%;min-height:16px}
+.ie-slot{display:none}
+.under{display:flex;justify-content:center;align-items:center;width:100%;min-height:0;line-height:11px}
 .km-line{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}
 .scorecol{min-width:72px}
 .cup-cols{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;column-gap:8px}
@@ -347,11 +344,11 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .info-hist td.cup{white-space:normal}
 .cup-detail{margin-left:8px}
 .fx-bar{margin:0 auto 8px;width:max-content;max-width:100%}
-.fx-sec{font-size:13px;font-weight:650;margin:14px auto 4px;text-align:center;width:min(760px,100%);color:#243}
-.narrow{width:min(760px,100%);margin:0 auto}
-.pair-wrap{width:min(760px,100%);margin:0 auto}
-.pair{display:grid;grid-template-columns:108px minmax(0,1fr);align-items:center;column-gap:6px;padding:1px 0}
-.pair .match{border-top:0;padding:1px 0}
+.fx-sec{font-size:13px;font-weight:650;margin:12px auto 2px;text-align:center;width:max-content;max-width:100%;color:#243}
+.narrow{width:max-content;max-width:100%;margin:0 auto}
+.pair-wrap{width:max-content;max-width:100%;margin:0 auto}
+.pair{display:grid;grid-template-columns:6.6em auto;align-items:center;column-gap:8px;padding:0}
+.pair .match{border-top:0;padding:3px 0;grid-template-columns:14.5em 3.6em 14.5em;gap:4px}
 .pair-comp{color:var(--muted);font-size:12px;text-align:right}
 .pair-side{display:flex;align-items:center;gap:4px;min-width:0}
 .pair-side.home{justify-content:flex-end;text-align:right}
@@ -360,11 +357,7 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .pair-score .ie,.pair-score .nv{font-style:normal;font-size:10px;font-weight:700}
 .pair-score .ie{color:#1d4e89}
 .pair-score .nv{font-weight:600}
-.pair-score.tone-win,.tone-win{color:#1b7a3a}
-.pair-score.tone-draw{color:#d97706}
-.pair-score.tone-loss{color:#c62828}
-.pair-score.tone-win .ie,.pair-score.tone-draw .ie,.pair-score.tone-loss .ie{color:inherit}
-.tone-open{color:#8b939e;font-weight:500}
+.tone-open{color:#8b939e;font-weight:600}
 .pair-season{margin:12px 0 3px;padding-bottom:2px;font-size:12px;font-weight:650;text-align:center;color:#3a4a42;border-bottom:1px solid #e4ebe7}
 .h2h-nav{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0 4px}
 .h2h-nav button{border:1px solid #c5c9ce;background:#fff;border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer}

@@ -1987,8 +1987,9 @@ function matchLineHTML(o){
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
   const nv=played && o.et && o.hg!==o.ag;
-  const above=o.above!=null?o.above:(pen?'<span class="ie-link ie-static">'+o.peh+':'+o.pea+' i.E.</span>':'<span class="ie-slot"></span>');
-  const below=o.below!=null?o.below:(nv?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>');
+  const keep=html=>html && html.replace(/<span class="ie-slot"><\/span>/g,'').trim() ? html : '';
+  const above=keep(o.above!=null?o.above:(pen?'<span class="ie-link ie-static">'+o.peh+':'+o.pea+' i.E.</span>':''));
+  const below=keep(o.below!=null?o.below:(nv?'<span class="ie-box">n.V.</span>':''));
   const step0=o.step?o.step(0):'';
   const step1=o.step?o.step(1):'';
   const score=o.open
@@ -2003,7 +2004,7 @@ function matchLineHTML(o){
   if (o.tone) cls.push('tone-'+o.tone);
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
-  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+edge(h)+nm(h)+crest(h)+'</div><div class="scorecol">'+above+'<div class="score">'+step0+score+step1+'</div><div class="under">'+below+'</div>'+km+'</div><div class="side side-away">'+crest(a)+nm(a)+edge(a)+'</div>'+del+'</div>';
+  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+edge(h)+nm(h)+crest(h)+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+crest(a)+nm(a)+edge(a)+'</div>'+del+'</div>';
 }
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
