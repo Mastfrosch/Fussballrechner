@@ -2578,7 +2578,7 @@ function viewHistorie(lid){
       const dn=e.moves.filter(m=>m.from===lid&&m.type==='ab');
       const top=bl?t.filter(r=>r.pl<=4).sort((a,b)=>a.pl-b.pl):[];
       const left=bl?top.map(r=>'<span class="hist-name"><b>'+r.pl+'.</b><img src="'+esc(TEAMS[r.id].crest)+'" alt=""><a data-club="'+r.id+'">'+esc(TEAMS[r.id].name)+'</a></span>').join(''):names(up);
-      h+='<tr><td class="l">'+s.name+'</td><td class="l names">'+left+'</td><td class="l names">'+names(dn)+'</td></tr>';
+      h+='<tr><td class="l">'+s.name+'</td><td class="l names"><div class="hist-row">'+left+'</div></td><td class="l names"><div class="hist-row">'+names(dn)+'</div></td></tr>';
     });
     h+='</tbody></table>';
   }
@@ -4225,15 +4225,30 @@ function pyramidOf(season){
 }
 function cupRunLine(run){
   if (!run) return '<span class="muted">nicht teilgenommen</span>';
+  const label=run.won?'Sieger':((run.bl?run.bl+' ':'')+run.round);
   const opp=run.opp && TEAMS[run.opp];
-  if (run.hg==null || run.ag==null || !opp) return esc((run.bl?run.bl+' ':'')+run.round)+(run.won?' · Sieger':'');
+  if (run.hg==null || run.ag==null || !opp) return esc(label);
   const mine=run.home?run.hg:run.ag, theirs=run.home?run.ag:run.hg;
   const myPen=run.home?run.peh:run.pea, opPen=run.home?run.pea:run.peh;
   let sc=mine+':'+theirs;
   if (run.et && mine!==theirs) sc+=' n.V.';
   if (myPen!=null && opPen!=null && myPen!==opPen) sc+=', '+myPen+':'+opPen+' i.E.';
-  const verb=run.won?'Sieg':'Aus';
-  return esc((run.bl?run.bl+' ':'')+run.round)+' ('+verb+' '+esc(sc)+' gegen <img class="mini-crest" src="'+esc(opp.crest)+'" alt=""> '+esc(opp.name)+')';
+  const verb=run.won?'': 'Aus ';
+  return esc(label)+' ('+verb+esc(sc)+' gegen <img class="mini-crest" src="'+esc(opp.crest)+'" alt="">'+esc(opp.name)+')';
+}
+function miniClub(id){
+  const t=TEAMS[id];
+  if (!t) return '';
+  return '<a class="mini-club" data-club="'+id+'"><img class="mini-crest" src="'+esc(t.crest)+'" alt="">'+esc(t.name)+'</a>';
+}
+function sideScore(home, hg, ag, et, peh, pea){
+  if (hg==null || ag==null) return '<span class="muted">offen</span>';
+  const mine=home?hg:ag, theirs=home?ag:hg;
+  const myPen=home?peh:pea, opPen=home?pea:peh;
+  let s=mine+':'+theirs;
+  if (et && mine!==theirs) s+=' n.V.';
+  if (myPen!=null && opPen!=null && myPen!==opPen) s+=', '+myPen+':'+opPen+' i.E.';
+  return esc(s);
 }
 function roundTitle(season, kind, idx, clubId){
   if (kind==='D') return (DFB_ROUNDS[idx]&&DFB_ROUNDS[idx].name)||('Runde '+(idx+1));
@@ -4302,19 +4317,9 @@ function clubFixtureItems(season, id){
   const live=liveClubFx(season, id);
   return live.length?live:null;
 }
-function fxScoreHTML(it){
-  if (it.hg==null || it.ag==null) return '<span class="muted">offen</span>';
-  const bits=cupScoreBits({hg:it.hg, ag:it.ag, et:!!it.et && it.hg!==it.ag, peh:it.peh, pea:it.pea});
-  const above=bits&&bits.above?'<i>'+esc(bits.above)+'</i>':'';
-  const main=bits?String(bits.main).replace(' n.V.',''):(it.hg+':'+it.ag);
-  const parts=main.split(':');
-  const nv=bits&&String(bits.main).indexOf('n.V.')>=0?'<div class="under"><span class="ie-box">n.V.</span></div>':'';
-  return above+'<div class="score"><span class="scoreline"><span class="goals">'+esc(parts[0])+'</span><b>:</b><span class="goals">'+esc(parts[1]||'')+'</span></span></div>'+nv;
-}
-function fxMatchHTML(me, it){
-  const homeId=it.home?me:it.opp, awayId=it.home?it.opp:me;
-  if (!TEAMS[homeId]||!TEAMS[awayId]) return '';
-  return '<div class="fx-row"><span class="fx-ha">'+(it.home?'Heim':'Auswärts')+'</span><div class="match done"><div class="home">'+clubHTML(homeId,{crestRight:true,nobl:true})+'</div><div class="scorecol">'+fxScoreHTML(it)+'</div><div class="away">'+clubHTML(awayId,{nobl:true})+'</div></div></div>';
+function fxRowHTML(it, label){
+  if (!TEAMS[it.opp]) return '';
+  return '<tr><td class="l">'+esc(label)+'</td><td>'+(it.home?'H':'A')+'</td><td class="l">'+miniClub(it.opp)+'</td><td>'+sideScore(it.home, it.hg, it.ag, it.et, it.peh, it.pea)+'</td></tr>';
 }
 function renderTerminplan(id){
   const seasons=S.seasons||[];
@@ -4333,23 +4338,16 @@ function renderTerminplan(id){
   const sc=items.filter(it=>it.kind==='S');
   const block=(title, list, label)=>{
     if (!list.length) return '';
-    let x='<h3>'+title+'</h3>';
-    let prev=null;
-    list.forEach(it=>{
-      const lab=label(it);
-      if (lab!==prev){ x+='<div class="fx-md">'+esc(lab)+'</div>'; prev=lab; }
-      x+=fxMatchHTML(id, it);
-    });
-    return x;
+    let x='<h3 class="fx-sec">'+title+'</h3><table class="tbl compact fx-tbl"><thead><tr><th class="l">Spieltag / Runde</th><th>H/A</th><th class="l">Gegner</th><th>Ergebnis</th></tr></thead><tbody>';
+    list.forEach(it=>{ x+=fxRowHTML(it, label(it)); });
+    return x+'</tbody></table>';
   };
   if (!league.length && !decide.length && !stored) h+='<p class="muted">Die Ligaspiele dieser Saison sind nicht mehr gespeichert.</p>';
   h+=block('Liga', league, it=>it.md+'. Spieltag');
   h+=block('Entscheidung', decide, it=>roundTitle(season, 'E', it.md, id));
   h+=block('DFB-Pokal', dfb, it=>it.round||roundTitle(season, 'D', it.md, id));
   h+=block('Landespokal', land, it=>it.round||roundTitle(season, 'A', it.md, id));
-  if (sc.length){
-    h+='<h3>Supercup</h3>'+sc.map(it=>fxMatchHTML(id, it)).join('');
-  }
+  if (sc.length) h+=block('Supercup', sc, ()=>'Supercup');
   return h;
 }
 function cupRunOf(id, seasonName, comp){
@@ -4607,9 +4605,9 @@ function renderInfo(){
       const here=py[id];
       const dfb=cupRunOf(id, season.name, 'dfb');
       const land=cupRunOf(id, season.name, 'land');
-      rows+='<article class="hist-card"><div class="hist-year">Saison '+esc(season.name)+'</div><div class="hist-line"><b>Liga:</b> '+(here?esc(here.liga)+' – '+here.pl+'.':'<span class="muted">nicht in einer Liga</span>')+'</div><div class="hist-line"><b>DFB-Pokal:</b> '+cupRunLine(dfb)+'</div><div class="hist-line"><b>Landespokal:</b> '+cupRunLine(land)+'</div></article>';
+      rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+(here?esc(here.liga)+' – '+here.pl+'.':'<span class="muted">–</span>')+'</td><td class="l cup">'+cupRunLine(dfb)+'</td><td class="l cup">'+cupRunLine(land)+'</td></tr>';
     });
-    h+='<div class="hist-list">'+rows+'</div>';
+    h+='<table class="tbl compact info-hist"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="l">DFB-Pokal</th><th class="l">Landespokal</th></tr></thead><tbody>'+rows+'</tbody></table>';
   } else if (sec==='bilanz'){
     h+=bilanzTable(id);
   } else if (sec==='gegner'){
@@ -4655,22 +4653,18 @@ function renderInfo(){
           if (!g || g.season!==m.season){ g={season:m.season, list:[]}; groups.push(g); }
           g.list.push(m);
         });
-        h+='<div class="h2h-list">';
+        h+='<table class="tbl compact h2h-plain"><thead><tr><th class="l">Wettbewerb</th><th class="l">Heim</th><th>Ergebnis</th><th class="l">Gast</th></tr></thead><tbody>';
         groups.forEach(g=>{
           g.list.sort((a,b)=>rank(a.comp)-rank(b.comp));
-          h+='<h4 class="h2h-season">Saison '+esc(g.season)+'</h4>';
+          h+='<tr class="season-head"><td colspan="4">Saison '+esc(g.season)+'</td></tr>';
           g.list.forEach(m=>{
-            const sea=seasonByName(m.season);
-            const bits=cupScoreBits(m);
-            const main=bits?bits.main:(m.hg+':'+m.ag);
-            const core=String(main).replace(' n.V.','');
-            const parts=core.split(':');
-            const above=bits&&bits.above?'<i>'+esc(bits.above)+'</i>':'';
-            const nv=String(main).indexOf('n.V.')>=0?'<div class="under"><span class="ie-box">n.V.</span></div>':'';
-            h+='<div class="h2h-game"><div class="h2h-meta">'+esc(compLabel(m.comp))+'</div><div class="match done"><div class="home"><span class="liga-edge">'+esc(clubLeagueIn(sea, m.h))+'</span>'+clubHTML(m.h,{crestRight:true,nobl:true})+'</div><div class="scorecol">'+above+'<div class="score"><span class="scoreline"><span class="goals">'+esc(parts[0])+'</span><b>:</b><span class="goals">'+esc(parts[1]||'')+'</span></span></div>'+nv+'</div><div class="away">'+clubHTML(m.a,{nobl:true})+'<span class="liga-edge">'+esc(clubLeagueIn(sea, m.a))+'</span></div></div></div>';
+            let sc=m.hg+':'+m.ag;
+            if (m.et && m.hg!==m.ag) sc+=' n.V.';
+            if (m.peh!=null && m.pea!=null && m.peh!==m.pea) sc+=', '+m.peh+':'+m.pea+' i.E.';
+            h+='<tr><td class="l">'+esc(compLabel(m.comp))+'</td><td class="l">'+miniClub(m.h)+'</td><td>'+esc(sc)+'</td><td class="l">'+miniClub(m.a)+'</td></tr>';
           });
         });
-        h+='</div>';
+        h+='</tbody></table>';
       }
     }
   } else {
