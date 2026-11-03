@@ -2,7 +2,7 @@ Fußballrechner – Kurzanleitung
 ==============================
 Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline im Browser, kein Server nötig).
 
-- Links die Ligen wählen (Bundesliga bis Oberliga, dann eine Amateurliga nach Bundesland), darunter Vereinsinfo, Ansehen, Pokal und Supercup.
+- Links die Navigation: Ligen, Regionalliga, Oberliga, Amateurliga, darunter Wettbewerbe (Pokal, Supercup) und Verein (Vereinsinfo, Ansehen). Saison und die Aktionen „Saison simulieren“ und „Saison abschließen“ stehen oben rechts. Spielstand exportieren, importieren und zurücksetzen steht unten in der Seitenleiste, dort auch der Schalter Supercup.
 - Supercup: ab der zweiten Saison ein Spiel, Meister gegen den DFB-Pokalsieger der Vorsaison. Hat derselbe Verein beides gewonnen, spielt der Meister gegen den Zweiten der Bundesliga. Eingabe wie im Pokal (n.V., i.E.). Die erste Saison hat keinen Supercup. Schalter „Supercup“ in der Seitenleiste blendet ihn aus.
 - Vereinsseite: Klick auf ein Wappen in Tabelle, Spielplan, Pokal oder Ansehen. Darauf Ligakurve, Pokalrunden, Ansehen (Liga / DFB-Pokal / Landespokal), Titel und Stadionname.
 - Pokal: DFB-Pokal und 16 Landespokale, dazu die Ansicht Übersicht. Im Landespokal hat die schwächere Liga Heimrecht, Freilose gehen an die Bestplatzierten des Vorjahres. Das Finale wird automatisch ausgelost. Unentschieden über das Fenster „i.E.“. Der Landespokalsieger zieht in den nächsten DFB-Pokal ein.
