@@ -14,9 +14,9 @@ Starten: Ordner entpacken und index.html doppelklicken (läuft komplett offline 
   Die letzten zwei Spieltage jeder Liga finden alle gleichzeitig zur Samstags-Konferenzzeit statt.
   Ein Topspiel zweier unterer Vereine gibt es erst ab etwa 70 % der Saison, und nur als enges Abstiegsduell.
 - "Ansehen": Liga und Pokal sind gewichtete Schnitte. Liga über 30 Jahre (jüngste 10 Saisons 1,5-fach). DFB-Pokal und Landespokal über 15 Jahre (jüngste 5 Saisons 1,5-fach). Der Landespokal zählt ab seiner ersten Runde: 3 Punkte, jede weitere Runde +2, der Sieger +2 gegenüber dem Finalisten. Jahre ohne Teilnahme zählen als 0. Die Ligastufe steht in Klammern hinter dem Namen.
-- Historie einer Liga: in der Bundesliga das Top 4 und die Absteiger nebeneinander, sonst Aufsteiger und Absteiger, jeweils mit Wappen.
 - Regionalliga: zwei Absteiger sind fest, dazu der Ausgleich für Ankömmlinge aus der 4. Liga. Oberliga: die Plätze 1 und 2 steigen fest auf, zwei Amateurvereine rücken nach.
-- "Vereinsinfo": Suche mit Vorschlägen. Historie als eine Zeile je Saison (Liga, DFB-Pokal, Landespokal; Pokalsieg steht als „Sieger“). Bilanz je Liga, Gegner, direkter Vergleich nach Saison, kompakter Terminplan auch für abgelegte Saisons, Titel mit Pokalbild.
+- "Vereinsinfo": Suche mit Vorschlägen. Historie als eine Zeile je Saison (Liga, DFB-Pokal, Landespokal; Pokalsieg steht als „Sieger“). Bilanz je Liga, Gegner, direkter Vergleich der letzten 10 Saisons (ältere Zehnerblöcke bleiben gespeichert), schmaler Terminplan auch für abgelegte Saisons, Titel mit Pokalbild.
+- Historie einer Liga: nur Wappen, in der Bundesliga das Top 4 mit Platzziffer und die Absteiger, sonst Aufsteiger und Absteiger. Der Vereinsname steht beim Daraufzeigen.
 - Ewige Tabelle der Bundesliga: nie abgestiegen ist eine hervorgehobene Zeile, ohne extra Zeichen.
   Tore mit + und −. Offenes Spiel: Heim-+ ergibt 1:0, Gast-+ ergibt 0:1, − ergibt 0:0.
   Bei 0:0 setzen − oder × das Spiel wieder auf -:-.

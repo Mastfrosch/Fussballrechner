@@ -41,6 +41,7 @@ select{padding:5px 8px;border:1px solid #ccc;border-radius:4px;background:#fff}
 .card{background:var(--card);border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .card-title{background:var(--head);padding:7px 10px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:8px}
 table.tbl{width:100%;border-collapse:collapse}
+table.tbl.fit{width:auto;max-width:100%}
 .tbl th{background:var(--head);text-align:center;font-weight:600;padding:7px 4px;font-size:12px;white-space:nowrap}
 .tbl th.l,.tbl td.l{text-align:left}
 .tbl td{padding:4px;text-align:center;border-top:1px solid var(--line);white-space:nowrap}
@@ -316,22 +317,41 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .info-hits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .info-titles{margin:6px 0 0;padding-left:18px}
 .info-titles li{margin:3px 0}
-.hist-seasons{table-layout:fixed}
-.hist-seasons th.l,.hist-seasons td.l{width:46%}
-.hist-seasons td:first-child,.hist-seasons th:first-child{width:8%}
-.hist-seasons td.names{white-space:normal;vertical-align:top}
-.hist-row{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center}
-.hist-name{display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:none;white-space:nowrap}
-.hist-name img{width:16px;height:16px;object-fit:contain;flex:0 0 auto}
-.hist-name b{color:var(--muted);font-weight:600;margin-right:1px}
+.hist-seasons{width:auto;margin:0 auto}
+.hist-seasons td.names{white-space:normal;vertical-align:middle}
+.hist-seasons td:first-child{white-space:nowrap}
+.hist-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hist-slot{display:inline-flex;align-items:center;gap:3px}
+.hist-slot b{font-size:11px;color:var(--muted);font-weight:600;min-width:1em;text-align:right}
+.hist-crest{width:28px;height:28px;object-fit:contain;display:block}
 .tbl.compact th,.tbl.compact td{padding:2px 6px;font-size:12px}
 .info-hist td.cup{white-space:normal}
-.fx-bar{margin:0 0 8px}
-.fx-sec{font-size:13px;margin:12px 0 4px}
-.fx-tbl td:nth-child(2){width:36px;color:var(--muted);text-align:center}
-.h2h-plain tr.season-head td{background:#f3f5f6;font-weight:700;padding-top:8px;text-align:left}
-.mini-crest{width:14px;height:14px;object-fit:contain;vertical-align:-2px}
-.mini-club{display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:none;white-space:nowrap}
+.cup-detail{margin-left:8px}
+.fx-bar{margin:0 auto 8px;width:max-content;max-width:100%}
+.fx-sec{font-size:13px;margin:12px auto 4px;text-align:center;width:640px;max-width:100%}
+.narrow{width:max-content;max-width:100%;margin:0 auto}
+.pair-wrap{width:640px;max-width:100%;margin:0 auto}
+.pair{display:grid;grid-template-columns:92px minmax(0,1fr) 58px minmax(0,1fr);align-items:center;column-gap:8px;font-size:12.5px;padding:2px 0}
+.pair-comp{color:var(--muted);font-size:12px}
+.pair-side{display:flex;align-items:center;gap:4px;min-width:0}
+.pair-side.home{justify-content:flex-end;text-align:right}
+.pair-side.away{justify-content:flex-start}
+.pair-score{display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;line-height:1.05;text-align:center}
+.pair-score .ie,.pair-score .nv{font-style:normal;font-size:10px;font-weight:700}
+.pair-score .ie{color:#1d4e89}
+.pair-score .nv{font-weight:600}
+.pair-score.tone-win,.tone-win{color:#1b7a3a}
+.pair-score.tone-draw{color:#d97706}
+.pair-score.tone-loss{color:#c62828}
+.pair-score.tone-win .ie,.pair-score.tone-draw .ie,.pair-score.tone-loss .ie{color:inherit}
+.tone-open{color:#8b939e;font-weight:500}
+.pair-season{margin:10px 0 2px;font-size:12.5px;font-weight:700;text-align:center}
+.h2h-nav{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0 4px}
+.h2h-nav button{border:1px solid #c5c9ce;background:#fff;border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer}
+.h2h-nav button.active{background:#1d6b45;color:#fff;border-color:#1d6b45}
+.mini-crest{width:16px;height:16px;object-fit:contain;vertical-align:-3px;flex:0 0 auto}
+.mini-club{display:inline-flex;align-items:center;gap:4px;color:inherit;text-decoration:none;white-space:nowrap;min-width:0}
+.mini-club span{overflow:hidden;text-overflow:ellipsis}
 .suggest{position:relative}
 .suggest-list{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:320px;overflow:auto}
 .suggest-item{display:flex;align-items:center;gap:8px;width:100%;border:0;background:#fff;padding:7px 10px;cursor:pointer;text-align:left}
