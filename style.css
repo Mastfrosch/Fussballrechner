@@ -327,7 +327,8 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .info-hits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .info-titles{margin:6px 0 0;padding-left:18px}
 .info-titles li{margin:3px 0}
-.hist-seasons{width:auto;margin:0 auto}
+.hist-seasons{width:100%;margin:0}
+.subtabs{display:flex;margin:0 0 10px}
 .hist-seasons td.names{white-space:normal;vertical-align:middle}
 .hist-seasons td:first-child{white-space:nowrap}
 .hist-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -342,9 +343,32 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .info-hist th:nth-child(3),.info-hist td:nth-child(3){width:52px}
 .info-hist td.pl,.info-hist th.pl{text-align:right;font-variant-numeric:tabular-nums;padding-right:8px}
 .info-hist td.cup{white-space:normal}
+.info-liga th:nth-child(2),.info-liga td:nth-child(2),.info-cup th:nth-child(2),.info-cup td:nth-child(2){width:auto}
 .cup-detail{margin-left:8px}
-.fx-bar{margin:0 auto 8px;width:max-content;max-width:100%}
-.fx-sec{font-size:13px;font-weight:650;margin:12px auto 2px;text-align:center;width:max-content;max-width:100%;color:#243}
+.fx-bar{margin:0 0 8px}
+.fx-block{margin:14px 0 0;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
+.fx-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;background:#e7eef4;padding:8px 12px}
+.fx-head b{display:block;font-size:15px;line-height:1.2}
+.fx-head small{display:block;margin-top:1px;color:#5c6b76;font-size:12px}
+.fx-count{color:#5c6b76;font-size:12px;white-space:nowrap}
+.fx-grid{width:100%;border-collapse:collapse}
+.fx-grid th{text-align:left;font-size:11px;letter-spacing:.04em;color:#5c6b76;font-weight:650;padding:6px 10px;background:#f4f7fa;border-bottom:1px solid var(--line)}
+.fx-grid td{padding:3px 10px;border-top:1px solid #e6ebef;vertical-align:middle}
+.fx-md{width:140px;white-space:nowrap}
+.fx-md b{font-weight:650;font-size:13px}
+.fx-badge{display:block;margin-top:1px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a6d1d}
+.fx-when{width:150px;color:#5c6b76;white-space:nowrap;font-size:12.5px}
+.fx-spiel{text-align:center}
+.fx-bye .fx-spiel{text-align:right;color:#5c6b76;font-size:12px;letter-spacing:.04em}
+tr.fx-top td{background:#fbf8ef}
+.fx-spiel .match.fx-line{display:inline-grid;grid-template-columns:max-content 5.4em max-content;width:auto;border:0;padding:1px 0;gap:6px;text-align:left}
+.fx-spiel .match.fx-line .side{min-width:auto}
+.fx-line .ml-name{font-size:13px;color:#1c1c1c;overflow:visible;text-overflow:clip;min-width:auto}
+.match.fx-box .scoreline,.match.fx-box.tone-open .score{background:#eef1f4;border-radius:3px;padding:1px 7px}
+.match.fx-box.tone-win .scoreline{background:#e5f6ea}
+.match.fx-box.tone-draw .scoreline{background:#fff4e0}
+.match.fx-box.tone-loss .scoreline{background:#fdecea}
+.match.fx-box.tone-open .score{color:#8b939e}
 .narrow{width:max-content;max-width:100%;margin:0 auto}
 .pair-wrap{width:max-content;max-width:100%;margin:0 auto}
 .pair{display:grid;grid-template-columns:6.6em auto;align-items:center;column-gap:8px;padding:0}
