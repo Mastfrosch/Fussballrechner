@@ -1995,7 +1995,9 @@ function matchLineHTML(o){
   const nm=id=>{
     const mk=o.marker && o.marker[id];
     const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
-    return '<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
+    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
+    if (!o.bl) return name;
+    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
   };
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
@@ -2016,6 +2018,7 @@ function matchLineHTML(o){
   if (o.klass) cls.push(o.klass);
   if (o.tone) cls.push('tone-'+o.tone);
   if (o.box) cls.push('fx-box');
+  if (o.bl) cls.push('sp-line');
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
   return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+edge(h)+nm(h)+crest(h)+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+crest(a)+nm(a)+edge(a)+'</div>'+del+'</div>';
@@ -2579,7 +2582,7 @@ function spielplanHTML(s,lid){
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
       const mk=id=>(s.markers&&s.markers[id])||null;
       const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, klass:'unscheduled', attr:' data-k="'+k+'"'});
+      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, bl:true, klass:'unscheduled', attr:' data-k="'+k+'"'});
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -2597,7 +2600,7 @@ function spielplanHTML(s,lid){
     const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
+    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, bl:true, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -2629,7 +2632,7 @@ function decideHTML(s, lid){
       else if (ed) below='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
       else below=m.et?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>';
     }
-    h+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, cup:true, done:!!twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2)), step, above, below, km, del:ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>'});
+    h+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2)), step, above, below, km, del:ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>'});
   });
   return h;
 }
