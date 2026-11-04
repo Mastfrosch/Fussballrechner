@@ -4069,42 +4069,52 @@ function renderAufAb(){
   if (s.status==='ending') h+=pickBlockHTML(s, e);
   $('#view').innerHTML=h;
 }
-function moveChip(id, dest, dir){
-  const t=TEAMS[id];
-  return '<span class="py-chip '+dir+'" title="'+esc(t.name)+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"><span>'+esc(t.name)+'</span>'+(dest?'<i>'+esc(dest)+'</i>':'')+'</span>';
+function moveChip(id, other, dir){
+  const t=TEAMS[id]; if(!t) return '';
+  return '<span class="py-chip '+dir+'" title="'+esc(t.name)+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"><span>'+esc(t.name)+'</span>'+(other?'<i>'+esc(other)+'</i>':'')+'</span>';
 }
-function leavingOf(e, lid){
-  const up=(e.moves||[]).filter(m=>m.from===lid && m.type==='auf').map(m=>({id:m.id, dest:leagueShort(m.to)}));
-  const down=(e.moves||[]).filter(m=>m.from===lid && m.type==='ab').map(m=>({id:m.id, dest:leagueShort(m.to)}));
-  return {up, down};
+const PY_PAIRS=[
+  {rl:'RLN', ols:['OLNS','OLNN']},
+  {rl:'RLO', ols:['OLON','OLOS']},
+  {rl:'RLS', ols:['OLBY','OLBW']},
+  {rl:'RLW', ols:['OLNRW','OLSW']}
+];
+function flowHTML(list, dir, other){
+  if (!list || !list.length) return '';
+  const label=dir==='up'?'▲ Aufsteiger':'▼ Absteiger';
+  return '<div class="py-flow '+dir+'"><div class="py-label">'+label+'</div><div class="py-clubs">'+list.map(m=>moveChip(m.id, other(m), dir)).join('')+'</div></div>';
 }
-function moveBlock(l, ups, dns, opts){
-  opts=opts||{};
-  const side=(dir, label, list)=>{
-    let h='<div class="py-side '+dir+'"><div class="py-label">'+label+'</div><div class="py-clubs">';
-    if (!list.length) h+='<span class="py-empty">'+(dir==='up'?'kein Aufsteiger':'kein Absteiger')+'</span>';
-    list.forEach(x=>{ h+=moveChip(x.id, x.dest, dir); });
-    h+='</div></div>';
-    return h;
-  };
-  const movers=(opts.hideUp?'':side('up', '▲ Aufsteiger', ups))+(opts.hideDown?'':side('dn', '▼ Absteiger', dns));
-  if (opts.above) return '<div class="py-unit"><div class="py-movers">'+movers+'</div><h3 class="py-name">'+esc(l.name)+'</h3></div>';
-  let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>'+movers+'</div>';
-  return h;
+function leagueGap(e, lowerId, span){
+  const moves=(e&&e.moves)||[];
+  const up=moves.filter(m=>m.type==='auf' && m.from===lowerId);
+  const down=moves.filter(m=>m.type==='ab' && m.to===lowerId);
+  return '<div class="py-gap s'+span+'">'+flowHTML(up,'up',m=>leagueShort(m.to))+flowHTML(down,'dn',m=>leagueShort(m.from))+'</div>';
+}
+function amateurGap(e, olId){
+  const picks=(((e&&e.picks)||{})[olId]||[]).map(id=>({id:id, to:olId}));
+  const down=((e&&e.moves)||[]).filter(m=>m.type==='ab' && m.from===olId && P[m.to]);
+  return '<div class="py-gap s1">'+flowHTML(picks,'up',()=>'Amateur')+flowHTML(down,'dn',()=>'Amateur')+'</div>';
+}
+function leagueCell(l, span){
+  const wide=span>=8;
+  return '<div class="py-league s'+span+'" title="'+esc(l.name)+'">'+esc(wide?l.name:l.short)+'</div>';
 }
 function moveBoardHTML(e){
-  const row=(cls, inner)=>'<div class="py-row '+cls+'">'+inner+'</div>';
-  const one=(l, opts)=>{ const x=leavingOf(e, l.id); return moveBlock(l, x.up, x.down, opts); };
-  const amUp=[];
-  POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
-  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
-  h+=row('w1', moveBlock(L.BL, [], leavingOf(e, 'BL').down, {hideUp:true}));
-  h+=row('w2', one(L.BL2));
-  h+=row('w3', one(L.L3));
-  h+=row('w4', one(L.L4));
-  h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id], {above:true})).join(''));
-  h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id], {above:true})).join(''));
-  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], {hideDown:true, above:true}));
+  e=e||{moves:[], picks:{}};
+  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="py-tree">';
+  h+=leagueCell(L.BL, 8);
+  h+=leagueGap(e, 'BL2', 8);
+  h+=leagueCell(L.BL2, 8);
+  h+=leagueGap(e, 'L3', 8);
+  h+=leagueCell(L.L3, 8);
+  h+=leagueGap(e, 'L4', 8);
+  h+=leagueCell(L.L4, 8);
+  h+=PY_PAIRS.map(p=>leagueGap(e, p.rl, 2)).join('');
+  h+=PY_PAIRS.map(p=>leagueCell(L[p.rl], 2)).join('');
+  h+=PY_PAIRS.map(p=>p.ols.map(id=>leagueGap(e, id, 1)).join('')).join('');
+  h+=PY_PAIRS.map(p=>p.ols.map(id=>leagueCell(L[id], 1)).join('')).join('');
+  h+=PY_PAIRS.map(p=>p.ols.map(id=>amateurGap(e, id)).join('')).join('');
+  h+='<div class="py-league s8" title="Amateurliga">Amateurliga</div>';
   h+='</div></div>';
   return h;
 }
