@@ -4026,7 +4026,7 @@ function moveReasonHTML(s, e){
   });
   h+='<p><b>Regionalliga.</b> Zwei Absteiger sind fest. Dazu kommt der Ausgleich: einer, weil vier Vereine aus den Oberligen nachrücken und nur der Meister aufsteigt, plus einer je Absteiger aus der 4. Liga. Das gilt für alle vier Regionalligen.</p>';
   h+='<p><b>Oberliga.</b> Die Plätze 1 und 2 steigen fest auf, zwei Vereine kommen aus der Amateurliga nach. Die Abstiegszahl ist genau die Zahl der Absteiger aus der eigenen Regionalliga. Das gilt für alle acht Oberligen.</p>';
-  if (e && e.need) h+='<p><b>Amateurliga.</b> Die Plätze 1 und 2 steigen fest auf. Dazu kommen die Absteiger aus der Regionalliga und gehen die eigenen Absteiger. Es fehlen zwei Plätze, genau so viele Vereine kommen aus der Amateurliga desselben Gebiets nach.</p>';
+  h+='<p><b>Amateurliga.</b> Aus jedem der acht Gebiete steigen zwei Vereine in die zugehörige Oberliga auf, 16 insgesamt. Die Absteiger aus den Oberligen kommen in die Amateurliga ihres Gebiets.</p>';
   h+='</div>';
   return h;
 }
