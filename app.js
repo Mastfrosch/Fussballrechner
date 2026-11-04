@@ -2717,7 +2717,7 @@ function viewHistorie(lid){
       const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list)+'</div></td>';
       let cells='';
       if (bl){
-        cells=cell(t.filter(r=>r.pl===1))+cell(t.filter(r=>r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r.pl===5))+cell(t.filter(r=>r.pl===6))+cell(dn);
+        cells=cell(t.filter(r=>r.pl===1))+cell(t.filter(r=>r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r.pl>=5&&r.pl<=6))+cell(t.filter(r=>r.pl===7))+cell(dn);
       } else {
         cells=cell(t.filter(r=>r.pl===1));
         if (showUp) cells+=cell(up.filter(m=>(m.pl||0)>1));
@@ -2727,27 +2727,7 @@ function viewHistorie(lid){
     });
     h+='</tbody></table>';
   }
-  const shown=S.seasons.slice(-30);
-  const pmap={};
-  shown.forEach(s=>{
-    for (const idL in s.leagues){
-      const lg=s.leagues[idL];
-      let rows=lg.tables&&lg.tables.all;
-      if (!rows && lg.md){ try{ rows=leagueTable(s, idL); }catch(e){ rows=null; } }
-      const by={};
-      (rows||[]).forEach(r=>{ if(r&&r.id) by[r.id]=r; });
-      lg.teams.forEach(id=>{
-        const row=by[id];
-        (pmap[id]||(pmap[id]={}))[s.name]=row&&row.pl?{lid:idL, pl:row.pl, final:s.status==='done'||s.status==='ending'}:null;
-      });
-    }
-  });
-  h+='</div><div class="box"><h3>Platzierungsverlauf der aktuellen Vereine</h3><p class="muted">Die letzten '+shown.length+' Saisons. Der längere Verlauf steht in der Vereinsinfo.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th class="l">Verein</th>'+shown.map(s=>'<th>'+s.name+'</th>').join('')+'</tr></thead><tbody>';
-  cur().leagues[lid].teams.slice().sort(byRang).forEach(id=>{
-    const pl=pmap[id]||{};
-    h+='<tr><td class="l">'+clubHTML(id)+'</td>'+shown.map(s=>{ const p=pl[s.name]; if(!p) return '<td>–</td>'; return '<td>'+leagueShort(p.lid)+' '+p.pl+'.'+(p.final?'':'*')+'</td>'; }).join('')+'</tr>';
-  });
-  h+='</tbody></table></div><p class="muted" style="margin:6px 0 0">* = laufende Saison (aktueller Tabellenplatz). Klick auf einen Verein zeigt alle Details.</p></div>';
+  h+='</div>';
   return h;
 }
 const BL_ORDER=['Schleswig-Holstein','Hamburg','Mecklenburg-Vorpommern','Bremen','Niedersachsen','Berlin','Brandenburg','Sachsen-Anhalt','Sachsen','Thüringen','Nordrhein-Westfalen','Hessen','Rheinland-Pfalz','Saarland','Baden-Württemberg','Bayern'];
@@ -3872,7 +3852,7 @@ function maxRun(str){ let m=0,c=0,p=''; for (const ch of str){ if(ch===p){c++;} 
 function viewTerminierung(s, lid){
   const lg=s.leagues[lid];
   if (!lg || !lg.md) return '<div class="box"><p class="muted">Die einzelnen Spiele und Anstoßzeiten dieser Saison sind nicht mehr gespeichert.</p></div>';
-  const n=lg.teams.length, half=n-1, total=lg.md.length;
+  const total=lg.md.length;
   const fix=validateFixtures(lg.md);
   const tmpl=slotTemplate(lid);
   const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
@@ -3883,51 +3863,13 @@ function viewTerminierung(s, lid){
   else if (last>=0 && last<total-1) h+='<p class="muted">Angesetzt bis Spieltag '+(last+1)+'. Der nächste Block folgt automatisch, sobald dieser Spieltag vollständig ist. Blöcke enden an der Hin- bzw. Rückrunde.</p>';
   else if (last>=total-1) h+='<p class="muted">Die ganze Saison ist terminiert.</p>';
   h+='</div>';
-  const blocks=[];
-  for (let from=0; from<total; ){
-    const range=nextBlockRange(n, from); if(!range) break;
-    blocks.push(range); from=range[1]+1;
-  }
-  const key=S.view+':'+lid;
-  S.ui.termBlock=S.ui.termBlock||{};
-  let bi=S.ui.termBlock[key];
-  if (bi==null){
-    bi=0;
-    blocks.forEach((b,i)=>{ if (isScheduled(s,lid,b[0])) bi=i; });
-  }
-  bi=Math.max(0, Math.min(blocks.length-1, bi||0));
-  const [a,b]=blocks[bi]||[0,0];
-  const label='Spieltag '+(a+1)+(a===b?'':'–'+(b+1));
-  h+='<div class="box"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span class="md-nav"><button class="btn" data-act="termPrev"'+(bi<=0?' disabled':'')+' title="Vorheriger Block">‹</button><span>'+label+'</span><button class="btn" data-act="termNext"'+(bi>=blocks.length-1?' disabled':'')+' title="Nächster Block">›</button></span><span class="muted" style="font-weight:400">'+(a<half?'Hinrunde':'Rückrunde')+'</span></h3>';
-  if (!isScheduled(s,lid,a)){
-    h+='<p class="muted">Dieser Block ist noch nicht terminiert.</p>';
-    for (let mi=a; mi<=b; mi++){
-      h+='<div class="term-md"><div class="term-md-title">'+(mi+1)+'. Spieltag · nicht terminiert</div>';
-      lg.md[mi].forEach(m=>{
-        h+='<div class="term-row"><span class="muted">–</span><span>'+esc(TEAMS[lg.teams[m[0]]].name)+' – '+esc(TEAMS[lg.teams[m[1]]].name)+'</span></div>';
-      });
-      h+='</div>';
-    }
-  } else {
-    for (let mi=a; mi<=b; mi++){
-      const slots=s.kickoffs[lid][mi];
-      const simultaneous=isClosingDay(total, mi);
-      const fin=finalSaturdaySlot(lid);
-      h+='<div class="term-md"><div class="term-md-title">'+(mi+1)+'. Spieltag'+(simultaneous?' · alle Spiele '+fin.dow+' '+fin.time:'')+'</div>';
-      lg.md[mi].map((m,k)=>({m,k,slot:slots[k]})).sort((x,y)=>slotOrder(x.slot,y.slot)||x.k-y.k).forEach(({m,slot})=>{
-        h+='<div class="term-row"><span>'+esc(simultaneous?slot.dow+' '+slot.time:slotLabel(slot))+'</span><span>'+esc(TEAMS[lg.teams[m[0]]].name)+' – '+esc(TEAMS[lg.teams[m[1]]].name)+'</span></div>';
-      });
-      h+='</div>';
-    }
-  }
-  h+='</div>';
   const cols=[];
   if (has.fr) cols.push(['fr','Fr']);
   if (has.konferenz) cols.push(['konferenz','Konferenz']);
   if (has.top) cols.push(['top','Topspiel']);
   if (has.so) cols.push(['so','Sonntag']);
   if (has.regional) cols.push(['regional','regional']);
-  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Breaks</th><th class="l">Regeln</th></tr></thead><tbody>';
+  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Spiele ist die Zahl der terminierten Partien. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th><th>Spiele</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Breaks</th><th class="l">Regeln</th></tr></thead><tbody>';
   const placeOf={}; leagueTable(s,lid).forEach(r=>placeOf[r.id]=r.pl);
   lg.teams.slice().sort((x,y)=>(placeOf[x]||999)-(placeOf[y]||999)).forEach(id=>{
     const idx=lg.teams.indexOf(id);
@@ -3944,7 +3886,7 @@ function viewTerminierung(s, lid){
     if (br>2) problems.push(br+' Breaks');
     if (kinds.hh>1 || kinds.aa>1) problems.push('zweimal '+ (kinds.hh>1?'Heim':'Auswärts'));
     const bad=problems.length>0;
-    h+='<tr><td>'+placeOf[id]+'</td><td class="l">'+esc(TEAMS[id].name)+'</td>'+cols.map(([key])=>{
+    h+='<tr><td>'+placeOf[id]+'</td><td class="l">'+clubHTML(id,{nobl:true})+'</td><td>'+c.total+'</td>'+cols.map(([key])=>{
       const v=c[key];
       const warn=!open && (key==='konferenz'?v<total/2:v===0);
       return '<td class="'+(warn?'bad':'')+'">'+v+'</td>';
@@ -4145,15 +4087,14 @@ function moveBlock(l, ups, dns, opts){
     h+='</div></div>';
     return h;
   };
-  let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>';
-  if (!opts.hideUp) h+=side('up', '▲ Aufsteiger', ups);
-  if (!opts.hideDown) h+=side('dn', '▼ Absteiger', dns);
-  h+='</div>';
+  const movers=(opts.hideUp?'':side('up', '▲ Aufsteiger', ups))+(opts.hideDown?'':side('dn', '▼ Absteiger', dns));
+  if (opts.above) return '<div class="py-unit"><div class="py-movers">'+movers+'</div><h3 class="py-name">'+esc(l.name)+'</h3></div>';
+  let h='<div class="py-block"><h3>'+esc(l.name)+'</h3>'+movers+'</div>';
   return h;
 }
 function moveBoardHTML(e){
   const row=(cls, inner)=>'<div class="py-row '+cls+'">'+inner+'</div>';
-  const one=l=>{ const x=leavingOf(e, l.id); return moveBlock(l, x.up, x.down); };
+  const one=(l, opts)=>{ const x=leavingOf(e, l.id); return moveBlock(l, x.up, x.down, opts); };
   const amUp=[];
   POOLS.forEach(p=>{ ((e.picks&&e.picks[p.ol])||[]).forEach(id=>amUp.push({id, dest:leagueShort(p.ol)})); });
   let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="pyramid">';
@@ -4161,9 +4102,9 @@ function moveBoardHTML(e){
   h+=row('w2', one(L.BL2));
   h+=row('w3', one(L.L3));
   h+=row('w4', one(L.L4));
-  h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id])).join(''));
-  h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id])).join(''));
-  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], {hideDown:true}));
+  h+=row('wrl', ['RLN','RLO','RLS','RLW'].map(id=>one(L[id], {above:true})).join(''));
+  h+=row('wol', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].map(id=>one(L[id], {above:true})).join(''));
+  h+=row('wam', moveBlock({name:'Amateurliga'}, amUp, [], {hideDown:true, above:true}));
   h+='</div></div>';
   return h;
 }

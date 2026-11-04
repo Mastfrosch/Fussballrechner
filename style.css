@@ -182,9 +182,9 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-row.w2{width:54%;min-width:300px}
 .py-row.w3{width:70%;min-width:340px}
 .py-row.w4{width:86%;min-width:380px}
-.py-row.wrl{width:100%;grid-template-columns:repeat(4,minmax(0,1fr))}
-.py-row.wol{width:100%;grid-template-columns:repeat(8,minmax(0,1fr))}
-.py-row.wam{width:100%}
+.py-row.wrl{width:100%;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start}
+.py-row.wol{width:100%;grid-template-columns:repeat(8,minmax(0,1fr));align-items:start}
+.py-row.wam{width:100%;align-items:start}
 .py-block{background:#fff;border:1px solid var(--line);border-radius:0;padding:8px 8px 10px;min-width:0}
 .py-block h3{margin:0 0 6px;font-size:12px;text-align:center;color:#234}
 .py-side{border-radius:0;padding:4px}
@@ -200,6 +200,11 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-chip img{width:26px;height:26px;object-fit:contain}
 .py-chip span{font-size:10px;line-height:1.15;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .py-chip i{font-style:normal;color:var(--muted);font-size:9px;line-height:1.1}
+.py-unit{display:flex;flex-direction:column;justify-content:flex-start;height:auto;background:#fff;border:1px solid var(--line);min-width:0}
+.py-unit .py-side{margin:0;padding:4px 4px 2px}
+.py-unit .py-side.dn{margin-top:0;border-top:1px solid #f0d5d3}
+.py-unit .py-empty{padding:2px 0}
+.py-name{margin:0;padding:6px 4px;font-size:12px;text-align:center;font-weight:650;color:#234;background:#f6f7f8;border-top:1px solid var(--line)}
 .pokal-bar .toggle{margin-bottom:0}
 .ov-plain{padding-bottom:8px}
 .ov-pot{margin:14px 0 6px;font-size:13px}
