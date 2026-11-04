@@ -187,7 +187,10 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-tree{--gap:8px;--col:118px;display:flex;flex-direction:column;width:100%;min-width:0}
 .py-level.one{display:flex;justify-content:center}
 .py-level.one>.mv-card.top{width:min(600px,100%)}
-.py-level.one>.mv-card.am{width:min(1120px,100%)}
+.py-level.one>.mv-card.am{width:100%}
+.py-drops{display:grid;grid-template-columns:repeat(8,minmax(var(--col),1fr));gap:var(--gap);height:16px}
+.py-drop{display:flex;justify-content:center}
+.py-drop::before{content:'';width:1px;background:#c5cad0}
 .py-level.rl,.py-level.ol,.py-fork{display:grid;gap:var(--gap);align-items:stretch}
 .py-level.rl,.py-fork.n4,.py-fork.pairs{grid-template-columns:repeat(4,minmax(0,1fr))}
 .py-level.ol,.py-fork.n8{grid-template-columns:repeat(8,minmax(var(--col),1fr))}
@@ -206,7 +209,13 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .py-fork>.py-arm:first-child::after,.py-pair>.py-arm:first-child::after{left:50%}
 .py-fork>.py-arm:last-child::after,.py-pair>.py-arm:last-child::after{right:50%}
 .mv-card{background:#fff;border:1px solid var(--line);min-width:0;width:100%}
-.mv-card.am .mv-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px}
+.mv-am-grid{display:grid;grid-template-columns:repeat(8,minmax(var(--col),1fr));gap:var(--gap);align-items:start;margin:8px 0}
+.mv-am-grid .mv-sec{margin:0;min-width:0}
+.mv-am-grid .mv-sec h4{font-size:9px;letter-spacing:.02em;padding:3px 4px;white-space:normal;line-height:1.25}
+.mv-am-grid .mv-rows{display:flex;flex-direction:column}
+.mv-am-grid .mv-row{padding:2px 4px;gap:4px;min-height:24px;align-items:flex-start}
+.mv-am-grid .mv-row img{width:20px;height:20px;flex-basis:20px}
+.mv-am-grid .mv-name{font-size:11px;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2}
 .mv-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}
 .mv-head b{font-size:14px;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mv-head span{color:#6b7280;font-size:12px;white-space:nowrap;flex:0 0 auto}
