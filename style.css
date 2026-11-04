@@ -177,7 +177,33 @@ tr.w-hot td{background:#e7f6ec}
 tr.w-off td{color:#9aa}
 tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pyramid{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px 20px;background:#f4f6f8}
-.py-tree{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));column-gap:6px;row-gap:8px;width:100%;padding:12px;background:#f4f6f8;align-items:stretch}
+.py-scroll{overflow-x:auto;max-width:100%}
+.py-tree{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));column-gap:8px;row-gap:0;width:100%;align-items:start}
+.mv-card{background:#fff;border:1px solid var(--line);min-width:0;margin:4px 0}
+.mv-card.fit{width:max-content;max-width:100%;min-width:min(360px,100%);justify-self:center}
+.mv-card.trunk{justify-self:stretch}
+.mv-card.s8{grid-column:span 8}
+.mv-card.s2{grid-column:span 2}
+.mv-card.s1{grid-column:span 1}
+.py-tree>.mv-card.s8{width:100%}
+.py-tree>.mv-card.s8:nth-child(-n+5){width:max-content;max-width:100%;justify-self:center}
+.py-tree>.mv-card.s8:nth-child(7){width:100%}
+.mv-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.mv-head b{font-size:13px;font-weight:650}
+.mv-head span{color:#6b7280;font-size:11px;white-space:nowrap}
+.mv-rules{margin:0;padding:4px 8px;background:#f3f4f6;color:#4b5563;font-size:11px;line-height:1.35}
+.mv-sec h4{margin:0;padding:5px 8px 1px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;font-weight:650;color:#5c6570}
+.mv-sec.auf h4{color:#1b6b43}
+.mv-sec.ab h4{color:#b42318}
+.mv-row{display:flex;align-items:center;gap:8px;padding:2px 8px;min-width:0}
+.mv-row img{width:24px;height:24px;object-fit:contain;flex:0 0 24px}
+.mv-name{flex:1;min-width:0;font-size:12.5px;line-height:1.2}
+.mv-path{margin-left:8px;color:#8b939e;font-size:11px;text-align:right;white-space:nowrap;flex:0 0 auto}
+.py-link{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:22px;padding:2px 0}
+.py-link.s8{grid-column:span 8}
+.py-link.s2{grid-column:span 2}
+.py-stem{width:1px;height:12px;background:#c5cad0}
+.py-cap{font-size:10px;color:#6b7280;line-height:1.2;text-align:center}
 .py-tree .s8{grid-column:span 8}
 .py-tree .s2{grid-column:span 2}
 .py-tree .s1{grid-column:span 1}
