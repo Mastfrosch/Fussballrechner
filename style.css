@@ -177,17 +177,33 @@ tr.w-hot td{background:#e7f6ec}
 tr.w-off td{color:#9aa}
 tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pyramid{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px 20px;background:#f4f6f8}
-.py-tree{display:flex;flex-direction:column;align-items:center;width:100%;gap:0}
-.py-region{display:flex;flex-direction:column;align-items:center;width:100%}
-.py-ols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%}
+.py-scroll{overflow-x:auto;width:100%;min-width:0}
+.py-tree{--gap:8px;--col:148px;display:flex;flex-direction:column;width:max(100%,calc(8 * var(--col) + 7 * var(--gap)));min-width:calc(8 * var(--col) + 7 * var(--gap))}
+.py-level.one{display:flex;justify-content:center}
+.py-level.one>.mv-card.top{width:min(600px,100%)}
+.py-level.one>.mv-card.am{width:min(1120px,100%)}
+.py-level.rl,.py-level.ol,.py-fork{display:grid;gap:var(--gap);align-items:stretch}
+.py-level.rl,.py-fork.n4,.py-fork.pairs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.py-level.ol,.py-fork.n8{grid-template-columns:repeat(8,minmax(var(--col),1fr))}
+.py-level.rl>.mv-card,.py-level.ol>.mv-card{height:100%}
+.py-stem{height:14px;display:flex;justify-content:center}
+.py-stem::before{content:'';width:1px;background:#c5cad0}
+.py-fork{position:relative;height:22px}
+.py-pair{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+.py-arm{position:relative}
+.py-fork.down::before,.py-pair::before{content:'';position:absolute;left:50%;top:0;height:50%;width:1px;background:#c5cad0}
+.py-fork.pairs.down::before{content:none}
+.py-fork.up::after{content:'';position:absolute;left:50%;top:50%;bottom:0;width:1px;background:#c5cad0}
+.py-fork.down .py-arm::before{content:'';position:absolute;left:50%;top:50%;bottom:0;width:1px;background:#c5cad0}
+.py-fork.up .py-arm::before{content:'';position:absolute;left:50%;top:0;height:50%;width:1px;background:#c5cad0}
+.py-fork .py-arm::after{content:'';position:absolute;top:50%;height:1px;left:calc(var(--gap) / -2);right:calc(var(--gap) / -2);background:#c5cad0}
+.py-fork>.py-arm:first-child::after,.py-pair>.py-arm:first-child::after{left:50%}
+.py-fork>.py-arm:last-child::after,.py-pair>.py-arm:last-child::after{right:50%}
 .mv-card{background:#fff;border:1px solid var(--line);min-width:0;width:100%}
-.mv-card.fit{width:min(600px,100%)}
-.py-region>.mv-card{width:min(600px,100%)}
-.mv-card.am{width:min(1040px,100%)}
-.mv-card.am .mv-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}
+.mv-card.am .mv-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px}
 .mv-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}
-.mv-head b{font-size:14px;font-weight:650}
-.mv-head span{color:#6b7280;font-size:12px;white-space:nowrap}
+.mv-head b{font-size:14px;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv-head span{color:#6b7280;font-size:12px;white-space:nowrap;flex:0 0 auto}
 .mv-rules{margin:0;padding:6px 12px;background:#f3f4f6;color:#4b5563;font-size:12px;line-height:1.35}
 .mv-sec{margin:8px 10px;border:1px solid var(--line)}
 .mv-sec h4{margin:0;padding:4px 8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:650;color:#5c6570;background:#f7f8f9;border-bottom:1px solid var(--line)}
@@ -199,9 +215,21 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .mv-row img{width:24px;height:24px;object-fit:contain;flex:0 0 24px}
 .mv-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.2}
 .mv-path{margin-left:12px;color:#8b939e;font-size:12px;text-align:right;white-space:nowrap;flex:0 0 auto}
-.py-link{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:28px;padding:4px 0}
-.py-stem{width:1px;height:14px;background:#c5cad0}
-.py-cap{font-size:11px;color:#6b7280;line-height:1.2;text-align:center}
+.mv-card.rl .mv-head,.mv-card.ol .mv-head{padding:5px 6px;gap:6px}
+.mv-card.rl .mv-head b{font-size:12px}
+.mv-card.ol .mv-head b{font-size:11px}
+.mv-card.rl .mv-head span,.mv-card.ol .mv-head span{font-size:10px}
+.mv-card.rl .mv-rules{font-size:11px;padding:4px 6px}
+.mv-card.ol .mv-rules{font-size:10px;padding:4px 6px}
+.mv-card.rl .mv-sec{margin:5px 6px}
+.mv-card.ol .mv-sec{margin:4px}
+.mv-card.ol .mv-sec h4{font-size:9px;letter-spacing:.03em;padding:3px 4px}
+.mv-card.rl .mv-row{padding:3px 6px;gap:6px}
+.mv-card.ol .mv-row{padding:2px 4px;gap:4px;min-height:24px}
+.mv-card.rl .mv-row img{width:22px;height:22px;flex-basis:22px}
+.mv-card.ol .mv-row img{width:20px;height:20px;flex-basis:20px}
+.mv-card.rl .mv-name{font-size:12px}
+.mv-card.ol .mv-name{font-size:11px}
 .py-league{display:flex;align-items:center;justify-content:center;min-height:34px;padding:6px 4px;background:#fff;border:1px solid var(--line);text-align:center;font-size:12px;font-weight:650;color:#234;line-height:1.2}
 .py-gap{display:flex;flex-direction:column;align-self:stretch;min-width:0}
 .py-flow.up{margin-bottom:auto}
