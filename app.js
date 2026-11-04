@@ -4042,7 +4042,7 @@ function pickBlockHTML(s, e){
     cand = cand.filter(id=>!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)).sort(byRang);
     const takenElse = new Set(Object.entries(e.picks||{}).filter(([k])=>k!==p.ol).flatMap(([,v])=>v));
     h+='<div class="box"><div class="pick-head"><h3 style="margin:0">'+esc(L[p.ol].name)+'</h3><span class="'+(picks.length===need?'ok':'bad')+'">'+picks.length+' / '+need+'</span></div><div class="muted" style="margin-bottom:6px">aus: '+esc(p.name)+' ('+esc(p.desc)+')</div><div class="pick-list" data-ol="'+esc(p.ol)+'">'+
-      cand.filter(id=>!takenElse.has(id)).map(id=>'<label class="pick-row'+(picks.includes(id)?' sel':'')+'"><input type="checkbox" data-pick="'+p.ol+'" value="'+id+'"'+(picks.includes(id)?' checked':'')+'>'+clubHTML(id)+'<span class="r">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></label>').join('')+'</div></div>';
+      cand.filter(id=>!takenElse.has(id)).map(id=>'<label class="pick-row'+(picks.includes(id)?' sel':'')+'"><input type="checkbox" data-pick="'+p.ol+'" value="'+id+'"'+(picks.includes(id)?' checked':'')+'>'+clubHTML(id,{nobl:true})+'<span class="r">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></label>').join('')+'</div></div>';
   });
   h+='</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
   return h;
@@ -4081,6 +4081,17 @@ function mvRow(id, path){
 function mvSec(kind, title, inner){
   if (!inner) return '';
   return '<section class="mv-sec '+kind+'"><h4>'+title+'</h4><div class="mv-rows">'+inner+'</div></section>';
+}
+const TREE_POS={};
+['BL','BL2','L3','L4','RLN','RLO','RLS','RLW','OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].forEach((id,i)=>{ TREE_POS[id]=i; });
+POOLS.forEach((p,i)=>{ TREE_POS[p.id]=100+i; });
+function targetRank(id){ return TREE_POS[id]!=null?TREE_POS[id]:500; }
+function groupedSecs(groups, kind, word, withPath, cardKind){
+  const list=groups.slice().sort((a,b)=>targetRank(a.k)-targetRank(b.k)||String(a.k).localeCompare(String(b.k),'de'));
+  const split=list.length>1 && cardKind!=='ol' && list.length<=4;
+  const html=list.map(g=>mvSec(kind, word+' → '+leagueShort(g.k), mvRows(g.list, withPath && !split))).join('');
+  if (!split) return html;
+  return '<div class="mv-split n'+list.length+'">'+html+'</div>';
 }
 function mvGroup(list, keyFn){
   const out=[];
@@ -4131,8 +4142,8 @@ function leagueCard(s, e, l, kind){
   const ab=moves.filter(m=>m.type==='ab' && m.from===l.id);
   const withPath=kind==='top';
   let body='';
-  mvGroup(auf, m=>m.to).forEach(g=>{ body+=mvSec('auf','Auf → '+leagueShort(g.k), mvRows(g.list, withPath)); });
-  mvGroup(ab, m=>m.to).forEach(g=>{ body+=mvSec('ab','Ab → '+leagueShort(g.k), mvRows(g.list, withPath)); });
+  body+=groupedSecs(mvGroup(auf, m=>m.to), 'auf', 'Auf', withPath, kind);
+  body+=groupedSecs(mvGroup(ab, m=>m.to), 'ab', 'Ab', withPath, kind);
   const n=teamN(s, l.id);
   const rules=ruleLine(s, e, l);
   const label=kind==='top'?l.name:l.short;

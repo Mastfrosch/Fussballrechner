@@ -212,6 +212,15 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .mv-head span{color:#6b7280;font-size:12px;white-space:nowrap;flex:0 0 auto}
 .mv-rules{margin:0;padding:6px 12px;background:#f3f4f6;color:#4b5563;font-size:12px;line-height:1.35}
 .mv-sec{margin:8px 10px;border:1px solid var(--line)}
+.mv-split{display:grid;gap:8px;align-items:start;margin:8px 10px}
+.mv-split.n2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mv-split.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mv-split.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.mv-split>.mv-sec{margin:0;min-width:0}
+.mv-split .mv-sec h4{white-space:normal;line-height:1.25}
+.mv-split .mv-row{align-items:flex-start;height:auto}
+.mv-split .mv-name{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+.mv-card.rl .mv-split{margin:5px 6px;gap:6px}
 .mv-sec h4{margin:0;padding:4px 8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:650;color:#5c6570;background:#f7f8f9;border-bottom:1px solid var(--line)}
 .mv-sec.auf h4{color:#1b6b43}
 .mv-sec.ab h4{color:#b42318}
