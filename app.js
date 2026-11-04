@@ -4151,16 +4151,21 @@ function leagueCard(s, e, l, kind){
 }
 function amateurCard(s, e){
   const down=((e&&e.moves)||[]).filter(m=>m.type==='ab' && P[m.to]);
-  let body='';
   let hoch=0;
-  PY_PAIRS.forEach(p=>p.ols.forEach(ol=>{
+  const cols=PY_PAIRS.map(p=>p.ols.map(ol=>{
     const picks=((e.picks&&e.picks[ol])||[]);
     hoch+=picks.length;
-    if (picks.length) body+=mvSec('auf','Auf → '+leagueShort(ol), picks.map(id=>mvRow(id, 'Amateur → '+leagueShort(ol))).join(''));
-  }));
+    const sec=picks.length?mvSec('auf','Auf → '+leagueShort(ol), picks.map(id=>mvRow(id,'')).join('')):'';
+    return '<div class="mv-am-col">'+sec+'</div>';
+  }).join('')).join('');
   let n=0; POOLS.forEach(p=>{ n+=((s.pools&&s.pools[p.id])||[]).length; });
   const rules=[hoch?hoch+' hoch':'', down.length?down.length+' von oben':''].filter(Boolean).join(' · ');
-  return '<article class="mv-card am"><header class="mv-head"><b>Amateurliga</b><span>'+n+' '+(n===1?'Team':'Teams')+'</span></header>'+(rules?'<p class="mv-rules">'+esc(rules)+'</p>':'')+body+'</article>';
+  return '<article class="mv-card am"><header class="mv-head"><b>Amateurliga</b><span>'+n+' '+(n===1?'Team':'Teams')+'</span></header>'+(rules?'<p class="mv-rules">'+esc(rules)+'</p>':'')+'<div class="mv-am-grid">'+cols+'</div></article>';
+}
+function pyDrops(){
+  let h='<div class="py-drops">';
+  for (let i=0;i<8;i++) h+='<span class="py-drop"></span>';
+  return h+'</div>';
 }
 function pyStem(){ return '<div class="py-stem"></div>'; }
 function pyFork(n, dir){
@@ -4181,7 +4186,7 @@ function moveBoardHTML(e, s){
   h+='<div class="py-level rl">'+PY_PAIRS.map(p=>leagueCard(s, e, L[p.rl], 'rl')).join('')+'</div>';
   h+=pyPairFork();
   h+='<div class="py-level ol">'+PY_PAIRS.map(p=>p.ols.map(id=>leagueCard(s, e, L[id], 'ol')).join('')).join('')+'</div>';
-  h+=pyFork(8, 'up')+pyStem();
+  h+=pyDrops();
   h+='<div class="py-level one">'+amateurCard(s, e)+'</div>';
   h+='</div></div>';
   return h;
