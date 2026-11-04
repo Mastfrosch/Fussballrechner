@@ -4064,58 +4064,128 @@ function renderAufAb(){
   else if (preview && pr.done<pr.total) h+='<div class="notice">Noch nicht alle Spiele sind eingetragen. Die Pyramide folgt dem aktuellen Tabellenstand und kann sich ändern.</div>';
   else if (preview && (decidePending(s)||supercupPending(s))) h+='<div class="notice">Entscheidungsspiel oder Supercup ist noch offen. Die Aufsteiger wählst du, sobald das erledigt ist.</div>';
   else if (preview && s.status==='running' && S.view===S.seasons.length-1) h+='<div class="box"><p>Alle Spiele sind eingetragen.</p><button class="btn primary" data-act="end">Aufsteiger aus der Amateurliga wählen</button></div>';
-  h+=moveBoardHTML(e);
+  h+=moveBoardHTML(e, s);
   h+=moveReasonHTML(s, e);
   if (s.status==='ending') h+=pickBlockHTML(s, e);
   $('#view').innerHTML=h;
 }
-function moveChip(id, other, dir){
-  const t=TEAMS[id]; if(!t) return '';
-  return '<span class="py-chip '+dir+'" title="'+esc(t.name)+'"><b>'+(dir==='up'?'▲':'▼')+'</b><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"><span>'+esc(t.name)+'</span>'+(other?'<i>'+esc(other)+'</i>':'')+'</span>';
-}
 const PY_PAIRS=[
-  {rl:'RLN', ols:['OLNS','OLNN']},
-  {rl:'RLO', ols:['OLON','OLOS']},
-  {rl:'RLS', ols:['OLBY','OLBW']},
-  {rl:'RLW', ols:['OLNRW','OLSW']}
+  {rl:'RLN', cap:'Nord', ols:['OLNS','OLNN'], sub:'Nord-S / Nord-N'},
+  {rl:'RLO', cap:'Ost', ols:['OLON','OLOS'], sub:'Ost-N / Ost-S'},
+  {rl:'RLS', cap:'Süd', ols:['OLBY','OLBW'], sub:'Bayern / Baden-Württemberg'},
+  {rl:'RLW', cap:'West', ols:['OLNRW','OLSW'], sub:'NRW / Südwest'}
 ];
-function flowHTML(list, dir, other){
-  if (!list || !list.length) return '';
-  const label=dir==='up'?'▲ Aufsteiger':'▼ Absteiger';
-  return '<div class="py-flow '+dir+'"><div class="py-label">'+label+'</div><div class="py-clubs">'+list.map(m=>moveChip(m.id, other(m), dir)).join('')+'</div></div>';
+function mvRow(id, path){
+  const t=TEAMS[id]; if(!t) return '';
+  return '<div class="mv-row"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"><span class="mv-name" title="'+esc(t.name)+'">'+esc(t.name)+'</span><span class="mv-path">'+esc(path)+'</span></div>';
 }
-function leagueGap(e, lowerId, span){
+function mvSec(kind, title, inner){
+  if (!inner) return '';
+  return '<section class="mv-sec '+kind+'"><h4>'+title+'</h4><div class="mv-rows">'+inner+'</div></section>';
+}
+function mvGroup(list, keyFn){
+  const out=[];
+  (list||[]).forEach(m=>{
+    const k=keyFn(m);
+    let g=out.find(x=>x.k===k);
+    if (!g){ g={k:k, list:[]}; out.push(g); }
+    g.list.push(m);
+  });
+  return out;
+}
+function mvPath(m){ return leagueShort(m.from)+' → '+leagueShort(m.to); }
+function mvRows(list){ return (list||[]).map(m=>mvRow(m.id, mvPath(m))).join(''); }
+function teamN(s, lid){
+  const lg=s&&s.leagues&&s.leagues[lid];
+  if (lg&&lg.teams) return lg.teams.length;
+  return (L[lid]&&L[lid].size)||0;
+}
+function ruleLine(s, e, l){
   const moves=(e&&e.moves)||[];
-  const up=moves.filter(m=>m.type==='auf' && m.from===lowerId);
-  const down=moves.filter(m=>m.type==='ab' && m.to===lowerId);
-  return '<div class="py-gap s'+span+'">'+flowHTML(up,'up',m=>leagueShort(m.to))+flowHTML(down,'dn',m=>leagueShort(m.from))+'</div>';
+  const prof=relegationProfile(s, l.id);
+  const von=moves.filter(m=>m.type==='ab' && m.to===l.id).length;
+  const hoch=moves.filter(m=>m.type==='auf' && m.from===l.id).length;
+  const runter=moves.filter(m=>m.type==='ab' && m.from===l.id).length;
+  const aus=moves.filter(m=>m.type==='auf' && m.to===l.id).length;
+  const ausName=l.id==='BL'?'2. BL':l.id==='BL2'?'3. Liga':l.id==='L3'?'4. Liga':l.id==='L4'?'Regionalliga':l.level===5?'Oberliga':'Amateurliga';
+  const parts=[];
+  if (von) parts.push(von+' von oben');
+  if (hoch) parts.push(hoch+' hoch');
+  if (runter){
+    let bit=runter+' runter';
+    if (l.level>=5 && prof.down!==(l.down||0)) bit+=' statt '+(l.down||0);
+    parts.push(bit);
+  }
+  if (l.level===6){
+    const n=((e.picks&&e.picks[l.id])||[]).length || ((e.need&&e.need[l.id])||0);
+    if (n) parts.push(n+' aus Amateurliga');
+  } else if (aus) parts.push(aus+' aus '+ausName);
+  const dec=s.leagues&&s.leagues[l.id]&&s.leagues[l.id].decide;
+  if (dec&&dec.length) parts.push('Entscheidung');
+  return parts.join(' · ');
 }
-function amateurGap(e, olId){
-  const picks=(((e&&e.picks)||{})[olId]||[]).map(id=>({id:id, to:olId}));
-  const down=((e&&e.moves)||[]).filter(m=>m.type==='ab' && m.from===olId && P[m.to]);
-  return '<div class="py-gap s1">'+flowHTML(picks,'up',()=>'Amateur')+flowHTML(down,'dn',()=>'Amateur')+'</div>';
-}
-function leagueCell(l, span){
+function leagueCard(s, e, l, span){
+  const moves=(e&&e.moves)||[];
+  const von=moves.filter(m=>m.type==='ab' && m.to===l.id);
+  const auf=moves.filter(m=>m.type==='auf' && m.from===l.id);
+  const ab=moves.filter(m=>m.type==='ab' && m.from===l.id);
+  const aus=moves.filter(m=>m.type==='auf' && m.to===l.id);
+  let body='';
+  mvGroup(von, m=>m.from).forEach(g=>{ body+=mvSec('neu','Von '+leagueShort(g.k), mvRows(g.list)); });
+  mvGroup(auf, m=>m.to).forEach(g=>{ body+=mvSec('auf','Auf → '+leagueShort(g.k), mvRows(g.list)); });
+  mvGroup(ab, m=>m.to).forEach(g=>{ body+=mvSec('ab','Ab → '+leagueShort(g.k), mvRows(g.list)); });
+  mvGroup(aus, m=>m.from).forEach(g=>{ body+=mvSec('neu','Aus '+leagueShort(g.k), mvRows(g.list)); });
+  if (l.level===6){
+    const picks=((e.picks&&e.picks[l.id])||[]);
+    if (picks.length) body+=mvSec('neu','Aus Amateurliga', picks.map(id=>mvRow(id, 'Amateur → '+l.short)).join(''));
+  }
+  const n=teamN(s, l.id);
+  const rules=ruleLine(s, e, l);
   const wide=span>=8;
-  return '<div class="py-league s'+span+'" title="'+esc(l.name)+'">'+esc(wide?l.name:l.short)+'</div>';
+  const mode=wide?(l.id==='L4'?' trunk':' fit'):'';
+  return '<article class="mv-card'+mode+'"><header class="mv-head"><b>'+esc(wide?l.name:l.short)+'</b><span>'+n+' '+(n===1?'Team':'Teams')+'</span></header>'+(rules?'<p class="mv-rules">'+esc(rules)+'</p>':'')+body+'</article>';
 }
-function moveBoardHTML(e){
+function amateurCard(s, e){
+  const down=((e&&e.moves)||[]).filter(m=>m.type==='ab' && P[m.to]);
+  let body='';
+  mvGroup(down, m=>m.from).forEach(g=>{ body+=mvSec('neu','Von '+leagueShort(g.k), mvRows(g.list)); });
+  let hoch=0;
+  PY_PAIRS.forEach(p=>p.ols.forEach(ol=>{
+    const picks=((e.picks&&e.picks[ol])||[]);
+    hoch+=picks.length;
+    if (picks.length) body+=mvSec('auf','Auf → '+leagueShort(ol), picks.map(id=>mvRow(id, 'Amateur → '+leagueShort(ol))).join(''));
+  }));
+  let n=0; POOLS.forEach(p=>{ n+=((s.pools&&s.pools[p.id])||[]).length; });
+  const rules=[hoch?hoch+' hoch':'', down.length?down.length+' von oben':''].filter(Boolean).join(' · ');
+  return '<article class="mv-card am"><header class="mv-head"><b>Amateurliga</b><span>'+n+' '+(n===1?'Team':'Teams')+'</span></header>'+(rules?'<p class="mv-rules">'+esc(rules)+'</p>':'')+body+'</article>';
+}
+function pyLink(cap){
+  return '<div class="py-link"><span class="py-stem"></span>'+(cap?'<span class="py-cap">'+esc(cap)+'</span>':'')+'</div>';
+}
+function regionBlock(s, e, pair){
+  let h='<div class="py-region">';
+  h+=pyLink(pair.cap);
+  h+=leagueCard(s, e, L[pair.rl], 2);
+  h+=pyLink(pair.sub);
+  h+='<div class="py-ols">'+pair.ols.map(id=>leagueCard(s, e, L[id], 1)).join('')+'</div>';
+  h+='</div>';
+  return h;
+}
+function moveBoardHTML(e, s){
   e=e||{moves:[], picks:{}};
-  let h='<div class="card move-card"><div class="card-title">Auf- und Abstieg</div><div class="py-tree">';
-  h+=leagueCell(L.BL, 8);
-  h+=leagueGap(e, 'BL2', 8);
-  h+=leagueCell(L.BL2, 8);
-  h+=leagueGap(e, 'L3', 8);
-  h+=leagueCell(L.L3, 8);
-  h+=leagueGap(e, 'L4', 8);
-  h+=leagueCell(L.L4, 8);
-  h+=PY_PAIRS.map(p=>leagueGap(e, p.rl, 2)).join('');
-  h+=PY_PAIRS.map(p=>leagueCell(L[p.rl], 2)).join('');
-  h+=PY_PAIRS.map(p=>p.ols.map(id=>leagueGap(e, id, 1)).join('')).join('');
-  h+=PY_PAIRS.map(p=>p.ols.map(id=>leagueCell(L[id], 1)).join('')).join('');
-  h+=PY_PAIRS.map(p=>p.ols.map(id=>amateurGap(e, id)).join('')).join('');
-  h+='<div class="py-league s8" title="Amateurliga">Amateurliga</div>';
-  h+='</div></div>';
+  s=s||cur();
+  let h='<div class="py-tree">';
+  h+=leagueCard(s, e, L.BL, 8);
+  h+=pyLink('');
+  h+=leagueCard(s, e, L.BL2, 8);
+  h+=pyLink('');
+  h+=leagueCard(s, e, L.L3, 8);
+  h+=pyLink('');
+  h+=leagueCard(s, e, L.L4, 8);
+  h+='<div class="py-regions">'+PY_PAIRS.map(p=>regionBlock(s, e, p)).join('')+'</div>';
+  h+=pyLink('Amateur');
+  h+=amateurCard(s, e);
+  h+='</div>';
   return h;
 }
 function rulesHTML(){
