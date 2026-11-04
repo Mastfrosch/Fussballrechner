@@ -2098,19 +2098,20 @@ function renderNav(){
   const special=pokal||ansehen||tab==='verein'||tab==='supercup'||tab==='info';
   let amN=0; POOLS.forEach(p=>amN+=(cur().pools[p.id]||[]).length);
   const link=(label, active, attrs, title)=>'<a class="nav-item'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
-  const grp=(title, body)=>'<div class="nav-group"><div class="nav-group-title">'+title+'</div>'+body+'</div>';
+  const menu=(id, title, on, body)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
+  const lv=L[S.ui.league];
   const profi=LEAGUES.filter(l=>l.level<=4).map(l=>link(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"')).join('');
   const rl=LEAGUES.filter(l=>l.level===5).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
   const ol=LEAGUES.filter(l=>l.level===6).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
-  let h=grp('Ligen', profi);
-  h+=grp('Regionalliga', rl);
-  h+=grp('Oberliga', ol);
-  h+=grp('Breitensport', link('Amateurliga<span class="cnt">'+amN+'</span>', !special && amateur, 'data-league="AM"'));
+  let h=menu('ligen','Ligen', !!(lv&&lv.level<=4&&!special&&!amateur), profi);
+  h+=menu('rl','Regionalliga', !!(lv&&lv.level===5&&!special&&!amateur), rl);
+  h+=menu('ol','Oberliga', !!(lv&&lv.level===6&&!special&&!amateur), ol);
+  h+=menu('breit','Breitensport', !special && amateur, link('Amateurliga<span class="cnt">'+amN+'</span>', !special && amateur, 'data-league="AM"'));
   let comp=link('Pokal', pokal, 'data-tab="pokal"');
   if (featOn('supercup')) comp+=link('Supercup', tab==='supercup', 'data-tab="supercup"');
-  h+=grp('Wettbewerbe', comp);
-  h+=grp('Verein', link('Vereinsinfo', tab==='info', 'data-tab="info"')+link('Ansehen', ansehen, 'data-tab="ansehen"'));
+  h+=menu('wett','Wettbewerbe', pokal||tab==='supercup', comp);
+  h+=menu('verein','Verein', tab==='info'||ansehen, link('Vereinsinfo', tab==='info', 'data-tab="info"')+link('Ansehen', ansehen, 'data-tab="ansehen"'));
   $('#leagueNav').innerHTML=h;
   const sel=id=>!pokal && S.ui.league===id?' selected':'';
   let o=LEAGUES.map(l=>'<option value="'+l.id+'"'+sel(l.id)+'>'+esc(l.name)+'</option>').join('');
@@ -4939,7 +4940,7 @@ function renderInfo(){
   wireSuggest('infoQ', 'infoHits', 'infoPick', '');
   if (sec==='vergleich') wireSuggest('infoOppQ', 'infoOppHits', 'infoOpp', id);
 }
-// ---------- Modul Supercup und Vereinsseite (Supercup abschaltbar über die Seitenleiste) ----------
+// ---------- Modul Supercup und Vereinsseite (Supercup abschaltbar über das Spielstand-Menü) ----------
 function featOn(key){ return !S.ui || S.ui[key]!==false; }
 function stadionName(id){
   const c=coordOf(id);
@@ -5240,6 +5241,15 @@ function adjustGoal(k, side, dir){
 // ---------- Events ----------
 document.addEventListener('click', ev=>{
   const t=ev.target;
+  const menuBtn=t.closest('[data-menu]');
+  if (menuBtn){
+    const menu=menuBtn.parentElement;
+    const on=menu.classList.contains('open');
+    document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open'));
+    if (!on) menu.classList.add('open');
+    return;
+  }
+  if (!t.closest('.nav-drop')) document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open'));
   const amTab=t.closest('[data-amateur]'); if (amTab){ S.ui.amateurBl=amTab.dataset.amateur; save(); render(); return; }
   const nav=t.closest('[data-league]'); if (nav){ S.ui.league=nav.dataset.league; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info') S.ui.tab='tabelle'; save(); render(); return; }
   const tab=t.closest('[data-tab]'); if (tab){
@@ -5378,7 +5388,7 @@ document.addEventListener('input', ev=>{
   else if (t.id==='ansehenSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#ansehenList tr[data-ansehen]').forEach(tr=>{ tr.style.display=(tr.dataset.name||'').includes(q)?'':'none'; }); }
 });
 document.addEventListener('keydown', ev=>{
-  if (ev.key==='Escape') $('#modal').classList.add('hidden');
+  if (ev.key==='Escape'){ $('#modal').classList.add('hidden'); document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open')); }
 });
 $('#modalClose').onclick=()=>$('#modal').classList.add('hidden');
 $('#modal').addEventListener('click', ev=>{ if (ev.target.id==='modal') $('#modal').classList.add('hidden'); });
