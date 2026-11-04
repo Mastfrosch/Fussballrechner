@@ -5213,8 +5213,8 @@ function viewVerein(id){
 function clubModal(id){
   const t=TEAMS[id], pl=clubPlacements(id);
   let h='<div style="display:flex;gap:12px;align-items:center"><img src="'+esc(t.crest)+'" style="width:56px;height:56px;object-fit:contain"><div><h2 style="margin:0">'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+' · historische Rangliste: '+(t.rang?'Rang '+t.rang+', Schnitt '+t.schnitt.toFixed(2).replace('.',','):'ohne Wertung')+'</div></div></div>';
-  h+='<h3 style="margin-top:16px">Platzierungen im Fußballrechner</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Pkt.','pkt')+sortHead('Tore','tg')+'</tr></thead><tbody>';
-  pl.forEach(p=>{ const tg=p.tore?parseInt(p.tore,10):''; h+='<tr><td class="l">'+p.season+'</td><td class="l">'+esc(leagueName(p.lid))+'</td>'+sortCell(p.pl||'', p.pl?p.pl+'. / '+p.n+(p.final?'':' (laufend)'):'–')+sortCell(p.pkt??'', p.pkt??'–')+sortCell(tg, p.tore||'–')+'</tr>'; });
+  h+='<h3 style="margin-top:16px">Platzierungen im Fußballrechner</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Tore','tg')+'</tr></thead><tbody>';
+  pl.forEach(p=>{ const tg=p.tore?parseInt(p.tore,10):''; h+='<tr><td class="l">'+p.season+'</td><td class="l">'+esc(leagueName(p.lid))+'</td>'+sortCell(p.pl||'', p.pl?p.pl+'. / '+p.n+(p.final?'':' (laufend)'):'–')+sortCell(tg, p.tore||'–')+'</tr>'; });
   h+='</tbody></table>';
   openModal(h);
 }
