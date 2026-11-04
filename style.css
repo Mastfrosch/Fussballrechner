@@ -177,6 +177,19 @@ tr.w-hot td{background:#e7f6ec}
 tr.w-off td{color:#9aa}
 tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pyramid{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px 20px;background:#f4f6f8}
+.py-tree{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));column-gap:6px;row-gap:8px;width:100%;padding:12px;background:#f4f6f8;align-items:stretch}
+.py-tree .s8{grid-column:span 8}
+.py-tree .s2{grid-column:span 2}
+.py-tree .s1{grid-column:span 1}
+.py-league{display:flex;align-items:center;justify-content:center;min-height:34px;padding:6px 4px;background:#fff;border:1px solid var(--line);text-align:center;font-size:12px;font-weight:650;color:#234;line-height:1.2}
+.py-gap{display:flex;flex-direction:column;align-self:stretch;min-width:0}
+.py-flow.up{margin-bottom:auto}
+.py-flow.dn{margin-top:auto}
+.py-flow{padding:3px 2px}
+.py-flow.up{background:#f3faf4}
+.py-flow.dn{background:#fdf6f6}
+.py-flow .py-label{font-size:10px;text-align:center;color:var(--muted);margin:0 0 2px}
+.py-flow .py-clubs{display:flex;flex-wrap:wrap;gap:3px 4px;justify-content:center}
 .py-row{display:grid;gap:8px;justify-content:center}
 .py-row.w1{width:38%;min-width:260px}
 .py-row.w2{width:54%;min-width:300px}
