@@ -98,6 +98,12 @@ table.tbl.fit{width:auto;max-width:100%}
 .side-away{justify-content:flex-start;text-align:left}
 .ml-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:1.2;color:#1c1c1c}
 .ml-crest{width:16px;height:16px;object-fit:contain;flex:0 0 16px}
+.match.sp-line{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 18px}
+.match.sp-line .ml-crest{width:24px;height:24px;flex:0 0 24px}
+.match.sp-line .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.match.sp-line .side-home .who{align-items:flex-end;text-align:right}
+.match.sp-line .side-away .who{align-items:flex-start;text-align:left}
+.match.sp-line .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15;font-weight:400}
 .match-solo{display:flex;justify-content:center}
 .match-solo>.match{width:min(680px,100%)}
 .scorecol{display:flex;flex-direction:column;align-items:center;gap:0}
