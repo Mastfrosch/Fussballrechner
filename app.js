@@ -4128,19 +4128,11 @@ function ruleLine(s, e, l){
 }
 function leagueCard(s, e, l, span){
   const moves=(e&&e.moves)||[];
-  const von=moves.filter(m=>m.type==='ab' && m.to===l.id);
   const auf=moves.filter(m=>m.type==='auf' && m.from===l.id);
   const ab=moves.filter(m=>m.type==='ab' && m.from===l.id);
-  const aus=moves.filter(m=>m.type==='auf' && m.to===l.id);
   let body='';
-  mvGroup(von, m=>m.from).forEach(g=>{ body+=mvSec('neu','Von '+leagueShort(g.k), mvRows(g.list)); });
   mvGroup(auf, m=>m.to).forEach(g=>{ body+=mvSec('auf','Auf → '+leagueShort(g.k), mvRows(g.list)); });
   mvGroup(ab, m=>m.to).forEach(g=>{ body+=mvSec('ab','Ab → '+leagueShort(g.k), mvRows(g.list)); });
-  mvGroup(aus, m=>m.from).forEach(g=>{ body+=mvSec('neu','Aus '+leagueShort(g.k), mvRows(g.list)); });
-  if (l.level===6){
-    const picks=((e.picks&&e.picks[l.id])||[]);
-    if (picks.length) body+=mvSec('neu','Aus Amateurliga', picks.map(id=>mvRow(id, 'Amateur → '+l.short)).join(''));
-  }
   const n=teamN(s, l.id);
   const rules=ruleLine(s, e, l);
   const mode=span>=8?' fit':'';
@@ -4149,7 +4141,6 @@ function leagueCard(s, e, l, span){
 function amateurCard(s, e){
   const down=((e&&e.moves)||[]).filter(m=>m.type==='ab' && P[m.to]);
   let body='';
-  mvGroup(down, m=>m.from).forEach(g=>{ body+=mvSec('neu','Von '+leagueShort(g.k), mvRows(g.list)); });
   let hoch=0;
   PY_PAIRS.forEach(p=>p.ols.forEach(ol=>{
     const picks=((e.picks&&e.picks[ol])||[]);
