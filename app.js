@@ -2026,12 +2026,18 @@ function matchLineHTML(o){
   const away=o.cup?crest(a)+cupSide(a):crest(a)+nm(a)+edge(a);
   return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+del+'</div>';
 }
+function sortHead(label, key, cls){
+  return '<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
+}
+function sortCell(n, html, cls){
+  const raw=(n==null||n==='')?'':String(n);
+  return '<td'+(raw!==''?' data-n="'+raw+'"':'')+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
+}
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
   const down = !lg || opts.zones===false ? 0 : relegationProfile(season, lg.id).down;
-  const th=(label, key, cls)=>'<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
-  const td=(n, html, cls)=>'<td data-n="'+n+'"'+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
+  const th=sortHead, td=sortCell;
   let h='<table class="tbl"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
@@ -2679,10 +2685,8 @@ function viewEwig(lid){
   const rows=Object.values(agg); rows.forEach(r=>r.diff=r.tg-r.gt);
   rows.sort((a,b)=>b.pkt-a.pkt||b.diff-a.diff||b.tg-a.tg||byRang(a.id,b.id));
   const loyal=lid==='BL'?blLoyalSet():null;
-  const eth=(label, key, cls)=>'<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
-  const etd=(n, html, cls)=>'<td data-n="'+n+'"'+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
-  let h='<div class="card"><div class="legend">Alle Spiele aller Saisons in der '+esc(L[lid].name)+' (inkl. laufender Saison), Wertung 3-Punkte-Regel.'+(loyal?' Hervorgehoben: seit dem Eintritt nie aus der Bundesliga abgestiegen. Nach dem ersten Abstieg ist die Markierung dauerhaft weg. Die Vereine der ersten Saison zählen als nie abgestiegen.':'')+'</div><table class="tbl"><thead><tr>'+eth('Pl.','pl')+eth('Verein','','l')+eth('Saisons','seasons')+eth('Sp.','sp')+eth('S','s')+eth('U','u')+eth('N','n')+eth('T/GT','tg')+eth('Diff.','diff')+eth('Pkt.','pkt')+'</tr></thead><tbody>';
-  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'>'+etd(i+1, i+1)+'<td class="l">'+clubHTML(r.id)+'</td>'+etd(seasons[r.id], seasons[r.id])+etd(r.sp, r.sp)+etd(r.s, r.s)+etd(r.u, r.u)+etd(r.n, r.n)+etd(r.tg, r.tg+':'+r.gt)+etd(r.diff, (r.diff>0?'+':'')+r.diff)+etd(r.pkt, r.pkt, 'pts')+'</tr>'; });
+  let h='<div class="card"><div class="legend">Alle Spiele aller Saisons in der '+esc(L[lid].name)+' (inkl. laufender Saison), Wertung 3-Punkte-Regel.'+(loyal?' Hervorgehoben: seit dem Eintritt nie aus der Bundesliga abgestiegen. Nach dem ersten Abstieg ist die Markierung dauerhaft weg. Die Vereine der ersten Saison zählen als nie abgestiegen.':'')+'</div><table class="tbl"><thead><tr>'+sortHead('Pl.','pl')+sortHead('Verein','','l')+sortHead('Saisons','seasons')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('T/GT','tg')+sortHead('Diff.','diff')+sortHead('Pkt.','pkt')+'</tr></thead><tbody>';
+  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'>'+sortCell(i+1, i+1)+'<td class="l">'+clubHTML(r.id)+'</td>'+sortCell(seasons[r.id], seasons[r.id])+sortCell(r.sp, r.sp)+sortCell(r.s, r.s)+sortCell(r.u, r.u)+sortCell(r.n, r.n)+sortCell(r.tg, r.tg+':'+r.gt)+sortCell(r.diff, (r.diff>0?'+':'')+r.diff)+sortCell(r.pkt, r.pkt, 'pts')+'</tr>'; });
   h+='</tbody></table></div>';
   return h;
 }
@@ -2711,7 +2715,7 @@ function viewHistorie(lid){
       const id=item.id||item;
       const t=TEAMS[id]; if(!t) return '';
       const pl=item.pl!=null?item.pl:'';
-      return '<span class="hist-slot" title="'+esc((pl?pl+'. ':'')+t.name)+'"><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
+      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
     };
     const slots=list=>{
       const items=(list||[]).slice().sort((a,b)=>(a.pl||0)-(b.pl||0));
@@ -3877,7 +3881,7 @@ function viewTerminierung(s, lid){
   if (has.top) cols.push(['top','Topspiel']);
   if (has.so) cols.push(['so','Sonntag']);
   if (has.regional) cols.push(['regional','regional']);
-  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Spiele ist die Zahl der terminierten Partien. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th><th>Spiele</th>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'<th>Breaks</th><th class="l">Regeln</th></tr></thead><tbody>';
+  h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Spiele ist die Zahl der terminierten Partien. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr>'+sortHead('Pl.','pl')+sortHead('Verein','','l')+sortHead('Spiele','spiele')+cols.map(c=>sortHead(c[1], c[0])).join('')+sortHead('Breaks','breaks')+sortHead('Regeln','','l')+'</tr></thead><tbody>';
   const placeOf={}; leagueTable(s,lid).forEach(r=>placeOf[r.id]=r.pl);
   lg.teams.slice().sort((x,y)=>(placeOf[x]||999)-(placeOf[y]||999)).forEach(id=>{
     const idx=lg.teams.indexOf(id);
@@ -3894,11 +3898,11 @@ function viewTerminierung(s, lid){
     if (br>2) problems.push(br+' Breaks');
     if (kinds.hh>1 || kinds.aa>1) problems.push('zweimal '+ (kinds.hh>1?'Heim':'Auswärts'));
     const bad=problems.length>0;
-    h+='<tr><td>'+placeOf[id]+'</td><td class="l">'+clubHTML(id,{nobl:true})+'</td><td>'+c.total+'</td>'+cols.map(([key])=>{
+    h+='<tr>'+sortCell(placeOf[id], placeOf[id])+'<td class="l">'+clubHTML(id,{nobl:true})+'</td>'+sortCell(c.total, c.total)+cols.map(([key])=>{
       const v=c[key];
       const warn=!open && (key==='konferenz'?v<total/2:v===0);
-      return '<td class="'+(warn?'bad':'')+'">'+v+'</td>';
-    }).join('')+'<td class="'+(run>2||br>2||kinds.hh>1||kinds.aa>1?'bad':'ok')+'">'+br+'</td><td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
+      return sortCell(v, v, warn?'bad':'');
+    }).join('')+sortCell(br, br, (run>2||br>2||kinds.hh>1||kinds.aa>1?'bad':'ok'))+'<td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
   h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, keine drei Heim- oder Auswärtsspiele in Folge, höchstens zwei Breaks pro Verein und davon einer heim und einer auswärts. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
   return h;
@@ -4200,11 +4204,11 @@ function moveBoardHTML(e, s){
 }
 function rulesHTML(){
   const s=cur();
-  let h='<h3>Ligensystem &amp; Regeln</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Reihenfolge bei Gleichstand: Punkte → Tordifferenz → mehr Tore → direkter Vergleich (Punkte, Tordifferenz, Tore) → historische Stärke.</p><table class="tbl fit"><thead><tr><th class="l">Liga</th><th>Teams</th><th>Auf</th><th>Ab geplant</th><th>Ab jetzt</th><th class="l">Aufstieg in</th></tr></thead><tbody>';
+  let h='<h3>Ligensystem &amp; Regeln</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Reihenfolge bei Gleichstand: Punkte → Tordifferenz → mehr Tore → direkter Vergleich (Punkte, Tordifferenz, Tore) → historische Stärke.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
   LEAGUES.forEach(l=>{
     const p=relegationProfile(s, l.id);
     const mark=p.down!==l.down;
-    h+='<tr><td class="l">'+esc(l.name)+'</td><td>'+l.size+'</td><td>'+(l.up||'–')+'</td><td>'+l.down+'</td><td'+(mark?' class="pts"':'')+'>'+p.down+'</td><td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>';
+    h+='<tr><td class="l">'+esc(l.name)+'</td>'+sortCell(l.size, l.size)+sortCell(l.up||0, l.up||'–')+sortCell(l.down, l.down)+sortCell(p.down, p.down, mark?'pts':'')+'<td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>';
   });
   h+='</tbody></table><p>Bundesliga bis 4. Liga haben feste Zahlen. Die vier Absteiger der 4. Liga gehen nur in die Regionalliga ihres Bundeslandes (Nord: Bremen, Niedersachsen, Hamburg, Schleswig-Holstein, Mecklenburg-Vorpommern; Ost: Berlin, Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen; Süd: Bayern, Baden-Württemberg; West: Nordrhein-Westfalen, Hessen, Rheinland-Pfalz, Saarland). Jede Regionalliga gibt einen Meister an die 4. Liga ab und hat zwei feste Absteiger. Aus jeder der beiden Oberligen rücken zwei Vereine nach. Kommen k Absteiger aus der 4. Liga dazu, steigen zusätzlich k+1 Vereine ab, damit die Staffel bei 18 bleibt. In der Oberliga steigen die Plätze 1 und 2 fest auf. k Absteiger aus der eigenen Regionalliga bedeuten k Absteiger, und zwei Amateurvereine rücken nach. Niemand wird in eine fremde Region verschoben. „Ab jetzt“ folgt dem aktuellen Tabellenstand.</p>';
   const changed=LEAGUES.filter(l=>l.level>=5 && relegationProfile(s, l.id).down!==l.down);
@@ -4248,11 +4252,11 @@ function viewAnsehen(){
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
   let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Liga und Pokal sind gewichtete Schnitte. Die Liga über 30 Saisons, die jüngsten 10 davon 1,5-fach. DFB-Pokal und Landespokal über 15 Saisons, die jüngsten 5 davon 1,5-fach. Eine Saison ohne Teilnahme zählt im Pokal als 0. Wer jede Saison dieselbe Runde erreicht, hat genau deren Punktwert. Die Liste gilt bis zur geöffneten Saison. Der Pfeil vergleicht den Rang mit dem Fenster bis zur Vorsaison.</p>'+ansehenLegendHTML()+'<div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
-  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr><th>Rang</th><th></th><th class="l">Verein</th><th>Gesamt</th><th>Liga</th><th>DFB-Pokal</th><th>Landespokal</th><th class="l">Aktuelle Liga</th></tr></thead><tbody>';
+  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Gesamt','value')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
   list.forEach((r,i)=>{
     const name=TEAMS[r.id].name;
     const num=v=>v==null?'–':deNum(v,2);
-    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer"><td>'+(nowRank[r.id]||'–')+'</td><td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id,{nobl:true})+'</td><td class="pts">'+num(r.info.value)+'</td><td>'+num(r.info.liga)+'</td><td>'+num(r.info.dfb.value)+'</td><td>'+num(r.info.land.value)+'</td><td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
+    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer">'+sortCell(nowRank[r.id], nowRank[r.id]||'–')+'<td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id,{nobl:true})+'</td>'+sortCell(r.info.value, num(r.info.value), 'pts')+sortCell(r.info.liga, num(r.info.liga))+sortCell(r.info.dfb.value, num(r.info.dfb.value))+sortCell(r.info.land.value, num(r.info.land.value))+'<td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
   });
   h+='</tbody></table></div></div>';
   return h;
@@ -4276,25 +4280,25 @@ function viewAnsehenDetail(id){
   let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b></div></div></div>';
   h+='<div class="ansehen-break">'+part('Liga', info.liga, '30 Saisons, letzte 10 ×1,5')+part('DFB-Pokal', info.dfb.value, '15 Saisons, letzte 5 ×1,5')+part('Landespokal', info.land.value, '15 Saisons, letzte 5 ×1,5')+part('Ansehen', info.value, 'Liga + DFB-Pokal + Landespokal')+'</div>';
   h+='<p>Liga: Fenster '+from+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Grün markiert sind die letzten 10 Saisons (×1,5), normal gezählt die übrigen im Fenster. Graue Zeilen liegen außerhalb. Pokal: die letzten 15 Saisons, davon die letzten 5 grün. Der Schnitt teilt durch das ganze Fenster (17,5). Jahre ohne Teilnahme zählen als 0.</p>'+ansehenLegendHTML();
-  h+='<h3 style="margin:8px 0">Liga</h3><table class="tbl fit"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
+  h+='<h3 style="margin:8px 0">Liga</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Punkte','pts')+sortHead('Gewicht','w')+sortHead('Beitrag','beitrag')+'</tr></thead><tbody>';
   let seenSplit=false;
   info.rows.forEach(r=>{
     const rechner=r.src==='rechner' || seasonYear(r.season)>2025;
-    if (rechner && !seenSplit){ seenSplit=true; h+='<tr><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>'; }
+    if (rechner && !seenSplit){ seenSplit=true; h+='<tr data-pin="1"><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>'; }
     const beitrag=r.w>0?r.w*r.pts:null;
-    h+='<tr class="'+weightClass(r.w)+'"><td class="l">'+r.season+'</td><td class="l">'+esc(r.liga)+(r.ebene?' ('+r.ebene+')':'')+'</td><td>'+r.pl+'. / '+r.n+'</td><td>'+deNum(r.pts,2)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
+    h+='<tr class="'+weightClass(r.w)+'"><td class="l">'+r.season+'</td><td class="l">'+esc(r.liga)+(r.ebene?' ('+r.ebene+')':'')+'</td>'+sortCell(r.pl, r.pl+'. / '+r.n)+sortCell(r.pts, deNum(r.pts,2))+sortCell(r.w||'', r.w?deNum(r.w,1):'–')+sortCell(beitrag, beitrag==null?'–':deNum(beitrag,2))+'</tr>';
   });
-  if (!seenSplit) h+='<tr><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>';
-  h+='<tr><td class="l" colspan="4"><b>Liga</b></td><td><b>'+deNum(info.sw,1)+'</b></td><td><b>'+(info.liga==null?'–':deNum(info.liga,2))+'</b></td></tr>';
+  if (!seenSplit) h+='<tr data-pin="1"><td class="hist-split" colspan="6">Start Fußballrechner</td></tr>';
+  h+='<tr data-pin="1"><td class="l" colspan="4"><b>Liga</b></td><td><b>'+deNum(info.sw,1)+'</b></td><td><b>'+(info.liga==null?'–':deNum(info.liga,2))+'</b></td></tr>';
   h+='</tbody></table>';
   const pokalTable=(title, part)=>{
-    let x='<h3 style="margin:16px 0 8px">'+title+'</h3><table class="tbl fit"><thead><tr><th class="l">Saison</th><th class="l">Runde</th><th>Punkte</th><th>Gewicht</th><th>Beitrag</th></tr></thead><tbody>';
-    if (!part.rows.length) x+='<tr><td class="l" colspan="5"><span class="muted">Keine Pokalteilnahme im Rechner.</span></td></tr>';
+    let x='<h3 style="margin:16px 0 8px">'+title+'</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Runde','','l')+sortHead('Punkte','pts')+sortHead('Gewicht','w')+sortHead('Beitrag','beitrag')+'</tr></thead><tbody>';
+    if (!part.rows.length) x+='<tr data-pin="1"><td class="l" colspan="5"><span class="muted">Keine Pokalteilnahme im Rechner.</span></td></tr>';
     part.rows.forEach(r=>{
       const beitrag=r.w>0?r.w*r.pts:null;
-      x+='<tr class="'+weightClass(r.w)+'"><td class="l">'+esc(r.season)+(r.bl?' · '+esc(r.bl):'')+'</td><td class="l">'+esc(r.round)+(r.won?' · Sieger':'')+'</td><td>'+deNum(r.pts,1)+'</td><td>'+(r.w?deNum(r.w,1):'–')+'</td><td>'+(beitrag==null?'–':deNum(beitrag,2))+'</td></tr>';
+      x+='<tr class="'+weightClass(r.w)+'"><td class="l">'+esc(r.season)+(r.bl?' · '+esc(r.bl):'')+'</td><td class="l">'+esc(r.round)+(r.won?' · Sieger':'')+'</td>'+sortCell(r.pts, deNum(r.pts,1))+sortCell(r.w||'', r.w?deNum(r.w,1):'–')+sortCell(beitrag, beitrag==null?'–':deNum(beitrag,2))+'</tr>';
     });
-    x+='<tr><td class="l" colspan="3"><b>Schnitt (Jahre ohne Teilnahme = 0)</b></td><td><b>'+deNum(part.sw,1)+'</b></td><td><b>'+deNum(part.value,2)+'</b></td></tr></tbody></table>';
+    x+='<tr data-pin="1"><td class="l" colspan="3"><b>Schnitt (Jahre ohne Teilnahme = 0)</b></td><td><b>'+deNum(part.sw,1)+'</b></td><td><b>'+deNum(part.value,2)+'</b></td></tr></tbody></table>';
     return x;
   };
   h+=pokalTable('DFB-Pokal', info.dfb);
@@ -4823,7 +4827,7 @@ function seasonByName(name){
   return (S.seasons||[]).find(s=>s.name===name)||null;
 }
 function bilanzTable(id){
-  const row=(label, b, pts, extra)=>'<tr'+(extra||'')+'><td class="l">'+label+'</td><td>'+b.sp+'</td><td>'+b.s+'</td><td>'+b.u+'</td><td>'+b.n+'</td><td>'+b.tg+':'+b.gt+'</td><td>'+(b.tg-b.gt>0?'+':'')+(b.tg-b.gt)+'</td><td>'+(pts?b.pkt:'–')+'</td></tr>';
+  const row=(label, b, pts, pin)=>'<tr'+(pin?' data-pin="1" class="tot"':'')+'><td class="l">'+label+'</td>'+sortCell(b.sp, b.sp)+sortCell(b.s, b.s)+sortCell(b.u, b.u)+sortCell(b.n, b.n)+sortCell(b.tg, b.tg+':'+b.gt)+sortCell(b.tg-b.gt, (b.tg-b.gt>0?'+':'')+(b.tg-b.gt))+sortCell(pts?b.pkt:'', pts?b.pkt:'–')+'</tr>';
   const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp);
   const legacy=leagues.length?emptyStat():statOf(id,'liga');
   const dfb=statOf(id,'dfb'), land=statOf(id,'land'), sc=statOf(id,'sc');
@@ -4831,8 +4835,8 @@ function bilanzTable(id){
   const all=sumStat(id, keys);
   let body=leagues.map(x=>row(esc(x.l.name), x.b, true)).join('');
   if (!leagues.length && legacy.sp) body+=row('Liga', legacy, true);
-  body+=row('DFB-Pokal', dfb, false)+row('Landespokal', land, false)+row('Supercup', sc, false)+row('<b>Gesamt</b>', all, true, ' class="tot"');
-  return '<table class="tbl fit bilanz"><thead><tr><th class="l">Wettbewerb</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Tore</th><th>Diff.</th><th>Pkt.</th></tr></thead><tbody>'
+  body+=row('DFB-Pokal', dfb, false)+row('Landespokal', land, false)+row('Supercup', sc, false)+row('<b>Gesamt</b>', all, true, true);
+  return '<table class="tbl fit bilanz"><thead><tr>'+sortHead('Wettbewerb','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+sortHead('Diff.','diff')+sortHead('Pkt.','pkt')+'</tr></thead><tbody>'
     +body+'</tbody></table><p class="muted">Jede Liga, in der der Verein gespielt hat, hat eine eigene Zeile. Im Pokal gibt es kein Unentschieden: Verlängerung und Elfmeterschießen zählen als Sieg oder Niederlage. Elfmetertore zählen nicht. Punkte nur in den Ligen.</p>';
 }
 function renderInfo(){
@@ -4880,14 +4884,14 @@ function renderInfo(){
     const bal=balanceLists(id);
     const mini=list=>{
       if (!list.length) return '<p class="muted">Noch zu wenige Spiele.</p>';
-      return '<table class="tbl fit"><thead><tr><th class="l">Gegner</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Tore</th><th>Pkt/Sp</th></tr></thead><tbody>'
-        +list.map(o=>'<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td><td>'+o.sp+'</td><td>'+o.s+'</td><td>'+o.u+'</td><td>'+o.n+'</td><td>'+o.gf+':'+o.ga+'</td><td>'+deNum(o.rate,2)+'</td></tr>').join('')
+      return '<table class="tbl fit"><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+sortHead('Pkt/Sp','rate')+'</tr></thead><tbody>'
+        +list.map(o=>'<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td>'+sortCell(o.sp, o.sp)+sortCell(o.s, o.s)+sortCell(o.u, o.u)+sortCell(o.n, o.n)+sortCell(o.gf, o.gf+':'+o.ga)+sortCell(o.rate, deNum(o.rate,2))+'</tr>').join('')
         +'</tbody></table>';
     };
     if (!opps.length) h+='<p class="muted">Noch keine Gegner.</p>';
     else {
-      h+='<h3>Häufigste Gegner</h3><table class="tbl fit"><thead><tr><th class="l">Gegner</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Tore</th></tr></thead><tbody>';
-      opps.forEach(o=>{ h+='<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td><td>'+o.sp+'</td><td>'+o.s+'</td><td>'+o.u+'</td><td>'+o.n+'</td><td>'+o.gf+':'+o.ga+'</td></tr>'; });
+      h+='<h3>Häufigste Gegner</h3><table class="tbl fit"><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+'</tr></thead><tbody>';
+      opps.forEach(o=>{ h+='<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td>'+sortCell(o.sp, o.sp)+sortCell(o.s, o.s)+sortCell(o.u, o.u)+sortCell(o.n, o.n)+sortCell(o.gf, o.gf+':'+o.ga)+'</tr>'; });
       h+='</tbody></table>';
     }
     h+='<div class="info-split"><div><h3>Positivste Bilanz</h3><p class="muted">Beste Punktzahl pro Spiel, mindestens vier Spiele.</p>'+mini(bal.best)+'</div><div><h3>Negativste Bilanz</h3><p class="muted">Wenigste Punkte pro Spiel, mindestens vier Spiele.</p>'+mini(bal.worst)+'</div></div>';
@@ -4901,11 +4905,11 @@ function renderInfo(){
       const comps=[['Gesamt', allStatComps()],['Liga', leagueKeys],['DFB-Pokal',['dfb']],['Landespokal',['land']],['Supercup',['sc']]];
       h+='<div class="narrow">';
       h+='<p class="h2h-title"><b>'+esc(t.name)+'</b> gegen <b>'+esc(TEAMS[opp].name)+'</b></p>';
-      h+='<table class="tbl fit"><thead><tr><th class="l"></th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Tore</th></tr></thead><tbody>';
+      h+='<table class="tbl fit"><thead><tr>'+sortHead('','')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+'</tr></thead><tbody>';
       comps.forEach(([label, keys])=>{
         const rec=pairSum(id, opp, keys);
         if (!rec.sp && label!=='Gesamt') return;
-        h+='<tr><td class="l">'+label+'</td><td>'+rec.sp+'</td><td>'+rec.s+'</td><td>'+rec.u+'</td><td>'+rec.n+'</td><td>'+rec.gf+':'+rec.ga+'</td></tr>';
+        h+='<tr'+(label==='Gesamt'?' data-pin="1"':'')+'><td class="l">'+label+'</td>'+sortCell(rec.sp, rec.sp)+sortCell(rec.s, rec.s)+sortCell(rec.u, rec.u)+sortCell(rec.n, rec.n)+sortCell(rec.gf, rec.gf+':'+rec.ga)+'</tr>';
       });
       h+='</tbody></table>';
       const wins=h2hWindows();
@@ -5209,8 +5213,8 @@ function viewVerein(id){
 function clubModal(id){
   const t=TEAMS[id], pl=clubPlacements(id);
   let h='<div style="display:flex;gap:12px;align-items:center"><img src="'+esc(t.crest)+'" style="width:56px;height:56px;object-fit:contain"><div><h2 style="margin:0">'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+' · historische Rangliste: '+(t.rang?'Rang '+t.rang+', Schnitt '+t.schnitt.toFixed(2).replace('.',','):'ohne Wertung')+'</div></div></div>';
-  h+='<h3 style="margin-top:16px">Platzierungen im Fußballrechner</h3><table class="tbl fit"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th>Platz</th><th>Pkt.</th><th>Tore</th></tr></thead><tbody>';
-  pl.forEach(p=>{ h+='<tr><td class="l">'+p.season+'</td><td class="l">'+esc(leagueName(p.lid))+'</td><td>'+(p.pl?p.pl+'. / '+p.n+(p.final?'':' (laufend)'):'–')+'</td><td>'+(p.pkt??'–')+'</td><td>'+(p.tore||'–')+'</td></tr>'; });
+  h+='<h3 style="margin-top:16px">Platzierungen im Fußballrechner</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Pkt.','pkt')+sortHead('Tore','tg')+'</tr></thead><tbody>';
+  pl.forEach(p=>{ const tg=p.tore?parseInt(p.tore,10):''; h+='<tr><td class="l">'+p.season+'</td><td class="l">'+esc(leagueName(p.lid))+'</td>'+sortCell(p.pl||'', p.pl?p.pl+'. / '+p.n+(p.final?'':' (laufend)'):'–')+sortCell(p.pkt??'', p.pkt??'–')+sortCell(tg, p.tore||'–')+'</tr>'; });
   h+='</tbody></table>';
   openModal(h);
 }
@@ -5273,15 +5277,19 @@ document.addEventListener('click', ev=>{
       const next=sortTh.classList.contains('sort-desc')?'asc':sortTh.classList.contains('sort-asc')?'':'desc';
       table.querySelectorAll('th[data-sort]').forEach(h=>h.classList.remove('sort-asc','sort-desc'));
       const rows=[...body.rows];
+      const place=rows.map(r=>r.dataset.pin?r:null);
+      const movable=rows.filter(r=>!r.dataset.pin);
       if (!next){
         rows.sort((a,b)=>(+a.dataset.ord)-(+b.dataset.ord));
+        rows.forEach(r=>body.appendChild(r));
       } else {
         sortTh.classList.add(next==='asc'?'sort-asc':'sort-desc');
         const idx=sortTh.cellIndex;
         const num=r=>{ const cell=r.cells[idx]; const n=parseFloat(cell&&cell.dataset.n); return isNaN(n)?-1e15:n; };
-        rows.sort((a,b)=>next==='asc'?num(a)-num(b):num(b)-num(a));
+        movable.sort((a,b)=>next==='asc'?num(a)-num(b):num(b)-num(a));
+        let k=0;
+        place.map(r=>r||movable[k++]).forEach(r=>body.appendChild(r));
       }
-      rows.forEach(r=>body.appendChild(r));
     }
     return;
   }
