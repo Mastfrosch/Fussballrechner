@@ -2021,18 +2021,23 @@ function matchLineHTML(o){
   if (o.bl) cls.push('sp-line');
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
-  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+edge(h)+nm(h)+crest(h)+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+crest(a)+nm(a)+edge(a)+'</div>'+del+'</div>';
+  const cupSide=id=>{ const e=edge(id); return e?'<span class="who">'+nm(id)+e+'</span>':nm(id); };
+  const home=o.cup?cupSide(h)+crest(h):edge(h)+nm(h)+crest(h);
+  const away=o.cup?crest(a)+cupSide(a):crest(a)+nm(a)+edge(a);
+  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+del+'</div>';
 }
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
   const down = !lg || opts.zones===false ? 0 : relegationProfile(season, lg.id).down;
-  let h='<table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>T/GT</th><th>Diff.</th><th>Pkt.</th>'+(opts.form===false?'':'<th>Form</th>')+'</tr></thead><tbody>';
+  const th=(label, key, cls)=>'<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
+  const td=(n, html, cls)=>'<td data-n="'+n+'"'+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
+  let h='<table class="tbl"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
     if (flag==='up') z='sure-up';
-    h+='<tr class="'+(z?'z-'+z:'')+'"><td>'+r.pl+'</td><td class="l">'+clubHTML(r.id,{nobl:!!opts.nobl,marker:opts.markers===false?null:season.markers[r.id]})+'</td><td>'+r.sp+'</td><td>'+r.s+'</td><td>'+r.u+'</td><td>'+r.n+'</td><td>'+r.tg+':'+r.gt+'</td><td>'+(r.diff>0?'+':'')+r.diff+'</td><td class="pts">'+r.pkt+'</td>'+
+    h+='<tr class="'+(z?'z-'+z:'')+'">'+td(r.pl, r.pl)+'<td class="l">'+clubHTML(r.id,{nobl:!!opts.nobl,marker:opts.markers===false?null:season.markers[r.id]})+'</td>'+td(r.sp, r.sp)+td(r.s, r.s)+td(r.u, r.u)+td(r.n, r.n)+td(r.tg, r.tg+':'+r.gt)+td(r.diff, (r.diff>0?'+':'')+r.diff)+td(r.pkt, r.pkt, 'pts')+
       (opts.form===false?'':'<td><span class="form">'+r.form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f])+'">'+f+'</span>').join('')+'</span></td>')+'</tr>';
   });
   h+='</tbody></table>';
@@ -2405,18 +2410,18 @@ function crestTip(id){
   return '<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
 }
 function viewCupTree(s, cup){
-  let h='<div class="card" style="padding:10px"><div class="bracket">';
+  let h='';
   cup.rounds.forEach(round=>{
-    h+='<div class="br-col"><h4>'+esc(round.name)+'</h4>';
-    if (round.archived && !(round.matches&&round.matches.length)) h+='<div class="br-m bye">Spiele nicht gespeichert</div>';
-    else if (!round.drawn) h+='<div class="br-m bye">noch nicht ausgelost</div>';
-    else round.matches.forEach(m=>{
-      h+='<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, klass:'br-line'})+'</div>';
-    });
-    (round.byes||[]).forEach(id=>{ h+='<div class="br-m bye"><span class="br-crests"><span>'+crestTip(id,'Freilos')+'</span><span class="br-sc"><span class="br-ie"></span><b>Freilos</b></span><span></span></span></div>'; });
+    h+='<div class="card br-round"><div class="card-title"><span>'+esc(round.name)+'</span></div>';
+    if (round.archived && !(round.matches&&round.matches.length)) h+='<p class="muted br-note">Spiele nicht gespeichert</p>';
+    else if (!round.drawn) h+='<p class="muted br-note">noch nicht ausgelost</p>';
+    else {
+      const lines=round.matches.map(m=>'<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, klass:'br-line'})+'</div>');
+      h+='<div class="cup-cols'+(lines.length===1?' one':'')+'">'+lines.join('')+'</div>';
+    }
+    if (round.byes&&round.byes.length) h+='<p class="muted br-note">Freilos: '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</p>';
     h+='</div>';
   });
-  h+='</div></div>';
   return h;
 }
 function seasonLeagueTag(season, id){
@@ -2674,8 +2679,10 @@ function viewEwig(lid){
   const rows=Object.values(agg); rows.forEach(r=>r.diff=r.tg-r.gt);
   rows.sort((a,b)=>b.pkt-a.pkt||b.diff-a.diff||b.tg-a.tg||byRang(a.id,b.id));
   const loyal=lid==='BL'?blLoyalSet():null;
-  let h='<div class="card"><div class="legend">Alle Spiele aller Saisons in der '+esc(L[lid].name)+' (inkl. laufender Saison), Wertung 3-Punkte-Regel.'+(loyal?' Hervorgehoben: seit dem Eintritt nie aus der Bundesliga abgestiegen. Nach dem ersten Abstieg ist die Markierung dauerhaft weg. Die Vereine der ersten Saison zählen als nie abgestiegen.':'')+'</div><table class="tbl"><thead><tr><th>Pl.</th><th class="l">Verein</th><th>Saisons</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>T/GT</th><th>Diff.</th><th>Pkt.</th></tr></thead><tbody>';
-  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'><td>'+(i+1)+'</td><td class="l">'+clubHTML(r.id)+'</td><td>'+seasons[r.id]+'</td><td>'+r.sp+'</td><td>'+r.s+'</td><td>'+r.u+'</td><td>'+r.n+'</td><td>'+r.tg+':'+r.gt+'</td><td>'+(r.diff>0?'+':'')+r.diff+'</td><td class="pts">'+r.pkt+'</td></tr>'; });
+  const eth=(label, key, cls)=>'<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
+  const etd=(n, html, cls)=>'<td data-n="'+n+'"'+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
+  let h='<div class="card"><div class="legend">Alle Spiele aller Saisons in der '+esc(L[lid].name)+' (inkl. laufender Saison), Wertung 3-Punkte-Regel.'+(loyal?' Hervorgehoben: seit dem Eintritt nie aus der Bundesliga abgestiegen. Nach dem ersten Abstieg ist die Markierung dauerhaft weg. Die Vereine der ersten Saison zählen als nie abgestiegen.':'')+'</div><table class="tbl"><thead><tr>'+eth('Pl.','pl')+eth('Verein','','l')+eth('Saisons','seasons')+eth('Sp.','sp')+eth('S','s')+eth('U','u')+eth('N','n')+eth('T/GT','tg')+eth('Diff.','diff')+eth('Pkt.','pkt')+'</tr></thead><tbody>';
+  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'>'+etd(i+1, i+1)+'<td class="l">'+clubHTML(r.id)+'</td>'+etd(seasons[r.id], seasons[r.id])+etd(r.sp, r.sp)+etd(r.s, r.s)+etd(r.u, r.u)+etd(r.n, r.n)+etd(r.tg, r.tg+':'+r.gt)+etd(r.diff, (r.diff>0?'+':'')+r.diff)+etd(r.pkt, r.pkt, 'pts')+'</tr>'; });
   h+='</tbody></table></div>';
   return h;
 }
@@ -2704,7 +2711,7 @@ function viewHistorie(lid){
       const id=item.id||item;
       const t=TEAMS[id]; if(!t) return '';
       const pl=item.pl!=null?item.pl:'';
-      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
+      return '<span class="hist-slot" title="'+esc((pl?pl+'. ':'')+t.name)+'"><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
     };
     const slots=list=>{
       const items=(list||[]).slice().sort((a,b)=>(a.pl||0)-(b.pl||0));
@@ -5257,6 +5264,27 @@ function adjustGoal(k, side, dir){
 // ---------- Events ----------
 document.addEventListener('click', ev=>{
   const t=ev.target;
+  const sortTh=t.closest('th[data-sort]');
+  if (sortTh && !t.closest('#tabs')){
+    const table=sortTh.closest('table');
+    const body=table && table.tBodies[0];
+    if (body){
+      if (body.dataset.base!=='1'){ [...body.rows].forEach((r,i)=>r.dataset.ord=String(i)); body.dataset.base='1'; }
+      const next=sortTh.classList.contains('sort-desc')?'asc':sortTh.classList.contains('sort-asc')?'':'desc';
+      table.querySelectorAll('th[data-sort]').forEach(h=>h.classList.remove('sort-asc','sort-desc'));
+      const rows=[...body.rows];
+      if (!next){
+        rows.sort((a,b)=>(+a.dataset.ord)-(+b.dataset.ord));
+      } else {
+        sortTh.classList.add(next==='asc'?'sort-asc':'sort-desc');
+        const idx=sortTh.cellIndex;
+        const num=r=>{ const cell=r.cells[idx]; const n=parseFloat(cell&&cell.dataset.n); return isNaN(n)?-1e15:n; };
+        rows.sort((a,b)=>next==='asc'?num(a)-num(b):num(b)-num(a));
+      }
+      rows.forEach(r=>body.appendChild(r));
+    }
+    return;
+  }
   const menuBtn=t.closest('[data-menu]');
   if (menuBtn){
     const menu=menuBtn.parentElement;
