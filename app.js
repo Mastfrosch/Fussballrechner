@@ -2024,10 +2024,7 @@ function matchLineHTML(o){
   const nm=id=>{
     const mk=o.marker && o.marker[id];
     const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
-    let liga='';
-    if (o.ligaInName && o.season){ try{ liga=ligaEdge(o.season, id)||''; }catch(e){ liga=''; } }
-    const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
-    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+tag+'</span>';
+    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
     if (!o.bl && !o.cup) return name;
     return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
   };
@@ -2043,7 +2040,7 @@ function matchLineHTML(o){
     ? '<span class="tone-open">offen</span>'
     : '<span class="scoreline"><span class="goals" data-side="0">'+(played?o.hg:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(played?o.ag:'-')+'</span></span>';
   const km=o.km!=null?'<div class="km-line">'+o.km+' km</div>':'';
-  const edge=id=>(o.liga && !o.ligaInName && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
+  const edge=id=>((o.liga || o.ligaInName) && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
   const cls=['match'];
   if (o.cup) cls.push('cup');
   if (played || o.done) cls.push('done');
@@ -2494,18 +2491,25 @@ function seasonLeagueTag(season, id){
   if (P[lid]) return 'Amateur';
   return '';
 }
-function seasonClubHTML(season, id){
+function seasonClubHTML(season, id, side){
   const t=id&&TEAMS[id]; if(!t) return '';
   const liga=yearLiga(season, id);
-  const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
   const img='<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
-  const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(t.name)+'</span>'+tag+'</span><span class="ml-bl">'+esc(t.bl)+'</span></span>';
+  const bl='<span class="ml-bl">'+esc(t.bl)+'</span>';
+  if (side==='left' || side==='right'){
+    const edge=liga?'<span class="liga-edge">'+esc(liga)+'</span>':'';
+    const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(t.name)+'</span></span>'+bl+'</span>';
+    const body=side==='left'?edge+who+img:img+who+edge;
+    return '<div class="sieger-club '+side+'" data-club="'+id+'">'+body+'</div>';
+  }
+  const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
+  const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(t.name)+'</span>'+tag+'</span>'+bl+'</span>';
   return '<div class="sieger-club" data-club="'+id+'">'+img+who+'</div>';
 }
 function siegerRow(year, winnerId, finalistId, match, season, liga){
   const home=match ? match.h : winnerId;
   const away=match ? match.a : finalistId;
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+seasonClubHTML(season, winnerId)+'</div><div class="sieger-who">'+seasonClubHTML(season, finalistId)+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, cup:!!liga, ligaInName:!!liga, nodel:true, klass:'sieger-match'})+'</div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+seasonClubHTML(season, winnerId, 'left')+'</div><div class="sieger-who">'+seasonClubHTML(season, finalistId, 'right')+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, cup:!!liga, ligaInName:!!liga, nodel:true, klass:'sieger-match'})+'</div></div>';
 }
 function siegerHead(){
   return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Finale</div></div>';
