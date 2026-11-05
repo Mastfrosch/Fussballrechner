@@ -1343,7 +1343,10 @@ function buildFixtureLog(season){
     if (season.cups.land) Object.keys(season.cups.land).forEach(bl=>addCup(season.cups.land[bl], 'A'));
   }
   const sc=season.supercup;
-  if (sc && sc.h && sc.a) line('S', 0, sc.h, sc.a, sc.hg, sc.ag, !!sc.et, sc.peh, sc.pea);
+  if (sc && sc.h && sc.a){
+    const slot=sc.slot&&sc.slot.dow&&sc.slot.time?sc.slot:{dow:'Sa', time:'21:00'};
+    line('S', 0, sc.h, sc.a, sc.hg, sc.ag, !!sc.et, sc.peh, sc.pea, slot);
+  }
   if (parts.length) season.fx=parts.join(';');
 }
 function absorbSeason(season){
@@ -1442,7 +1445,7 @@ function shrinkCup(cup){
   });
   cup.roundNames=names;
   cup.archived=true;
-  cup.rounds=[{name:'Finale', drawn:true, neutral:true, archived:false, byes:[], matches:fin?[fin]:[]}];
+  cup.rounds=[{name:'Finale', drawn:true, neutral:cup.kind==='dfb', archived:false, byes:[], matches:fin?[fin]:[]}];
   delete cup.entrants; delete cup.pro; delete cup.amateur;
 }
 function shrinkSeason(season){
@@ -1839,7 +1842,7 @@ function drawCupRound(season, cup, ri){
   const st=standingOf(season);
   const round=cup.rounds[ri];
   let matches;
-  if (cup.kind==='dfb') matches=pairDfb(field, new Set(cup.pro||[]), !!round.neutral);
+  if (cup.kind==='dfb') matches=pairDfb(field, new Set(cup.pro||[]), dfbFinal(cup, round));
   else matches=pairLowerHome(field, st);
   const plan=cup.kind==='dfb' ? DFB_ROUNDS[ri].slots : landSlotPlan(matches.length, round.name==='Finale');
   assignCupSlots(matches, plan, st);
@@ -1970,6 +1973,7 @@ function cupSlotOrder(a,b){
   if (!a||!b) return 0;
   return (CUP_DOW[a.dow]-CUP_DOW[b.dow]) || String(a.time).localeCompare(String(b.time)) || String(a.kind).localeCompare(String(b.kind));
 }
+function dfbFinal(cup, round){ return !!(cup && cup.kind==='dfb' && round && round.name==='Finale'); }
 function cupSlotLabel(slot, neutral){
   if (neutral) return 'Sa 20:45 · Finale in Berlin';
   if (!slot) return 'ohne Anstoßzeit';
@@ -2264,7 +2268,7 @@ function viewCupRound(s, cup, ed){
     buf=[];
   };
   rows.forEach(({m,i})=>{
-    const lab=cupSlotLabel(m.slot, m.neutral||round.neutral);
+    const lab=cupSlotLabel(m.slot, dfbFinal(cup, round));
     if (lab!==prev){ flush(); h+='<div class="slot-head">'+esc(lab)+'</div>'; prev=lab; }
     buf.push(cupMatchHTML(s, m, key, ri, i, ed));
   });
@@ -2409,9 +2413,12 @@ function cupMatchHTML(s, m, key, ri, i, ed){
   const played=m.hg!=null && m.ag!=null;
   const win=cupWinner(m);
   const draw=played && m.hg===m.ag;
-  const km=m.neutral ? null : kmBetween(m.h, m.a);
+  const cup=getCup(s, key);
+  const round=cup && cup.rounds && cup.rounds[ri];
+  const neutral=dfbFinal(cup, round);
+  const km=neutral ? null : kmBetween(m.h, m.a);
   const step=side=>ed?'<span class="stepper"><button type="button" data-act="cupGoal" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="cupGoal" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
-  let meta=m.neutral ? '' : (km!=null ? km+' km' : '');
+  let meta=neutral ? '' : (km!=null ? km+' km' : '');
   const hasPen=m.peh!=null && m.pea!=null && m.peh!==m.pea;
   const ieLabel=hasPen ? m.peh+':'+m.pea+' i.E.' : 'i.E.';
   let above='<span class="ie-slot"></span>';
@@ -2476,7 +2483,7 @@ function viewCupTree(s, cup){
       };
       rows.forEach(({m})=>{
         if (!m || !m.h || !m.a || !TEAMS[m.h] || !TEAMS[m.a]) return;
-        const lab=cupSlotLabel(m.slot, m.neutral||round.neutral);
+        const lab=cupSlotLabel(m.slot, dfbFinal(cup, round));
         if (lab!==prev){ flush(); h+='<div class="slot-head">'+esc(lab)+'</div>'; prev=lab; }
         buf.push('<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, cup:true, ligaInName:true, season:s, klass:'br-line cup-spiel'})+'</div>');
       });
@@ -4776,7 +4783,9 @@ function parseClubFx(raw, id){
     if (!o.homeId||!o.awayId||!TEAMS[o.homeId]||!TEAMS[o.awayId]) return;
     if (o.homeId!==id && o.awayId!==id) return;
     const home=o.homeId===id;
-    out.push({kind:o.kind, md:o.md, home, opp:home?o.awayId:o.homeId, hg:o.hg, ag:o.ag, et:o.et, peh:o.peh, pea:o.pea, dow:o.dow||'', time:o.time||'', top:!!o.top});
+    let dow=o.dow||'', time=o.time||'';
+    if (o.kind==='S'){ dow='Sa'; time='21:00'; }
+    out.push({kind:o.kind, md:o.md, home, opp:home?o.awayId:o.homeId, hg:o.hg, ag:o.ag, et:o.et, peh:o.peh, pea:o.pea, dow, time, top:!!o.top});
   });
   return out;
 }
@@ -4819,7 +4828,7 @@ function liveClubFx(season, id){
   const sc=season.supercup;
   if (sc && (sc.h===id||sc.a===id)){
     const home=sc.h===id;
-    out.push({kind:'S', md:0, home, opp:home?sc.a:sc.h, hg:sc.hg, ag:sc.ag, et:!!sc.et, peh:sc.peh, pea:sc.pea});
+    out.push({kind:'S', md:0, home, opp:home?sc.a:sc.h, hg:sc.hg, ag:sc.ag, et:!!sc.et, peh:sc.peh, pea:sc.pea, dow:'Sa', time:'21:00', top:true});
   }
   return out;
 }
@@ -4839,12 +4848,14 @@ function spieleText(list){
   if (!n && list.some(it=>it.bye)) return 'Freilos';
   return n+' '+(n===1?'Spiel':'Spiele');
 }
-function fxMatchRow(id, it, roundLabel){
+function fxMatchRow(id, it, roundLabel, season){
   if (it.bye) return '<tr class="fx-bye"><td class="fx-md"><b>'+esc(roundLabel)+'</b></td><td class="fx-when">–</td><td class="fx-spiel">Freilos</td></tr>';
   const homeId=it.home?id:it.opp, awayId=it.home?it.opp:id;
   const open=it.hg==null || it.ag==null;
   const tone=open?'open':resultTone(!!it.home, it.hg, it.ag, it.peh, it.pea);
-  const line=matchLineHTML({h:homeId, a:awayId, hg:it.hg, ag:it.ag, et:!!it.et, peh:it.peh, pea:it.pea, tone, open, nodel:true, box:true, klass:'fx-line'});
+  const land=it.kind==='A';
+  const league=it.kind==='L';
+  const line=matchLineHTML({h:homeId, a:awayId, hg:it.hg, ag:it.ag, et:!!it.et, peh:it.peh, pea:it.pea, tone, open, nodel:true, box:true, klass:'fx-line', season:season, bl:!land, liga:!league});
   const badge=it.top?'<span class="fx-badge">Topspiel</span>':'';
   return '<tr class="'+(it.top?'fx-top':'')+'"><td class="fx-md"><b>'+esc(roundLabel)+'</b>'+badge+'</td><td class="fx-when">'+esc(terminText(it.dow, it.time))+'</td><td class="fx-spiel">'+line+'</td></tr>';
 }
@@ -4868,7 +4879,7 @@ function renderTerminplan(id){
   const landName='Landespokal '+((TEAMS[id]&&TEAMS[id].bl)||'');
   const block=(title, list, label)=>{
     if (!list.length) return '';
-    const body=list.map(it=>fxMatchRow(id, it, label(it))).join('');
+    const body=list.map(it=>fxMatchRow(id, it, label(it), season)).join('');
     return '<section class="fx-block"><header class="fx-head"><div><b>'+esc(title)+'</b><small>Saison '+esc(season.name)+'</small></div><span class="fx-count">'+spieleText(list)+'</span></header><table class="fx-grid"><thead><tr><th>Spieltag / Runde</th><th>Termin</th><th>Spiel</th></tr></thead><tbody>'+body+'</tbody></table></section>';
   };
   if (!league.length && !decide.length && !stored) h+='<p class="muted">Die Ligaspiele dieser Saison sind nicht mehr gespeichert.</p>';
@@ -5165,6 +5176,7 @@ function renderInfo(){
   h+='<div class="box"><div class="verein-head"><img src="'+esc(t.crest)+'" alt=""><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+'</div></div></div>';
   h+='<div class="toggle info-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
   if (sec==='historie'){
+    h+='<div class="info-roomy">';
     const hist=S.ui.infoHist||'liga';
     const landName='Landespokal '+(t.bl||'');
     const tabs=[['liga','Liga'],['dfb','DFB-Pokal'],['land',landName]];
@@ -5178,7 +5190,7 @@ function renderInfo(){
         const here=pyramidOf(season)[id];
         rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+(here?esc(here.liga):'<span class="muted">–</span>')+'</td><td class="pl">'+(here?here.pl+'.':'<span class="muted">–</span>')+'</td></tr>';
       });
-      h+='<table class="tbl compact info-hist info-liga"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="pl">Platz</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      h+='<table class="tbl info-hist info-liga"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="pl">Platz</th></tr></thead><tbody>'+rows+'</tbody></table>';
     } else {
       const comp=curH==='dfb'?'dfb':'land';
       const head=curH==='dfb'?'DFB-Pokal':landName;
@@ -5186,11 +5198,13 @@ function renderInfo(){
       seasons.forEach(season=>{
         rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l cup">'+cupRunLine(cupRunOf(id, season.name, comp), 'nicht qualifiziert')+'</td></tr>';
       });
-      h+='<table class="tbl compact info-hist info-cup"><thead><tr><th class="l">Saison</th><th class="l">'+esc(head)+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      h+='<table class="tbl info-hist info-cup"><thead><tr><th class="l">Saison</th><th class="l">'+esc(head)+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
     }
+    h+='</div>';
   } else if (sec==='bilanz'){
-    h+=bilanzTable(id);
+    h+='<div class="info-roomy">'+bilanzTable(id)+'</div>';
   } else if (sec==='gegner'){
+    h+='<div class="info-roomy">';
     const opps=opponentsOf(id);
     const bal=balanceLists(id);
     const mini=list=>{
@@ -5205,10 +5219,11 @@ function renderInfo(){
       opps.forEach(o=>{ h+='<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td>'+sortCell(o.sp, o.sp)+sortCell(o.s, o.s)+sortCell(o.u, o.u)+sortCell(o.n, o.n)+sortCell(o.gf, o.gf+':'+o.ga)+'</tr>'; });
       h+='</tbody></table>';
     }
-    h+='<div class="info-split"><div><h3>Positivste Bilanz</h3><p class="muted">Beste Punktzahl pro Spiel, mindestens vier Spiele.</p>'+mini(bal.best)+'</div><div><h3>Negativste Bilanz</h3><p class="muted">Wenigste Punkte pro Spiel, mindestens vier Spiele.</p>'+mini(bal.worst)+'</div></div>';
+    h+='<div class="info-split"><div><h3>Positivste Bilanz</h3><p class="muted">Beste Punktzahl pro Spiel, mindestens vier Spiele.</p>'+mini(bal.best)+'</div><div><h3>Negativste Bilanz</h3><p class="muted">Wenigste Punkte pro Spiel, mindestens vier Spiele.</p>'+mini(bal.worst)+'</div></div></div>';
   } else if (sec==='termin'){
-    h+=renderTerminplan(id);
+    h+='<div class="info-roomy">'+renderTerminplan(id)+'</div>';
   } else if (sec==='vergleich'){
+    h+='<div class="info-roomy">';
     h+='<div class="suggest"><input id="infoOppQ" class="searchbox" placeholder="Zweiter Verein" autocomplete="off" value="'+esc(S.ui.infoOppQ||'')+'"><div id="infoOppHits" class="suggest-list" hidden></div></div>';
     const opp=S.ui.infoOpp;
     if (opp && TEAMS[opp] && opp!==id){
@@ -5250,6 +5265,7 @@ function renderInfo(){
       }
       h+='</div>';
     }
+    h+='</div>';
   } else {
     const titles=[];
     (S.chronicle||[]).forEach(c=>{ if (c.id===id && c.pl===1) titles.push({k:c.liga, y:c.season, level:c.ebene||99}); });
@@ -5305,7 +5321,7 @@ function buildSupercup(prev){
     away=second.id;
     note='Der Meister hat auch den DFB-Pokal gewonnen. Gegner ist der Zweite der Bundesliga.';
   }
-  return {h:meister.id, a:away, hg:null, ag:null, et:false, peh:null, pea:null, note};
+  return {h:meister.id, a:away, hg:null, ag:null, et:false, peh:null, pea:null, slot:{dow:'Sa', time:'21:00'}, note};
 }
 function supercupWinner(m){
   if (!m || m.hg==null || m.ag==null) return null;
@@ -5375,7 +5391,8 @@ function supercupMatchHTML(s, m){
   else if (!draw && m.et) above='<span class="ie-box">n.V.</span>';
   const below='<span class="ie-slot"></span>';
   const km=kmBetween(m.h, m.a);
-  return '<div class="match-solo">'+matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, cup:true, done:!!supercupWinner(m), step, above, below, km, del:ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>'})+'</div>';
+  const when={dow:'Sa', time:'21:00'};
+  return '<div class="slot-head">'+esc(terminText(when.dow, when.time))+'</div><div class="match-solo">'+matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, cup:true, liga:true, done:!!supercupWinner(m), step, above, below, km, del:ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>'})+'</div>';
 }
 function renderSupercup(){
   $('#tabs').innerHTML='';
@@ -5399,7 +5416,7 @@ function renderSupercup(){
     past.slice().reverse().forEach(x=>{
       const w=supercupWinner(x.supercup);
       const opp=w===x.supercup.h?x.supercup.a:x.supercup.h;
-      h+=siegerRow(x.name, w, opp, x.supercup, x);
+      h+=siegerRow(x.name, w, opp, x.supercup, x, true);
     });
   }
   h+='</div>';

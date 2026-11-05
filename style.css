@@ -480,10 +480,15 @@ table.tbl.hist-seasons{width:max-content;max-width:100%;margin:0 auto;table-layo
 .hist-slot b{font-size:11px;color:var(--muted);font-weight:600;min-width:1.1em;text-align:right;font-variant-numeric:tabular-nums}
 .hist-crest{width:34px;height:34px;object-fit:contain;display:block;flex:0 0 34px}
 .tbl.compact th,.tbl.compact td{padding:2px 6px;font-size:12px}
+.info-roomy{display:flex;flex-direction:column;align-items:center;width:100%}
+.info-roomy>.tbl,.info-roomy .tbl.fit,.info-roomy table.tbl{width:max-content;max-width:100%}
+.info-roomy .tbl th,.info-roomy .tbl td{padding:9px 16px;font-size:14.5px}
+.info-roomy .info-split{display:grid;grid-template-columns:max-content max-content;gap:28px;width:max-content;max-width:100%;margin:18px auto 0}
+.info-roomy h3{align-self:center}
 table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:auto}
 .info-hist th,.info-hist td{text-align:left;vertical-align:middle}
 .info-hist td:first-child,.info-hist th:first-child{white-space:nowrap}
-.info-hist td.pl,.info-hist th.pl{text-align:right;font-variant-numeric:tabular-nums;padding-right:8px}
+.info-hist td.pl,.info-hist th.pl{text-align:right;font-variant-numeric:tabular-nums;padding-right:16px;font-weight:650}
 .info-hist td.cup{white-space:nowrap}
 .cup-detail{margin-left:8px}
 .fx-bar{width:max-content;margin:0 auto 8px}
@@ -493,19 +498,20 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .fx-head small{display:block;margin-top:1px;color:#5c6b76;font-size:12px}
 .fx-count{color:#5c6b76;font-size:12px;white-space:nowrap}
 .fx-grid{width:max-content;max-width:100%;border-collapse:collapse}
-.fx-grid th{text-align:left;font-size:11px;letter-spacing:.04em;color:#5c6b76;font-weight:650;padding:5px 8px;background:#f4f7fa;border-bottom:1px solid var(--line)}
+.fx-grid th{text-align:left;font-size:12px;letter-spacing:.04em;color:#5c6b76;font-weight:650;padding:8px 14px;background:#f4f7fa;border-bottom:1px solid var(--line)}
 .fx-grid th:nth-child(3){text-align:center}
-.fx-grid td{padding:2px 8px;border-top:1px solid #e6ebef;vertical-align:middle}
+.fx-grid td{padding:8px 14px;border-top:1px solid #e6ebef;vertical-align:middle;font-size:14.5px}
 .fx-md{white-space:nowrap}
-.fx-md b{font-weight:650;font-size:13px}
+.fx-md b{font-weight:650;font-size:14.5px}
 .fx-badge{display:block;margin-top:1px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a6d1d}
-.fx-when{color:#5c6b76;white-space:nowrap;font-size:12.5px}
+.fx-when{color:#5c6b76;white-space:nowrap;font-size:14px}
 .fx-spiel{padding-left:4px;padding-right:4px}
 .fx-bye .fx-spiel{text-align:right;color:#5c6b76;font-size:12px;letter-spacing:.04em;padding-right:10px}
 tr.fx-top td{background:#fbf8ef}
-.fx-spiel .match.fx-line{display:grid;grid-template-columns:16em 5.6em 16em;width:37.6em;border:0;padding:1px 0;gap:4px}
+.fx-spiel .match.fx-line{display:grid;grid-template-columns:minmax(10em,24em) 6.4em minmax(10em,24em);width:max-content;max-width:100%;border:0;padding:2px 0;gap:8px}
 .fx-line .side{min-width:0;overflow:hidden}
-.fx-line .ml-name{font-size:13px;color:#1c1c1c;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.fx-line .ml-name{font-size:14.5px;color:#1c1c1c;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:18em}
+.match.fx-line .ml-crest{width:22px;height:22px;flex:0 0 22px}
 .match.fx-box .scoreline,.match.fx-box.tone-open .score{background:#eef1f4;border-radius:0;padding:1px 7px;min-width:2.8em;box-sizing:border-box}
 .match.fx-box.tone-win .scoreline{background:#e5f6ea}
 .match.fx-box.tone-draw .scoreline{background:#fff4e0}
@@ -514,8 +520,9 @@ tr.fx-top td{background:#fbf8ef}
 .narrow{width:fit-content;max-width:100%;margin:0 auto}
 .narrow table.tbl.fit{width:max-content;max-width:100%;margin:0 auto}
 .pair-wrap{width:max-content;max-width:100%;margin:0 auto}
-.pair{display:grid;grid-template-columns:7em auto;align-items:center;column-gap:6px;padding:0}
-.pair .match{border-top:0;padding:2px 0;grid-template-columns:16em 5.6em 16em;gap:4px}
+.pair{display:grid;grid-template-columns:8.5em auto;align-items:center;column-gap:10px;padding:3px 0}
+.pair .match{border-top:0;padding:6px 0;grid-template-columns:18em 6.2em 18em;gap:8px}
+.pair .ml-name{font-size:14.5px}
 .pair .side{min-width:0;overflow:hidden}
 .pair .ml-name{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pair-comp{color:var(--muted);font-size:12px;text-align:right}
