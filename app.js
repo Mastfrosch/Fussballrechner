@@ -1995,16 +1995,16 @@ function matchLineHTML(o){
   const nm=id=>{
     const mk=o.marker && o.marker[id];
     const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
-    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
-    if (!o.bl) return name;
-    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
-  };
+  const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
+  if (!o.bl && !o.cup) return name;
+  return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+};
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
   const nv=played && o.et && o.hg!==o.ag;
   const keep=html=>html && html.replace(/<span class="ie-slot"><\/span>/g,'').trim() ? html : '';
-  const above=keep(o.above!=null?o.above:(pen?'<span class="ie-link ie-static">'+o.peh+':'+o.pea+' i.E.</span>':''));
-  const below=keep(o.below!=null?o.below:(nv?'<span class="ie-box">n.V.</span>':''));
+  const above=keep(o.above!=null?o.above:(pen?'<span class="ie-link ie-static">'+o.peh+':'+o.pea+' i.E.</span>':(nv?'<span class="ie-box">n.V.</span>':'')));
+  const below=keep(o.below!=null?o.below:'');
   const step0=o.step?o.step(0):'';
   const step1=o.step?o.step(1):'';
   const score=o.open
@@ -2021,9 +2021,8 @@ function matchLineHTML(o){
   if (o.bl) cls.push('sp-line');
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
-  const cupSide=id=>{ const e=edge(id); return e?'<span class="who">'+nm(id)+e+'</span>':nm(id); };
-  const home=o.cup?cupSide(h)+crest(h):edge(h)+nm(h)+crest(h);
-  const away=o.cup?crest(a)+cupSide(a):crest(a)+nm(a)+edge(a);
+  const home=edge(h)+nm(h)+crest(h);
+  const away=crest(a)+nm(a)+edge(a);
   return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+del+'</div>';
 }
 function sortHead(label, key, cls){
@@ -2132,12 +2131,11 @@ function renderNav(){
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
 
-const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie'],['aufab','Auf/Abstiege']];
+const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie'],['rekorde','Rekorde'],['aufab','Auf/Abstiege']];
 function renderMigrate(){
   let el=$('#migrate');
-  if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice hidden'; $('#main').prepend(el); }
-  if(!S.ui.showMigrate){ el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
+  if(!S.ui.showMigrate){ if(el) el.remove(); return; }
+  if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice'; $('#main').prepend(el); }
   el.innerHTML='Die Terminierung läuft jetzt in Blöcken von vier Spieltagen. Ein älterer Spielstand wird nicht übernommen. <button type="button" class="btn small" id="btnMigrate">Neu starten</button>';
   $('#btnMigrate').onclick=()=>{ try{ localStorage.removeItem(OLD_KEY); localStorage.removeItem('fussballrechner_v1'); }catch(e){} S=newGame(); save(); render(); toast('Neuer Spielstand gestartet.'); };
 }
@@ -2172,12 +2170,13 @@ function viewPokal(s, cup, view){
   const ed=isEditable();
   const key=S.ui.cup;
   let h='<div class="pokal-bar">'+cupSelectHTML(key);
-  h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['baum','Turnierbaum'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
+  h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['baum','Turnierbaum'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation'],['rekorde','Rekorde']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
   h+='</div>';
-  if (!cup && view!=='qualifikation') return h+'<div class="box">Dieser Pokal fehlt.</div>';
+  if (!cup && view!=='qualifikation' && view!=='rekorde') return h+'<div class="box">Dieser Pokal fehlt.</div>';
   if (view==='sieger') return h+viewCupWinners(s);
   if (view==='baum') return h+viewCupTree(s, cup);
   if (view==='uebersicht') return h+viewCupOverview(s, cup);
+  if (view==='rekorde') return h+viewCupRekorde(key);
   if (view==='qualifikation'){
     const dfb=s.cups&&s.cups.dfb;
     return h+(dfb?viewCupSpots(dfb):'<div class="box">In dieser Saison gibt es keine Landespokal-Qualifikation.</div>');
@@ -2373,14 +2372,13 @@ function cupMatchHTML(s, m, key, ri, i, ed){
     above=ed
       ? '<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">'+ieLabel+'</button>'
       : '<span class="ie-link ie-static">'+ieLabel+'</span>';
-  }
-  let below='<span class="ie-slot"></span>';
-  if (draw && !hasPen && ed){
-    below='<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">i.E.</button>';
+  } else if (draw && !hasPen && ed){
+    above='<button type="button" class="ie-link" data-act="cupIe" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'">i.E.</button>';
   } else if (!draw && ed){
-    below='<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+((played && m.et)?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
-  } else if (!draw && m.et) below='<span class="ie-box">n.V.</span>';
-  return matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, liga:true, cup:true, done:!!win, step, above, below, km:meta?km:null, attr:' data-mi="'+i+'"', del:ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>'});
+    above='<label class="ie-box"><input type="checkbox" data-cup-et="1" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'"'+((played && m.et)?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
+  } else if (!draw && m.et) above='<span class="ie-box">n.V.</span>';
+  const below='<span class="ie-slot"></span>';
+  return matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, liga:true, cup:true, klass:'cup-spiel', done:!!win, step, above, below, km:meta?km:null, attr:' data-mi="'+i+'"', del:ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>'});
 }
 let penEdit=null;
 function openPenDialog(cupKey, ri, mi){
@@ -2563,6 +2561,7 @@ function render(){
   else if (S.ui.tab==='hinrueck') v.innerHTML=viewToggle(s,lid,'hr');
   else if (S.ui.tab==='ewig') v.innerHTML=viewEwig(lid);
   else if (S.ui.tab==='historie') v.innerHTML=viewHistorie(lid);
+  else if (S.ui.tab==='rekorde') v.innerHTML=viewRekorde(lid);
   if (S.ui.tab==='karte') bindMap();
 }
 function currentMd(s,lid){
@@ -2637,13 +2636,10 @@ function decideHTML(s, lid){
     if (needPen && hasPen) above=ed
       ? '<button type="button" class="ie-link" data-act="decideIe" data-di="'+i+'">'+m.peh+':'+m.pea+' i.E.</button>'
       : '<span class="ie-link ie-static">'+m.peh+':'+m.pea+' i.E.</span>';
-    let below='<span class="ie-box">'+(m.leg===1?'Hinspiel':'Rückspiel')+'</span>';
-    if (m.leg===2){
-      if (needPen && !hasPen) below=ed?'<button type="button" class="ie-link" data-act="decideIe" data-di="'+i+'">i.E.</button>':'<span class="ie-slot"></span>';
-      else if (needPen && hasPen) below='<span class="ie-slot"></span>';
-      else if (ed) below='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
-      else below=m.et?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>';
-    }
+    else if (m.leg===2 && needPen && !hasPen && ed) above='<button type="button" class="ie-link" data-act="decideIe" data-di="'+i+'">i.E.</button>';
+    else if (m.leg===2 && !needPen && ed) above='<label class="ie-box"><input type="checkbox" data-decide-et="'+i+'"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
+    else if (m.leg===2 && !needPen && m.et) above='<span class="ie-box">n.V.</span>';
+    const below='<span class="ie-box">'+(m.leg===1?'Hinspiel':'Rückspiel')+'</span>';
     h+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!twoLegWinner(leg1, lg.decide.find(x=>x.key===m.key&&x.leg===2)), step, above, below, km, del:ed?'<button type="button" class="del" data-act="decideDel" data-di="'+i+'">×</button>':'<span></span>'});
   });
   return h;
@@ -2702,6 +2698,250 @@ function clubPlacements(id){
   });
   return out;
 }
+function seasonLoggedMatches(season){
+  try{
+    if (!season) return [];
+    if (season.h2h && season.h2h.length) return season.h2h.map(r=>loggedMatch(season, r)).filter(m=>m && TEAMS[m.h] && TEAMS[m.a] && m.hg!=null && m.ag!=null && isFinite(+m.hg) && isFinite(+m.ag));
+    const idx=h2hBlockIndex();
+    const bi=idx && idx.map ? idx.map[season.name] : null;
+    if (bi==null || !S.h2hBlocks || !S.h2hBlocks[bi]) return [];
+    const line=String(S.h2hBlocks[bi]).split('\n').find(l=>l.slice(0, l.indexOf('|'))===season.name);
+    if (!line) return [];
+    const body=line.slice(line.indexOf('|')+1);
+    return body.split(';').filter(Boolean).map(rec=>decH2H(rec, season.name)).filter(m=>m && TEAMS[m.h] && TEAMS[m.a] && isFinite(+m.hg) && isFinite(+m.ag));
+  }catch(e){ return []; }
+}
+function leagueMatchList(lid){
+  const out=[];
+  (S.seasons||[]).forEach(season=>{
+    if (!season) return;
+    const lg=season.leagues && season.leagues[lid];
+    if (lg && Array.isArray(lg.md)){
+      lg.md.forEach(md=>{
+        (md||[]).forEach(m=>{
+          if (!m || m[2]==null || m[3]==null) return;
+          const h=lg.teams && lg.teams[m[0]], a=lg.teams && lg.teams[m[1]];
+          if (!h || !a || !TEAMS[h] || !TEAMS[a]) return;
+          out.push({season:season.name||'', h, a, hg:+m[2], ag:+m[3]});
+        });
+      });
+      return;
+    }
+    seasonLoggedMatches(season).forEach(m=>{
+      if (m.comp===lid) out.push({season:season.name||m.season||'', h:m.h, a:m.a, hg:+m.hg, ag:+m.ag});
+    });
+  });
+  return out;
+}
+function seasonStatRows(lid){
+  const out=[];
+  (S.seasons||[]).forEach(season=>{
+    if (!season || season.status!=='done') return;
+    let rows=null;
+    try{
+      const end=season.endData && season.endData.tables && season.endData.tables[lid];
+      if (Array.isArray(end)) rows=end;
+      else {
+        const all=season.leagues && season.leagues[lid] && season.leagues[lid].tables && season.leagues[lid].tables.all;
+        if (Array.isArray(all)) rows=all;
+      }
+    }catch(e){ rows=null; }
+    (rows||[]).forEach(r=>{
+      if (!r || !r.id || !TEAMS[r.id] || !(+r.sp>0)) return;
+      const num=k=>{ if (r[k]==null || r[k]==='') return null; const n=+r[k]; return isFinite(n)?n:null; };
+      out.push({season:season.name||'', id:r.id, tg:num('tg'), gt:num('gt'), pkt:num('pkt')});
+    });
+  });
+  return out;
+}
+function takeExtreme(list, valueOf, higher){
+  let best=null; const hits=[];
+  (list||[]).forEach(item=>{
+    const v=valueOf(item);
+    if (v==null || !isFinite(v)) return;
+    if (best==null || (higher?v>best:v<best)){ best=v; hits.length=0; hits.push(item); }
+    else if (v===best) hits.push(item);
+  });
+  return hits;
+}
+function leagueStreaks(lid){
+  const matches=leagueMatchList(lid);
+  const byName={};
+  matches.forEach(m=>{ (byName[m.season]=byName[m.season]||[]).push(m); });
+  const open={};
+  const holders={S:[],U:[],N:[]};
+  const best={S:-1,U:-1,N:-1};
+  const close=id=>{
+    const o=open[id];
+    delete open[id];
+    if (!o || o.len<1) return;
+    const row={id, len:o.len, season:o.season};
+    if (o.len>best[o.type]){ best[o.type]=o.len; holders[o.type]=[row]; }
+    else if (o.len===best[o.type]) holders[o.type].push(row);
+  };
+  (S.seasons||[]).forEach(season=>{
+    if (!season) return;
+    const name=season.name||'';
+    const list=byName[name]||[];
+    const lg=season.leagues && season.leagues[lid];
+    if (!list.length){
+      if (lg && Array.isArray(lg.teams) && lg.teams.length) Object.keys(open).forEach(close);
+      return;
+    }
+    const seq={};
+    list.forEach(m=>{
+      const hr=m.hg>m.ag?'S':m.hg<m.ag?'N':'U';
+      const ar=m.ag>m.hg?'S':m.ag<m.hg?'N':'U';
+      (seq[m.h]=seq[m.h]||[]).push(hr);
+      (seq[m.a]=seq[m.a]||[]).push(ar);
+    });
+    const present=new Set(Object.keys(seq));
+    Object.keys(open).forEach(id=>{ if (!present.has(id)) close(id); });
+    present.forEach(id=>{
+      seq[id].forEach(res=>{
+        const o=open[id];
+        if (o && o.type===res){ o.len++; o.season=name; }
+        else { if (o) close(id); open[id]={type:res, len:1, season:name}; }
+      });
+    });
+  });
+  Object.keys(open).forEach(close);
+  return holders;
+}
+function recClub(id){ return id && TEAMS[id] ? clubHTML(id,{nobl:true}) : ''; }
+function recMatchLine(m){
+  return '<div class="rec-line"><span class="rec-meta">'+esc(m.season||'')+'</span>'+recClub(m.h)+'<span class="rec-sc">'+m.hg+':'+m.ag+'</span>'+recClub(m.a)+'</div>';
+}
+function recTeamLine(id, value, season){
+  return '<div class="rec-line">'+recClub(id)+'<span class="rec-val">'+esc(value)+'</span><span class="rec-meta">'+esc(season||'')+'</span></div>';
+}
+function recBlock(title, inner){
+  return '<section class="rec"><h4>'+esc(title)+'</h4>'+(inner||'<div class="rec-line"><span class="muted">–</span></div>')+'</section>';
+}
+function viewRekorde(lid){
+  const lg=L[lid];
+  if (!lg) return '<div class="box"><p class="muted">Keine Rekorde.</p></div>';
+  try{
+    const matches=leagueMatchList(lid);
+    const stats=seasonStatRows(lid);
+    const wins=takeExtreme(matches, m=>m.hg===m.ag?null:Math.abs(m.hg-m.ag), true);
+    const rich=takeExtreme(matches, m=>m.hg+m.ag, true);
+    const streaks=leagueStreaks(lid);
+    const statLines=(key, higher, unit)=>{
+      const rows=takeExtreme(stats, r=>r[key], higher);
+      return rows.map(r=>recTeamLine(r.id, r[key]+' '+unit, r.season)).join('');
+    };
+    const streakLines=(type, unit)=>{
+      return (streaks[type]||[]).map(r=>recTeamLine(r.id, r.len+' '+unit, r.season)).join('');
+    };
+    const blocks=[
+      recBlock('Höchster Sieg', wins.map(recMatchLine).join('')),
+      recBlock('Torreichstes Spiel', rich.map(recMatchLine).join('')),
+      recBlock('Meiste Tore', statLines('tg', true, 'Tore')),
+      recBlock('Wenigste Tore', statLines('tg', false, 'Tore')),
+      recBlock('Meiste Gegentore', statLines('gt', true, 'Gegentore')),
+      recBlock('Wenigste Gegentore', statLines('gt', false, 'Gegentore')),
+      recBlock('Längste Siegesserie', streakLines('S', 'Siege')),
+      recBlock('Längste Unentschieden-Serie', streakLines('U', 'Unentschieden')),
+      recBlock('Längste Niederlagenserie', streakLines('N', 'Niederlagen')),
+      recBlock('Meiste Punkte', statLines('pkt', true, 'Punkte')),
+      recBlock('Wenigste Punkte', statLines('pkt', false, 'Punkte'))
+    ];
+    return '<div class="rec-board"><h3>Rekorde der '+esc(lg.name)+'</h3>'+blocks.join('')+'</div>';
+  }catch(e){
+    return '<div class="box"><p class="muted">Für diese Liga liegen keine Rekorde vor.</p></div>';
+  }
+}
+function cupMatchList(key){
+  const out=[], seen=new Set();
+  const push=m=>{
+    if (!m || !TEAMS[m.h] || !TEAMS[m.a] || m.hg==null || m.ag==null || !isFinite(+m.hg) || !isFinite(+m.ag)) return;
+    const k=(m.season||'')+'|'+m.h+'|'+m.a+'|'+m.hg+'|'+m.ag;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({season:m.season||'', h:m.h, a:m.a, hg:+m.hg, ag:+m.ag});
+  };
+  (S.seasons||[]).forEach(season=>{
+    if (!season) return;
+    const cup=key==='dfb' ? (season.cups&&season.cups.dfb) : (season.cups&&season.cups.land&&season.cups.land[key]);
+    const direct=[];
+    if (cup && Array.isArray(cup.rounds)){
+      cup.rounds.forEach(round=>{
+        (round.matches||[]).forEach(m=>{
+          if (m && m.hg!=null && m.ag!=null) direct.push({season:season.name||'', h:m.h, a:m.a, hg:+m.hg, ag:+m.ag});
+        });
+      });
+    }
+    if (direct.length && !(cup&&cup.archived)){ direct.forEach(push); return; }
+    direct.forEach(push);
+    seasonLoggedMatches(season).forEach(m=>{
+      if (key==='dfb'){ if (m.comp==='dfb') push({season:season.name||'', h:m.h, a:m.a, hg:+m.hg, ag:+m.ag}); }
+      else if (m.comp==='land' && TEAMS[m.h].bl===key && TEAMS[m.a].bl===key) push({season:season.name||'', h:m.h, a:m.a, hg:+m.hg, ag:+m.ag});
+    });
+  });
+  return out;
+}
+function cupHonours(key){
+  const titles={}, finals={};
+  const add=(map, id, season)=>{
+    if (!id || !TEAMS[id] || !season) return;
+    const a=map[id]||(map[id]=[]);
+    if (a.indexOf(season)<0) a.push(season);
+  };
+  (S.seasons||[]).forEach(season=>{
+    if (!season) return;
+    const cup=key==='dfb' ? (season.cups&&season.cups.dfb) : (season.cups&&season.cups.land&&season.cups.land[key]);
+    let winner=null, finalist=null;
+    try{
+      const fin=cupFinalists(cup);
+      if (fin){ winner=fin.winner; finalist=fin.finalist; }
+    }catch(e){}
+    if (!winner){
+      const hist=(S.pokalHistory||[]).find(h=>h && h.season===season.name);
+      if (hist) winner=key==='dfb' ? (hist.dfb||null) : (hist.land&&hist.land[key])||null;
+    }
+    (S.pokalRuns||[]).forEach(r=>{
+      if (!r || r.season!==season.name || r.round!=='Finale') return;
+      if (key==='dfb' && r.comp==='dfb') add(finals, r.id, season.name);
+      if (key!=='dfb' && r.comp==='land' && r.bl===key) add(finals, r.id, season.name);
+    });
+    if (winner){ add(titles, winner, season.name); add(finals, winner, season.name); }
+    if (finalist) add(finals, finalist, season.name);
+  });
+  return {titles, finals};
+}
+function topHonour(map){
+  let best=0; const ids=[];
+  Object.keys(map||{}).forEach(id=>{
+    const n=(map[id]||[]).length;
+    if (n>best){ best=n; ids.length=0; ids.push(id); }
+    else if (n===best && n>0) ids.push(id);
+  });
+  ids.sort((a,b)=>TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+  return {best, ids};
+}
+function viewCupRekorde(key){
+  const title=key==='dfb'?'DFB-Pokal':('Landespokal '+(key||''));
+  try{
+    const matches=cupMatchList(key);
+    const wins=takeExtreme(matches, m=>m.hg===m.ag?null:Math.abs(m.hg-m.ag), true);
+    const rich=takeExtreme(matches, m=>m.hg+m.ag, true);
+    const hon=cupHonours(key);
+    const champs=topHonour(hon.titles);
+    const fins=topHonour(hon.finals);
+    const champLines=champs.best?champs.ids.map(id=>recTeamLine(id, champs.best+' Titel', (hon.titles[id]||[]).join(', '))).join(''):'';
+    const finLines=fins.best?fins.ids.map(id=>recTeamLine(id, fins.best+' '+(fins.best===1?'Finalteilnahme':'Finalteilnahmen'), (hon.finals[id]||[]).join(', '))).join(''):'';
+    const blocks=[
+      recBlock('Höchster Sieg', wins.map(recMatchLine).join('')),
+      recBlock('Torreichstes Spiel', rich.map(recMatchLine).join('')),
+      recBlock('Rekordsieger', champLines),
+      recBlock('Meiste Finalteilnahmen', finLines)
+    ];
+    return '<div class="rec-board"><h3>Rekorde · '+esc(title)+'</h3>'+blocks.join('')+'</div>';
+  }catch(e){
+    return '<div class="box"><p class="muted">Für diesen Pokal liegen keine Rekorde vor.</p></div>';
+  }
+}
 function viewHistorie(lid){
   const done=S.seasons.filter(s=>s.endData&&s.endData.tables);
   let h='<div class="box"><h3>Saisons der '+esc(L[lid].name)+'</h3>';
@@ -2711,34 +2951,22 @@ function viewHistorie(lid){
     const bl=lid==='BL';
     const showUp=!bl && lg.up>1;
     const showDown=lg.down>0 || done.some(s=>((s.endData&&s.endData.moves)||[]).some(m=>m&&m.from===lid && m.type==='ab'));
-    const pktOf=(item, byId)=>{
-      const id=item&&(item.id||item);
-      let v=item&&typeof item==='object'?item.pkt:null;
-      if ((v==null||v==='') && byId && id && byId[id]) v=byId[id].pkt;
-      if (v==null||v==='') return '';
-      const n=+v;
-      return isFinite(n)?String(n):'';
-    };
-    const slot=(item, byId)=>{
+    const slot=item=>{
       const id=item&&(item.id||item);
       const t=id&&TEAMS[id]; if(!t) return '';
       const pl=item&&typeof item==='object'&&item.pl!=null?item.pl:'';
-      const pkt=pktOf(item, byId);
-      const pts=pkt!==''?'<span class="hist-pts" title="'+esc(pkt)+' Punkte">'+esc(pkt)+'</span>':'';
-      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">'+pts+'</span>';
+      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
     };
-    const slots=(list, byId)=>{
+    const slots=list=>{
       const items=(list||[]).slice().sort((a,b)=>((a&&a.pl)||0)-((b&&b.pl)||0));
-      return items.length?items.map(it=>slot(it, byId)).join(''):'<span class="muted">–</span>';
+      return items.length?items.map(slot).join(''):'<span class="muted">–</span>';
     };
     const cols=bl?['Meister','Champions League','Europa League','Conference League','Absteiger']:(['Meister'].concat(showUp?['Aufsteiger']:[]).concat(showDown?['Absteiger']:[]));
     h+='<table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th>'+cols.map(c=>'<th class="l">'+c+'</th>').join('')+'</tr></thead><tbody>';
     done.slice().reverse().forEach(s=>{ const e=s.endData||{}, raw=e.tables&&e.tables[lid], t=Array.isArray(raw)?raw:[];
-      const byId={};
-      t.forEach(r=>{ if(r&&r.id) byId[r.id]=r; });
       const up=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='auf');
       const dn=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='ab');
-      const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list, byId)+'</div></td>';
+      const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list)+'</div></td>';
       let cells='';
       if (bl){
         cells=cell(t.filter(r=>r&&r.pl===1))+cell(t.filter(r=>r&&r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r&&r.pl>=5&&r.pl<=6))+cell(t.filter(r=>r&&r.pl===7))+cell(dn);
@@ -5071,10 +5299,10 @@ function supercupMatchHTML(s, m){
   const step=side=>ed?'<span class="stepper"><button type="button" data-act="scGoal" data-side="'+side+'" data-dir="1">+</button><button type="button" data-act="scGoal" data-side="'+side+'" data-dir="-1">−</button></span>':'';
   let above='<span class="ie-slot"></span>';
   if (draw && hasPen) above=ed?'<button type="button" class="ie-link" data-act="scIe">'+m.peh+':'+m.pea+' i.E.</button>':'<span class="ie-link ie-static">'+m.peh+':'+m.pea+' i.E.</span>';
-  let below='<span class="ie-slot"></span>';
-  if (draw && !hasPen && ed) below='<button type="button" class="ie-link" data-act="scIe">i.E.</button>';
-  else if (!draw && ed) below='<label class="ie-box"><input type="checkbox" data-sc-et="1"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
-  else if (!draw && m.et) below='<span class="ie-box">n.V.</span>';
+  else if (draw && !hasPen && ed) above='<button type="button" class="ie-link" data-act="scIe">i.E.</button>';
+  else if (!draw && ed) above='<label class="ie-box"><input type="checkbox" data-sc-et="1"'+(m.et?' checked':'')+(played?'':' disabled')+'> n.V.</label>';
+  else if (!draw && m.et) above='<span class="ie-box">n.V.</span>';
+  const below='<span class="ie-slot"></span>';
   const km=kmBetween(m.h, m.a);
   return '<div class="match-solo">'+matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, cup:true, done:!!supercupWinner(m), step, above, below, km, del:ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>'})+'</div>';
 }
