@@ -337,7 +337,9 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .match.cup .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
 .match.cup .side-home .who{align-items:flex-end;text-align:right}
 .match.cup .side-away .who{align-items:flex-start;text-align:left}
-.match.cup .liga-edge{font-size:9.5px;max-width:none;line-height:1.15}
+.match.cup .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15;font-weight:400}
+.match.cup .liga-edge{font-size:11px;max-width:7.5em;flex:0 0 auto;align-self:center;line-height:1.15}
+.match.cup-spiel .goals,.match.cup-spiel .score b{font-size:16px;line-height:18px}
 .match.cup .scorecol{min-width:0}
 .liga-edge{font-size:12px;color:var(--muted);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ie-box{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10px;color:#444;margin:0}
@@ -456,7 +458,6 @@ table.tbl.hist-seasons{width:max-content;max-width:100%;margin:0 auto;table-layo
 .hist-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .hist-slot{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .hist-slot b{font-size:11px;color:var(--muted);font-weight:600;min-width:1.1em;text-align:right;font-variant-numeric:tabular-nums}
-.hist-pts{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;color:var(--text)}
 .hist-crest{width:34px;height:34px;object-fit:contain;display:block;flex:0 0 34px}
 .tbl.compact th,.tbl.compact td{padding:2px 6px;font-size:12px}
 table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:auto}
@@ -537,3 +538,13 @@ tr.fx-top td{background:#fbf8ef}
 .trophy-name{font-weight:700}
 .trophy-years{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.35}
 tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+.rec-board{width:max-content;max-width:100%;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:10px}
+.rec-board>h3{margin:0 0 2px;text-align:center}
+.rec{width:max-content;max-width:100%;background:#fff;border:1px solid var(--line);padding:8px 12px}
+.rec h4{margin:0 0 6px;font-size:13px;text-align:center}
+.rec-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;padding:2px 0}
+.rec-line .club{flex:0 0 auto}
+.rec-line .club .nm{overflow:visible;text-overflow:clip;white-space:nowrap}
+.rec-sc{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;min-width:2.4em;text-align:center}
+.rec-val{font-weight:700;font-variant-numeric:tabular-nums}
+.rec-meta{color:var(--muted);font-size:12px;white-space:nowrap}
