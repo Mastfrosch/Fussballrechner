@@ -2031,8 +2031,15 @@ function matchLineHTML(o){
     let after='';
     if (o.ligaAfter && o.season){ try{ const liga=ligaEdge(o.season, id); if(liga) after=' <span class="liga-tag">'+esc(liga)+'</span>'; }catch(e){} }
     const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+after+'</span>';
-    if (!o.bl && !o.cup) return name;
-    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+    let an='';
+    if (o.ansehen){
+      try{
+        const v=ansehenValue(id);
+        if (v!=null && isFinite(+v)) an='<span class="ml-an" title="Ansehen">An '+esc(deNum(+v,1))+'</span>';
+      }catch(e){}
+    }
+    if (!o.bl && !o.cup) return an?'<span class="who">'+name+an+'</span>':name;
+    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span>'+an+'</span>';
   };
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
@@ -2072,8 +2079,9 @@ function tableHTML(rows, lg, opts={}){
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
   const down = !lg || opts.zones===false ? 0 : relegationProfile(season, lg.id).down;
   const th=sortHead, td=sortCell;
+  const nf=(n, html, w, cls)=>td(n, '<span class="nfix '+w+'">'+html+'</span>', cls);
   const moves=opts.move && lg ? moveMarks(season, lg.id) : null;
-  let h='<table class="tbl"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+'</tr></thead><tbody>';
+  let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
@@ -2081,8 +2089,10 @@ function tableHTML(rows, lg, opts={}){
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
     const clubOpts={nobl:!!opts.nobl, marker:opts.markers===false?null:season.markers[r.id]};
     if (moves) clubOpts.move=delta==null?0:delta;
-    h+='<tr class="'+(z?'z-'+z:'')+'">'+td(r.pl, r.pl)+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+td(r.sp, r.sp)+td(r.s, r.s)+td(r.u, r.u)+td(r.n, r.n)+td(r.tg, r.tg+':'+r.gt)+td(r.diff, (r.diff>0?'+':'')+r.diff)+td(r.pkt, r.pkt, 'pts')+
-      (opts.form===false?'':'<td><span class="form">'+r.form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f])+'">'+f+'</span>').join('')+'</span></td>')+'</tr>';
+    const form=Array.isArray(r.form)?r.form:[];
+    const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
+    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+nf(r.pl, r.pl, 'w-pl')+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
+      (opts.form===false?'':'<td class="formc"><span class="form">'+form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f]||'')+'">'+f+'</span>').join('')+'</span></td>')+'</tr>';
   });
   h+='</tbody></table>';
   if (opts.zones!==false && lg){
@@ -2628,7 +2638,7 @@ function render(){
   setActions(seasonActions(s));
   $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
-  if (S.ui.tab==='tabelle') v.innerHTML=viewTabelle(s,lid);
+  if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); }
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
   else if (S.ui.tab==='terminierung') v.innerHTML=viewTerminierung(s,lid);
   else if (S.ui.tab==='heimaus') v.innerHTML=viewToggle(s,lid,'ha');
@@ -2667,7 +2677,7 @@ function spielplanHTML(s,lid){
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
       const mk=id=>(s.markers&&s.markers[id])||null;
       const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, bl:true, klass:'unscheduled', attr:' data-k="'+k+'"'});
+      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, bl:true, ansehen:true, klass:'unscheduled', attr:' data-k="'+k+'"'});
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -2685,7 +2695,7 @@ function spielplanHTML(s,lid){
     const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, bl:true, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
+    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, bl:true, ansehen:true, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -5557,6 +5567,26 @@ function refreshTableOnly(){
   const md=s.leagues[lid].md[shownMd], done=md.filter(m=>m[2]!=null&&m[3]!=null).length;
   const pg=$('#spCard .progress'); if (pg) pg.textContent='('+done+'/'+md.length+' eingetragen)';
   const opt=$('#mdSelect option:checked'); if (opt) opt.textContent=(shownMd+1)+'. Spieltag'+(done===md.length?' ✓':'');
+  paintLiveRows();
+}
+let livePair=[];
+function clubsOfMatch(row){
+  const ids=[];
+  if (!row) return ids;
+  row.querySelectorAll('img.ml-crest[data-club]').forEach(img=>{
+    if (img.dataset.club && ids.indexOf(img.dataset.club)<0) ids.push(img.dataset.club);
+  });
+  return ids;
+}
+function paintLiveRows(){
+  document.querySelectorAll('#tableCard tbody tr[data-tid]').forEach(tr=>{
+    tr.classList.toggle('row-live', livePair.indexOf(tr.dataset.tid)>=0);
+  });
+}
+function focusMatch(row){
+  if (!row || !row.closest('#spCard')) return;
+  livePair=clubsOfMatch(row);
+  paintLiveRows();
 }
 function paintMatch(k){
   const m=cur().leagues[S.ui.league].md[shownMd][k];
@@ -5616,6 +5646,14 @@ function placeOvTip(el){
   const mid=cre.left+cre.width/2-left;
   tip.style.setProperty('--arrow', Math.max(14, Math.min(tw-14, mid))+'px');
 }
+document.addEventListener('focusin', ev=>{
+  const row=ev.target.closest && ev.target.closest('#spCard .match');
+  if (row) focusMatch(row);
+});
+document.addEventListener('pointerdown', ev=>{
+  const row=ev.target.closest && ev.target.closest('#spCard .match');
+  if (row) focusMatch(row);
+});
 document.addEventListener('mouseover', ev=>{
   const el=ev.target.closest&&ev.target.closest('.ov-c');
   if (!el || el.classList.contains('hover')) return;
