@@ -85,6 +85,10 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .tbl tr.z-auf td:first-child{box-shadow:inset 3px 0 var(--z-bar-auf)}
 .tbl tr.z-ab td:first-child{box-shadow:inset 3px 0 var(--z-bar-ab)}
 .club{display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0}
+.mv{display:inline-flex;align-items:center;justify-content:center;width:14px;flex:0 0 14px;font-size:10px;line-height:1}
+.mv.up{color:#1b7a3a}
+.mv.dn{color:#b42318}
+.mv.same{color:#9aa0a6}
 .club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px;cursor:pointer}
 .club .txt{min-width:0}
 .club .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis}
@@ -321,6 +325,7 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .ov-lost .sc i{display:block;font-style:normal;font-size:10px;font-weight:700;color:#1d4e89}
 .ov-opp{font-size:11px;color:#333;margin-top:2px}
 .ov-tip .bl{font-size:10.5px;color:var(--muted)}
+.ov-round{font-size:11px;font-weight:700;color:#5c6570;margin:1px 0 2px}
 .ov-tip .st{font-size:10.5px;color:var(--green);font-weight:600;margin-top:2px}
 .ov-tip .st.out{color:#a33}
 .ov-legend{display:flex;gap:16px;margin:8px 0 0;color:var(--muted);font-size:11.5px}
@@ -331,6 +336,7 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pokal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .pokal-bar select{min-width:180px;max-width:100%}
 .match.cup{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 16px;width:100%;min-width:0}
+.match.cup.match-nodel{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr)}
 .match.cup .side{min-width:0;overflow:hidden;gap:4px}
 .match.cup .ml-crest{width:32px;height:32px;flex-basis:32px}
 .match.cup .ml-name{font-size:12px}
@@ -395,6 +401,14 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .br-line{border:0;padding:2px 0;font-size:11px}
 .br-round{margin:0 0 12px}
 .br-note{margin:8px 10px}
+.br-byes{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:6px 10px}
+.br-bye-lab{font-size:12px;color:var(--muted)}
+.sieger-club{display:flex;align-items:center;gap:6px;min-width:0}
+.sieger-club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px}
+.sieger-club .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.sieger-club .ml-name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sieger-club .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15}
+.sieger-club .liga-edge{font-size:11px;max-width:6.5em;flex:0 0 auto}
 .br-round .br-m{border:0;border-top:1px solid var(--line);margin:0;padding:2px 8px}
 .match.br-line{width:100%;min-width:0}
 .br-line .ml-name{max-width:none;font-size:12.5px;white-space:nowrap}
@@ -538,11 +552,12 @@ tr.fx-top td{background:#fbf8ef}
 .trophy-name{font-weight:700}
 .trophy-years{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.35}
 tr.tot td{font-weight:700;border-top:2px solid var(--line)}
-.rec-board{width:max-content;max-width:100%;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:10px}
-.rec-board>h3{margin:0 0 2px;text-align:center}
-.rec{width:max-content;max-width:100%;background:#fff;border:1px solid var(--line);padding:8px 12px}
-.rec h4{margin:0 0 6px;font-size:13px;text-align:center}
-.rec-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;padding:2px 0}
+.rec-board{width:max-content;max-width:100%;margin:0 auto}
+.rec-board>h3{margin:0 0 12px;text-align:center}
+.rec-pair{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 40px;margin:0 0 18px;align-items:flex-start}
+.rec-col{min-width:0}
+.rec-col h4{margin:0 0 4px;padding-bottom:3px;border-bottom:1px solid var(--line);font-size:12px;font-weight:650;text-align:left}
+.rec-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 0}
 .rec-line .club{flex:0 0 auto}
 .rec-line .club .nm{overflow:visible;text-overflow:clip;white-space:nowrap}
 .rec-sc{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;min-width:2.4em;text-align:center}
