@@ -92,6 +92,9 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px;cursor:pointer}
 .club .txt{min-width:0}
 .club .nm{font-size:13px;overflow:hidden;text-overflow:ellipsis}
+.club .nm:has(.liga-tag){display:flex;align-items:baseline;gap:4px}
+.club .nm .nm-txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.liga-tag{color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;flex:0 0 auto}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
 .club .mk{color:var(--muted);font-size:11px;margin:0 3px}
 .club:hover .nm{text-decoration:underline}
@@ -313,9 +316,11 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .ov-c.out img{filter:grayscale(1) brightness(.75);opacity:.28}
 .ov-c:hover img,.ov-c.hover img{transform:scale(1.28)}
 .ov-c:hover::before,.ov-c.hover::before{content:"";position:absolute;inset:-2px;border-radius:0;background:rgba(255,255,255,.12);box-shadow:0 0 0 2px rgba(127,220,164,.9)}
-.ov-tip{display:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:#fff;color:#222;border-radius:0;padding:6px 10px;white-space:nowrap;z-index:5;text-align:left;pointer-events:none}
+.ov-tip{display:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:#fff;color:#222;border-radius:0;padding:6px 10px;white-space:nowrap;z-index:5;text-align:left;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.16)}
 .ov-c:hover .ov-tip,.ov-c.hover .ov-tip{display:block}
-.ov-tip::after{content:"";position:absolute;top:100%;left:50%;margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
+.ov-tip.fixed{position:fixed;transform:none;bottom:auto;z-index:80}
+.ov-tip::after{content:"";position:absolute;top:100%;left:var(--arrow, 50%);margin-left:-6px;border:6px solid transparent;border-top-color:#fff}
+.ov-tip.below::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:#fff}
 .ov-tip .nm{font-weight:700;font-size:13px}
 .ov-tip.wide{min-width:340px;text-align:left;white-space:normal}
 .tip-match{border:0;padding:2px 0}
@@ -406,9 +411,10 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .sieger-club{display:flex;align-items:center;gap:6px;min-width:0}
 .sieger-club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px}
 .sieger-club .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
-.sieger-club .ml-name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sieger-club .ml-name{display:flex;align-items:baseline;gap:4px;font-size:13px;min-width:0;overflow:hidden}
+.sieger-club .nm-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sieger-club .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15}
-.sieger-club .liga-edge{font-size:11px;max-width:6.5em;flex:0 0 auto}
+.match.cup .ml-name:has(.liga-tag){display:flex;align-items:baseline;gap:4px}
 .br-round .br-m{border:0;border-top:1px solid var(--line);margin:0;padding:2px 8px}
 .match.br-line{width:100%;min-width:0}
 .br-line .ml-name{max-width:none;font-size:12.5px;white-space:nowrap}
