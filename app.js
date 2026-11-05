@@ -2031,15 +2031,15 @@ function matchLineHTML(o){
     let after='';
     if (o.ligaAfter && o.season){ try{ const liga=ligaEdge(o.season, id); if(liga) after=' <span class="liga-tag">'+esc(liga)+'</span>'; }catch(e){} }
     const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+after+'</span>';
-    let an='';
-    if (o.ansehen){
-      try{
-        const v=ansehenValue(id);
-        if (v!=null && isFinite(+v)) an='<span class="ml-an" title="Ansehen">An '+esc(deNum(+v,1))+'</span>';
-      }catch(e){}
-    }
-    if (!o.bl && !o.cup) return an?'<span class="who">'+name+an+'</span>':name;
-    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span>'+an+'</span>';
+    if (!o.bl && !o.cup) return name;
+    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+  };
+  const ansehenMark=id=>{
+    try{
+      const v=ansehenValue(id);
+      if (v==null || !isFinite(+v)) return '<span class="ml-an"></span>';
+      return '<span class="ml-an" title="Ansehen">'+esc(deNum(+v,1))+'</span>';
+    }catch(e){ return '<span class="ml-an"></span>'; }
   };
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
@@ -2061,11 +2061,14 @@ function matchLineHTML(o){
   if (o.tone) cls.push('tone-'+o.tone);
   if (o.box) cls.push('fx-box');
   if (o.bl) cls.push('sp-line');
+  if (o.ansehen) cls.push('with-an');
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
   const home=edge(h)+nm(h)+crest(h);
   const away=crest(a)+nm(a)+edge(a);
-  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+del+'</div>';
+  const anH=o.ansehen?ansehenMark(h):'';
+  const anA=o.ansehen?ansehenMark(a):'';
+  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'>'+anH+'<div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+anA+del+'</div>';
 }
 function sortHead(label, key, cls){
   return '<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
