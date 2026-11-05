@@ -1663,6 +1663,21 @@ function planLandRounds(ids, st){
   }
   return rounds;
 }
+function prevDfbWinner(season){
+  try{
+    const list=S&&S.seasons||[];
+    const idx=list.indexOf(season);
+    if (!(idx>0)) return '';
+    const prev=list[idx-1];
+    if (!prev) return '';
+    const fin=prev.cups&&prev.cups.dfb?cupFinalists(prev.cups.dfb):null;
+    if (fin&&fin.winner&&TEAMS[fin.winner]) return fin.winner;
+    const hist=(S.pokalHistory||[]).find(h=>h&&h.season===prev.name&&h.dfb);
+    if (hist&&TEAMS[hist.dfb]) return hist.dfb;
+    const run=(S.pokalRuns||[]).find(r=>r&&r.comp==='dfb'&&r.won&&r.season===prev.name&&TEAMS[r.id]);
+    return run?run.id:'';
+  }catch(e){ return ''; }
+}
 function cupFinalists(cup){
   if (!cup || !cup.rounds || !cup.rounds.length) return null;
   const last=cup.rounds[cup.rounds.length-1];
@@ -2010,9 +2025,9 @@ function moveMarks(season, lid){
 }
 function clubHTML(id, opts={}){
   const t=TEAMS[id]; if(!t) return '';
-  const mk = opts.marker ? [].concat(opts.marker).map(x=>'<span class="mk">('+x+')</span>').join('') : '';
+  const mk = opts.marker ? [].concat(opts.marker).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(' ') : '';
   const img='<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'" loading="lazy">';
-  const base=opts.ligaTag?'<span class="nm-txt">'+esc(t.name)+'</span>':esc(t.name);
+  const base=(opts.ligaTag||mk)?'<span class="nm-txt">'+esc(t.name)+'</span>':esc(t.name);
   const liga=opts.ligaTag?' <span class="liga-tag">'+esc(opts.ligaTag)+'</span>':'';
   const nm=opts.markerBefore ? (mk?mk+' ':'')+base+liga : base+(mk?' '+mk:'')+liga;
   const txt='<div class="txt"><div class="nm">'+nm+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
@@ -2025,14 +2040,18 @@ function matchLineHTML(o){
   const h=o.h, a=o.a;
   if (!h || !a || !TEAMS[h] || !TEAMS[a]) return '';
   const crest=id=>'<img class="ml-crest" src="'+esc(TEAMS[id].crest)+'" alt="" data-club="'+id+'" title="'+esc(TEAMS[id].name)+'">';
-  const nm=id=>{
+  // Liga-Spielplan, fest: Heim-Status vor dem Namen, Gast-Status hinter dem Namen.
+  const nm=(id, side)=>{
     const mk=o.marker && o.marker[id];
-    const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
+    const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(' '):'';
     let after='';
     if (o.ligaAfter && o.season){ try{ const liga=ligaEdge(o.season, id); if(liga) after=' <span class="liga-tag">'+esc(liga)+'</span>'; }catch(e){} }
-    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+after+'</span>';
-    if (!o.bl && !o.cup) return name;
-    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+    const name='<span class="ml-name">'+esc(TEAMS[id].name)+after+'</span>';
+    let line=name;
+    if (tags && o.markOut) line=side==='h'?'<span class="ml-line">'+tags+' '+name+'</span>':'<span class="ml-line">'+name+' '+tags+'</span>';
+    else if (tags) line='<span class="ml-name">'+esc(TEAMS[id].name)+' '+tags+after+'</span>';
+    if (!o.bl && !o.cup) return line;
+    return '<span class="who">'+line+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
   };
   const ansehenMark=id=>{
     try{
@@ -2064,8 +2083,8 @@ function matchLineHTML(o){
   if (o.ansehen) cls.push('with-an');
   if (o.nodel) cls.push('match-nodel');
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
-  const home=edge(h)+nm(h)+crest(h);
-  const away=crest(a)+nm(a)+edge(a);
+  const home=edge(h)+nm(h,'h')+crest(h);
+  const away=crest(a)+nm(a,'a')+edge(a);
   const anH=o.ansehen?ansehenMark(h):'';
   const anA=o.ansehen?ansehenMark(a):'';
   return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'>'+anH+'<div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+anA+del+'</div>';
@@ -2084,13 +2103,17 @@ function tableHTML(rows, lg, opts={}){
   const th=sortHead, td=sortCell;
   const nf=(n, html, w, cls)=>td(n, '<span class="nfix '+w+'">'+html+'</span>', cls);
   const moves=opts.move && lg ? moveMarks(season, lg.id) : null;
+  let pokalId='';
+  if (opts.ansehen){ try{ pokalId=prevDfbWinner(season)||''; }catch(e){ pokalId=''; } }
   let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+(opts.ansehen?th('Ansehen','an'):'')+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
     if (flag==='up') z='sure-up';
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
-    const clubOpts={nobl:!!opts.nobl, marker:opts.markers===false?null:season.markers[r.id]};
+    let marks=opts.markers===false||!(season.markers&&season.markers[r.id])?[]:[].concat(season.markers[r.id]).filter(Boolean);
+    if (pokalId && r.id===pokalId && marks.indexOf('P')<0) marks.push('P');
+    const clubOpts={nobl:!!opts.nobl, marker:marks.length?marks:null};
     if (moves) clubOpts.move=delta==null?0:delta;
     const form=Array.isArray(r.form)?r.form:[];
     const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
@@ -2683,7 +2706,7 @@ function spielplanHTML(s,lid){
       const hid=lg.teams[m[0]], aid=lg.teams[m[1]], km=kmBetween(hid,aid);
       const mk=id=>(s.markers&&s.markers[id])||null;
       const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, bl:true, ansehen:true, klass:'unscheduled', attr:' data-k="'+k+'"'});
+      h+=matchLineHTML({h:hid, a:aid, km, marker:marks, bl:true, ansehen:true, markOut:true, klass:'unscheduled', attr:' data-k="'+k+'"'});
     });
     if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
@@ -2701,7 +2724,7 @@ function spielplanHTML(s,lid){
     const mk=id=>(s.markers&&s.markers[id])||null;
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     const marks={}; if(mk(hid)) marks[hid]=mk(hid); if(mk(aid)) marks[aid]=mk(aid);
-    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, bl:true, ansehen:true, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
+    h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, marker:marks, bl:true, ansehen:true, markOut:true, step, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
   if (ed){
     h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
@@ -5700,7 +5723,6 @@ function refreshTableOnly(){
   const opt=$('#mdSelect option:checked'); if (opt) opt.textContent=(shownMd+1)+'. Spieltag'+(done===md.length?' ✓':'');
   paintLiveRows();
 }
-let livePair=[];
 function clubsOfMatch(row){
   const ids=[];
   if (!row) return ids;
@@ -5710,14 +5732,11 @@ function clubsOfMatch(row){
   return ids;
 }
 function paintLiveRows(){
+  const row=document.querySelector('#spCard .match:hover');
+  const ids=clubsOfMatch(row);
   document.querySelectorAll('#tableCard tbody tr[data-tid]').forEach(tr=>{
-    tr.classList.toggle('row-live', livePair.indexOf(tr.dataset.tid)>=0);
+    tr.classList.toggle('row-live', ids.indexOf(tr.dataset.tid)>=0);
   });
-}
-function focusMatch(row){
-  if (!row || !row.closest('#spCard')) return;
-  livePair=clubsOfMatch(row);
-  paintLiveRows();
 }
 function paintMatch(k){
   const m=cur().leagues[S.ui.league].md[shownMd][k];
@@ -5777,13 +5796,16 @@ function placeOvTip(el){
   const mid=cre.left+cre.width/2-left;
   tip.style.setProperty('--arrow', Math.max(14, Math.min(tw-14, mid))+'px');
 }
-document.addEventListener('focusin', ev=>{
+document.addEventListener('mouseover', ev=>{
   const row=ev.target.closest && ev.target.closest('#spCard .match');
-  if (row) focusMatch(row);
+  if (row) paintLiveRows();
 });
-document.addEventListener('pointerdown', ev=>{
+document.addEventListener('mouseout', ev=>{
   const row=ev.target.closest && ev.target.closest('#spCard .match');
-  if (row) focusMatch(row);
+  if (!row) return;
+  const next=ev.relatedTarget;
+  if (next && row.contains(next)) return;
+  paintLiveRows();
 });
 document.addEventListener('mouseover', ev=>{
   const el=ev.target.closest&&ev.target.closest('.ov-c');

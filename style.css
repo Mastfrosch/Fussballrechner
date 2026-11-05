@@ -93,6 +93,8 @@ table.tbl.stand th.sort-asc::after,table.tbl.stand th.sort-desc::after{position:
 #tableCard > table.tbl.stand th:nth-child(11),
 #tableCard > table.tbl.stand td:nth-child(11){width:76px}
 #tableCard > table.tbl.stand td.l{overflow:hidden}
+#tableCard .club .nm:has(.mk){display:flex;align-items:baseline;gap:3px;min-width:0}
+#tableCard .club .mk{flex:0 0 auto}
 #tableCard > table.tbl.stand .club,
 #tableCard > table.tbl.stand .club .nm{max-width:none}
 #tableCard tr.row-live td{background-image:linear-gradient(rgba(70, 150, 230, 0.34), rgba(70, 150, 230, 0.34))}
@@ -159,6 +161,9 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .match.sp-line{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 18px}
 .match.sp-line .ml-crest{width:32px;height:32px;flex:0 0 32px}
 .match.sp-line .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.match.sp-line .ml-line{display:flex;align-items:baseline;gap:4px;min-width:0;max-width:100%}
+.match.sp-line .ml-line .ml-name{min-width:0}
+.match.sp-line .ml-line .mk{flex:0 0 auto}
 .match.sp-line .side-home .who{align-items:flex-end;text-align:right}
 .match.sp-line .side-away .who{align-items:flex-start;text-align:left}
 .match.sp-line .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15;font-weight:400}
