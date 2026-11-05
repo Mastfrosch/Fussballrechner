@@ -135,7 +135,11 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .match.sp-line .side-home .who{align-items:flex-end;text-align:right}
 .match.sp-line .side-away .who{align-items:flex-start;text-align:left}
 .match.sp-line .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15;font-weight:400}
-.match.sp-line .ml-an{display:block;font-size:9px;line-height:1.15;color:#8a93a0;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.match.sp-line.with-an{grid-template-columns:4.6em minmax(0,1fr) max-content minmax(0,1fr) 4.6em 18px}
+.match.sp-line.with-an.match-nodel{grid-template-columns:4.6em minmax(0,1fr) max-content minmax(0,1fr) 4.6em}
+.match.sp-line .ml-an{font-size:11px;line-height:1;color:#6b7280;font-weight:600;font-variant-numeric:tabular-nums;align-self:center;white-space:nowrap}
+.match.sp-line.with-an>.ml-an:first-child{text-align:left}
+.match.sp-line.with-an>.side-away+.ml-an{text-align:right}
 .match-solo{display:flex;justify-content:center}
 .match-solo>.match{width:min(680px,100%)}
 .scorecol{display:flex;flex-direction:column;align-items:center;gap:0}
