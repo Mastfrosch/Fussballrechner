@@ -2084,7 +2084,7 @@ function tableHTML(rows, lg, opts={}){
   const th=sortHead, td=sortCell;
   const nf=(n, html, w, cls)=>td(n, '<span class="nfix '+w+'">'+html+'</span>', cls);
   const moves=opts.move && lg ? moveMarks(season, lg.id) : null;
-  let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+'</tr></thead><tbody>';
+  let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+(opts.ansehen?th('Ansehen','an'):'')+'</tr></thead><tbody>';
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
@@ -2094,8 +2094,11 @@ function tableHTML(rows, lg, opts={}){
     if (moves) clubOpts.move=delta==null?0:delta;
     const form=Array.isArray(r.form)?r.form:[];
     const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
+    let an=null;
+    if (opts.ansehen){ try{ const v=ansehenValue(r.id); if (v!=null && isFinite(+v)) an=+v; }catch(e){ an=null; } }
     h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+nf(r.pl, r.pl, 'w-pl')+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
-      (opts.form===false?'':'<td class="formc"><span class="form">'+form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f]||'')+'">'+f+'</span>').join('')+'</span></td>')+'</tr>';
+      (opts.form===false?'':'<td class="formc"><span class="form">'+form.map(f=>'<span class="f-'+f+'" title="'+({S:'Sieg',U:'Unentschieden',N:'Niederlage'}[f]||'')+'">'+f+'</span>').join('')+'</span></td>')+
+      (opts.ansehen?nf(an, an==null?'–':deNum(an,1), 'w-an'):'')+'</tr>';
   });
   h+='</tbody></table>';
   if (opts.zones!==false && lg){
@@ -2660,7 +2663,7 @@ function currentMd(s,lid){
   return i<0 ? md.length-1 : i;
 }
 function viewTabelle(s,lid){
-  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div></div>';
+  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div></div>';
 }
 let shownMd=0;
 function spielplanHTML(s,lid){
@@ -4734,6 +4737,127 @@ function pyramidOf(season){
   list.forEach((r,i)=>map[r.id]=Object.assign({rank:i+1, n:list.length}, r));
   return map;
 }
+function roundRank(name){
+  const dfb=DFB_ROUNDS.findIndex(r=>r.name===name);
+  if (dfb>=0) return dfb;
+  const order=['Vorrunde','Runde der 128','Runde der 64','Runde der 32','1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'];
+  const i=order.indexOf(name||'');
+  return i>=0?i:40;
+}
+function roundNameAt(comp, idx){
+  if (comp==='dfb' && DFB_ROUNDS[idx]) return DFB_ROUNDS[idx].name;
+  return 'Runde '+((idx|0)+1);
+}
+function cupHistoryRows(id, comp){
+  const out=[];
+  const covered=new Set();
+  const add=row=>{ if (row && row.season) out.push(row); };
+  try{
+    (S.seasons||[]).forEach(season=>{
+      if (!season || !season.name) return;
+      const found=[];
+      const cups=[];
+      if (season.cups){
+        if (comp==='dfb' && season.cups.dfb) cups.push(season.cups.dfb);
+        if (comp==='land' && season.cups.land){
+          const bl=TEAMS[id] && TEAMS[id].bl;
+          if (bl && season.cups.land[bl]) cups.push(season.cups.land[bl]);
+        }
+      }
+      cups.forEach(cup=>{
+        (cup.rounds||[]).forEach((round,ri)=>{
+          (round.matches||[]).forEach(m=>{
+            if (!m || (m.h!==id && m.a!==id)) return;
+            const home=m.h===id;
+            found.push({season:season.name, round:round.name||roundNameAt(comp, ri), ri, opp:home?m.a:m.h, home, hg:m.hg, ag:m.ag, et:!!m.et, peh:m.peh, pea:m.pea});
+          });
+        });
+      });
+      if (!found.length && typeof season.fx==='string' && season.fx){
+        const kind=comp==='dfb'?'D':'A';
+        String(season.fx).split(';').forEach(rec=>{
+          if (!rec || rec.charAt(0)==='B') return;
+          let o; try{ o=decShared(rec); }catch(e){ return; }
+          if (!o || o.kind!==kind || (o.homeId!==id && o.awayId!==id)) return;
+          const home=o.homeId===id;
+          found.push({season:season.name, round:roundNameAt(comp, o.md|0), ri:o.md|0, opp:home?o.awayId:o.homeId, home, hg:o.hg, ag:o.ag, et:!!o.et, peh:o.peh, pea:o.pea});
+        });
+      }
+      if (found.length){ found.forEach(add); covered.add(season.name); }
+    });
+    vereinPokalRuns(id).forEach(r=>{
+      if (!r || r.comp!==comp || covered.has(r.season)) return;
+      if (comp==='land' && r.bl && TEAMS[id] && TEAMS[id].bl && r.bl!==TEAMS[id].bl) return;
+      add({season:r.season, round:r.round||'', ri:roundRank(r.round), opp:r.opp, home:!!r.home, hg:r.hg, ag:r.ag, et:!!r.et, peh:r.peh, pea:r.pea});
+      covered.add(r.season);
+    });
+  }catch(e){}
+  out.sort((a,b)=>a.season===b.season?(a.ri||0)-(b.ri||0):(a.season<b.season?1:-1));
+  return out;
+}
+function cupSideScore(row){
+  if (!row || row.hg==null || row.ag==null || !isFinite(+row.hg) || !isFinite(+row.ag)) return '<span class="muted">–</span>';
+  const mine=row.home?+row.hg:+row.ag, theirs=row.home?+row.ag:+row.hg;
+  let sc=mine+':'+theirs;
+  if (row.et && mine!==theirs) sc+=' n.V.';
+  const myPen=row.home?row.peh:row.pea, opPen=row.home?row.pea:row.peh;
+  if (myPen!=null && opPen!=null && myPen!=='' && opPen!=='' && isFinite(+myPen) && isFinite(+opPen) && +myPen!==+opPen) sc+=', '+myPen+':'+opPen+' i.E.';
+  return esc(sc);
+}
+function oppCell(id){
+  const t=id && TEAMS[id];
+  if (!t) return '<span class="muted">–</span>';
+  return '<img class="mini-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"> '+esc(t.name);
+}
+function cupHistTable(id, comp){
+  let rows=[];
+  try{ rows=cupHistoryRows(id, comp); }catch(e){ rows=[]; }
+  const have=new Set(rows.map(r=>r.season));
+  (S.seasons||[]).forEach(season=>{
+    if (season && season.name && !have.has(season.name)) rows.push({season:season.name, empty:true, ri:0});
+  });
+  rows.sort((a,b)=>a.season===b.season?(a.ri||0)-(b.ri||0):(a.season<b.season?1:-1));
+  if (!rows.length) return '<p class="muted">Keine Pokaldaten gespeichert.</p>';
+  let body='';
+  rows.forEach(r=>{
+    if (r.empty) body+='<tr><td class="l">'+esc(r.season)+'</td><td class="l"><span class="muted">nicht qualifiziert</span></td><td class="l"><span class="muted">–</span></td><td><span class="muted">–</span></td></tr>';
+    else body+='<tr><td class="l">'+esc(r.season||'')+'</td><td class="l">'+esc(r.round||'–')+'</td><td class="l">'+oppCell(r.opp)+'</td><td>'+cupSideScore(r)+'</td></tr>';
+  });
+  return '<table class="tbl info-hist info-cup"><thead><tr><th class="l">Saison</th><th class="l">Runde</th><th class="l">Gegner</th><th>Ergebnis</th></tr></thead><tbody>'+body+'</tbody></table>';
+}
+function ligaCourseRows(id){
+  const by={};
+  try{
+    (historyEntries(id)||[]).forEach(r=>{
+      if (!r || !r.season || r.pl==null) return;
+      if (!by[r.season] || r.src==='rechner') by[r.season]={season:r.season, liga:r.liga||'', pl:r.pl};
+    });
+  }catch(e){}
+  (S.seasons||[]).forEach(season=>{
+    if (!season || !season.name) return;
+    let here=null;
+    try{ here=pyramidOf(season)[id]; }catch(e){ here=null; }
+    if (here) by[season.name]={season:season.name, liga:here.liga||'', pl:here.pl};
+    else if (!by[season.name]) by[season.name]={season:season.name, liga:'', pl:null};
+  });
+  return Object.keys(by).map(k=>by[k]).sort((a,b)=>a.season<b.season?1:-1);
+}
+function ansehenHead(id){
+  let cur=null, course='';
+  try{ const v=ansehenValue(id); if (v!=null && isFinite(+v)) cur=+v; }catch(e){ cur=null; }
+  try{
+    const by={};
+    (historyEntries(id)||[]).forEach(r=>{
+      if (!r || !r.season || r.pts==null || !isFinite(+r.pts)) return;
+      if (!by[r.season] || r.src==='rechner') by[r.season]=+r.pts;
+    });
+    const list=Object.keys(by).sort((a,b)=>a<b?1:-1).slice(0,8);
+    course=list.map(s=>esc(s)+' '+esc(deNum(by[s],1))).join(' · ');
+  }catch(e){ course=''; }
+  let h='<div class="ansehen-now">Ansehen <b>'+(cur==null?'–':esc(deNum(cur,1)))+'</b></div>';
+  if (course) h+='<div class="an-course"><b>Verlauf</b> '+course+'</div>';
+  return h;
+}
 function cupRunLine(run, empty){
   if (!run) return '<span class="muted">'+esc(empty||'nicht teilgenommen')+'</span>';
   const label=run.won?'Sieger':(run.round||'');
@@ -5186,7 +5310,7 @@ function renderInfo(){
   let sec=S.ui.infoSec||'historie';
   if (!secs.some(x=>x[0]===sec)) sec='historie';
   S.ui.infoSec=sec;
-  h+='<div class="box"><div class="verein-head"><img src="'+esc(t.crest)+'" alt=""><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+'</div></div></div>';
+  h+='<div class="box"><div class="verein-head"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+'</div>'+ansehenHead(id)+'</div></div>';
   h+='<div class="toggle info-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
   if (sec==='historie'){
     h+='<div class="info-roomy">';
@@ -5196,22 +5320,16 @@ function renderInfo(){
     const curH=tabs.some(x=>x[0]===hist)?hist:'liga';
     S.ui.infoHist=curH;
     h+='<div class="toggle subtabs">'+tabs.map(([k,n])=>'<button type="button" data-act="infoHist" data-v="'+k+'" class="'+(curH===k?'active':'')+'">'+esc(n)+'</button>').join('')+'</div>';
-    const seasons=(S.seasons||[]).slice().reverse();
     if (curH==='liga'){
+      let chart='';
+      try{ chart=placementChart(leagueHistoryPoints(id)); }catch(e){ chart=''; }
       let rows='';
-      seasons.forEach(season=>{
-        const here=pyramidOf(season)[id];
-        rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+(here?esc(here.liga):'<span class="muted">–</span>')+'</td><td class="pl">'+(here?here.pl+'.':'<span class="muted">–</span>')+'</td></tr>';
+      ligaCourseRows(id).forEach(r=>{
+        rows+='<tr><td class="l">'+esc(r.season)+'</td><td class="l">'+(r.liga?esc(r.liga):'<span class="muted">–</span>')+'</td><td class="pl">'+(r.pl!=null?r.pl+'.':'<span class="muted">–</span>')+'</td></tr>';
       });
-      h+='<table class="tbl info-hist info-liga"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="pl">Platz</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      h+=chart+'<table class="tbl info-hist info-liga"><thead><tr><th class="l">Saison</th><th class="l">Liga</th><th class="pl">Platz</th></tr></thead><tbody>'+rows+'</tbody></table>';
     } else {
-      const comp=curH==='dfb'?'dfb':'land';
-      const head=curH==='dfb'?'DFB-Pokal':landName;
-      let rows='';
-      seasons.forEach(season=>{
-        rows+='<tr><td class="l">'+esc(season.name)+'</td><td class="l cup">'+cupRunLine(cupRunOf(id, season.name, comp), 'nicht qualifiziert')+'</td></tr>';
-      });
-      h+='<table class="tbl info-hist info-cup"><thead><tr><th class="l">Saison</th><th class="l">'+esc(head)+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+      h+=cupHistTable(id, curH==='dfb'?'dfb':'land');
     }
     h+='</div>';
   } else if (sec==='bilanz'){
@@ -5435,6 +5553,16 @@ function renderSupercup(){
   h+='</div>';
   $('#view').innerHTML=h;
 }
+function openClubPage(id){
+  if (!id || !TEAMS[id]) return;
+  const modal=$('#modal'); if (modal) modal.classList.add('hidden');
+  S.ui.infoId=id;
+  S.ui.infoQ='';
+  S.ui.tab='info';
+  S.ui.infoSec='historie';
+  S.ui.infoHist='liga';
+  save(); render();
+}
 function openVerein(id){
   if (!TEAMS[id]) return;
   const modal=$('#modal'); if (modal) modal.classList.add('hidden');
@@ -5564,7 +5692,7 @@ function openModal(h){ $('#modalBody').innerHTML=h; $('#modal').classList.remove
 // ---------- Ergebnis-Eingabe ----------
 function refreshTableOnly(){
   const s=cur(), lid=S.ui.league;
-  const tc=$('#tableCard'); if (tc) tc.innerHTML=tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true});
+  const tc=$('#tableCard'); if (tc) tc.innerHTML=tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true});
   const lp=leagueProgress(s,lid), pr=seasonProgress(s);
   const sp=$('#subline .muted'); if (sp) sp.textContent='Liga: '+lp.done+'/'+lp.total+' Spiele · alle Ligen: '+pr.done+'/'+pr.total;
   const md=s.leagues[lid].md[shownMd], done=md.filter(m=>m[2]!=null&&m[3]!=null).length;
@@ -5720,7 +5848,7 @@ document.addEventListener('click', ev=>{
   const tg=t.closest('[data-toggle] button'); if (tg){ S.ui[tg.parentNode.dataset.toggle]=tg.dataset.v; save(); render(); return; }
   if (t.closest('.pick-row')) return;
   const crest=t.closest('img[data-club], [data-club] img');
-  if (crest){ const id=crest.dataset.club||(crest.closest('[data-club]')&&crest.closest('[data-club]').dataset.club); if(id&&TEAMS[id]){ openVerein(id); return; } }
+  if (crest){ const id=crest.dataset.club||(crest.closest('[data-club]')&&crest.closest('[data-club]').dataset.club); if(id&&TEAMS[id]){ openClubPage(id); return; } }
   const hist=t.closest('[data-ansehen]'); if (hist && S.ui.tab==='ansehen'){ S.ui.ansehenId=hist.dataset.ansehen; render(); return; }
   const club=t.closest('[data-club]'); if (club && !t.closest('.score')){ clubModal(club.dataset.club); return; }
   const a=t.closest('[data-act]'); if (!a) return;

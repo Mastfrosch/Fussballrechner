@@ -64,6 +64,9 @@ table.tbl.stand .w-sp{min-width:3.2ch}
 table.tbl.stand .w-tg{min-width:7.6ch}
 table.tbl.stand .w-df{min-width:5.2ch}
 table.tbl.stand .w-pk{min-width:4.4ch}
+table.tbl.stand .w-an{min-width:5.8ch}
+table.tbl.stand .club{max-width:15em}
+table.tbl.stand .club .nm{max-width:10.5em}
 table.tbl.stand td.formc{width:96px;min-width:96px;max-width:96px}
 table.tbl.stand .form{width:88px;min-width:88px;justify-content:flex-start}
 table.tbl.stand th[data-sort]{position:relative}
@@ -449,6 +452,10 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .verein-head{display:flex;gap:14px;align-items:center;margin:10px 0 4px}
 .verein-head img{width:84px;height:84px;object-fit:contain}
 .verein-head h2{margin:0}
+.ansehen-now{margin-top:4px;font-size:13px;color:#3a4a42}
+.ansehen-now b{font-size:16px;font-variant-numeric:tabular-nums}
+.an-course{margin-top:2px;max-width:42em;font-size:12px;line-height:1.45;color:var(--muted)}
+.an-course b{color:#3a4a42;font-weight:650}
 .place-chart{width:100%;height:auto;background:#f7faf8;border:1px solid var(--line)}
 .place-chart polyline{fill:none;stroke:#1d6b45;stroke-width:2}
 .place-chart circle{fill:#1d6b45}
