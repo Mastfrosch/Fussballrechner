@@ -2008,7 +2008,9 @@ function clubHTML(id, opts={}){
   const t=TEAMS[id]; if(!t) return '';
   const mk = opts.marker ? [].concat(opts.marker).map(x=>'<span class="mk">('+x+')</span>').join('') : '';
   const img='<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'" loading="lazy">';
-  const nm=opts.markerBefore ? (mk?mk+' ':'')+esc(t.name) : esc(t.name)+(mk?' '+mk:'');
+  const base=opts.ligaTag?'<span class="nm-txt">'+esc(t.name)+'</span>':esc(t.name);
+  const liga=opts.ligaTag?' <span class="liga-tag">'+esc(opts.ligaTag)+'</span>':'';
+  const nm=opts.markerBefore ? (mk?mk+' ':'')+base+liga : base+(mk?' '+mk:'')+liga;
   const txt='<div class="txt"><div class="nm">'+nm+'</div>'+(opts.nobl?'':'<div class="bl">'+esc(t.bl)+'</div>')+'</div>';
   const mv=opts.move==null?'':moveSpan(opts.move);
   const body=opts.crestRight?txt+mv+img:mv+img+txt;
@@ -2022,10 +2024,13 @@ function matchLineHTML(o){
   const nm=id=>{
     const mk=o.marker && o.marker[id];
     const tags=mk?[].concat(mk).filter(Boolean).map(x=>'<span class="mk">('+esc(x)+')</span>').join(''):'';
-  const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+'</span>';
-  if (!o.bl && !o.cup) return name;
-  return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
-};
+    let liga='';
+    if (o.ligaInName && o.season){ try{ liga=ligaEdge(o.season, id)||''; }catch(e){ liga=''; } }
+    const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
+    const name='<span class="ml-name">'+esc(TEAMS[id].name)+(tags?' '+tags:'')+tag+'</span>';
+    if (!o.bl && !o.cup) return name;
+    return '<span class="who">'+name+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+  };
   const played=o.hg!=null && o.ag!=null && !o.open;
   const pen=played && o.hg===o.ag && o.peh!=null && o.pea!=null && +o.peh!==+o.pea;
   const nv=played && o.et && o.hg!==o.ag;
@@ -2038,7 +2043,7 @@ function matchLineHTML(o){
     ? '<span class="tone-open">offen</span>'
     : '<span class="scoreline"><span class="goals" data-side="0">'+(played?o.hg:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(played?o.ag:'-')+'</span></span>';
   const km=o.km!=null?'<div class="km-line">'+o.km+' km</div>':'';
-  const edge=id=>(o.liga && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
+  const edge=id=>(o.liga && !o.ligaInName && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
   const cls=['match'];
   if (o.cup) cls.push('cup');
   if (played || o.done) cls.push('done');
@@ -2210,7 +2215,7 @@ function viewPokal(s, cup, view){
   if (view==='rekorde') return h+viewCupRekorde(key);
   if (view==='qualifikation'){
     const dfb=s.cups&&s.cups.dfb;
-    return h+(dfb?viewCupSpots(dfb):'<div class="box">In dieser Saison gibt es keine Landespokal-Qualifikation.</div>');
+    return h+(dfb?viewCupSpots(dfb, s):'<div class="box">In dieser Saison gibt es keine Landespokal-Qualifikation.</div>');
   }
   return h+viewCupRound(s, cup, ed);
 }
@@ -2270,19 +2275,26 @@ function viewCupRound(s, cup, ed){
   h+='</div>';
   return h;
 }
-function viewCupSpots(cup){
+function yearLiga(season, id){
+  try{ return season&&id? (ligaEdge(season, id)||'') : ''; }catch(e){ return ''; }
+}
+function viewCupSpots(cup, season){
+  const sea=season||cur();
+  const tag=id=>yearLiga(sea, id);
   const main=(cup.spots||[]).filter(sp=>sp.via!=='liga');
   const liga=(cup.spots||[]).filter(sp=>sp.via==='liga');
   let h='<div class="box"><h3>Qualifikation über die Landespokale</h3><table class="tbl"><thead><tr><th class="l">Land</th><th class="l">Verein</th><th class="l">Weg</th></tr></thead><tbody>';
   main.forEach(sp=>{
-    h+='<tr><td class="l">'+esc(sp.bl)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true})+'</td><td class="l">'+esc(VIA_TEXT[sp.via]||sp.via)+'</td></tr>';
+    if (!sp || !TEAMS[sp.id]) return;
+    h+='<tr><td class="l">'+esc(sp.bl)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true, ligaTag:tag(sp.id)})+'</td><td class="l">'+esc(VIA_TEXT[sp.via]||sp.via)+'</td></tr>';
   });
   h+='</tbody></table>';
   if (liga.length){
     h+='<h3 style="margin-top:14px">Nachgerückt aus der 3. Liga</h3><p class="muted">Beide Finalisten dieses Landes waren schon qualifiziert. Der Platz geht an den nächsten freien Verein der 3. Liga, nicht an den Pokalsieger.</p><table class="tbl"><thead><tr><th class="l">Platz</th><th class="l">Verein</th></tr></thead><tbody>';
     liga.forEach(sp=>{
+      if (!sp || !TEAMS[sp.id]) return;
       const label=(sp.place?sp.place+'. ':'')+'3. Liga (für '+sp.bl+')';
-      h+='<tr><td class="l">'+esc(label)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true})+'</td></tr>';
+      h+='<tr><td class="l">'+esc(label)+'</td><td class="l">'+clubHTML(sp.id,{nobl:true, ligaTag:tag(sp.id)})+'</td></tr>';
     });
     h+='</tbody></table>';
   }
@@ -2332,13 +2344,15 @@ function cupExitMatch(cup, id){
   });
   return found;
 }
-function ovLostCard(cup, id){
+function ovLostCard(season, cup, id){
   const t=TEAMS[id]; if(!t) return '';
+  const liga=yearLiga(season, id);
+  const name='<div class="nm">'+esc(t.name)+(liga?' <span class="liga-tag">'+esc(liga)+'</span>':'')+'</div>';
   const hit=cupExitMatch(cup, id);
-  if (!hit || !hit.m) return '<div class="nm">'+esc(t.name)+'</div>';
+  if (!hit || !hit.m) return name;
   const m=hit.m;
   const round=hit.round?'<div class="ov-round">'+esc(hit.round)+'</div>':'';
-  return '<div class="nm">'+esc(t.name)+'</div>'+round+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, klass:'tip-match'});
+  return name+round+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, cup:true, ligaInName:true, season:season, klass:'tip-match'});
 }
 function ovGroupsHTML(season, ids, alive, cup){
   const G={};
@@ -2350,7 +2364,8 @@ function ovGroupsHTML(season, ids, alive, cup){
     h+='<div class="ov-lg"><div class="ov-lg-h"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-row">';
     list.forEach(id=>{
       const t=TEAMS[id], out=!alive.has(id);
-      const tip=out?ovLostCard(cup, id):'<div class="nm">'+esc(t.name)+'</div>';
+      const liga=yearLiga(season, id);
+      const tip=out?ovLostCard(season, cup, id):'<div class="nm">'+esc(t.name)+(liga?' <span class="liga-tag">'+esc(liga)+'</span>':'')+'</div>';
       h+='<div class="ov-c'+(out?' out':'')+'" data-club="'+id+'"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div class="ov-tip'+(out?' wide':'')+'">'+tip+'</div></div>';
     });
     h+='</div></div>';
@@ -2453,8 +2468,20 @@ function viewCupTree(s, cup){
     if (round.archived && !(round.matches&&round.matches.length)) h+='<p class="muted br-note">Spiele nicht gespeichert</p>';
     else if (!round.drawn) h+='<p class="muted br-note">noch nicht ausgelost</p>';
     else {
-      const lines=round.matches.map(m=>'<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, cup:true, liga:true, season:s, klass:'br-line cup-spiel'})+'</div>');
-      h+='<div class="cup-cols'+(lines.length===1?' one':'')+'">'+lines.join('')+'</div>';
+      const rows=(round.matches||[]).map((m,i)=>({m,i})).sort((a,b)=>cupSlotOrder(a.m&&a.m.slot, b.m&&b.m.slot)||a.i-b.i);
+      let prev='', buf=[];
+      const flush=()=>{
+        if (!buf.length) return;
+        h+='<div class="cup-cols'+(buf.length===1?' one':'')+'">'+buf.join('')+'</div>';
+        buf=[];
+      };
+      rows.forEach(({m})=>{
+        if (!m || !m.h || !m.a || !TEAMS[m.h] || !TEAMS[m.a]) return;
+        const lab=cupSlotLabel(m.slot, m.neutral||round.neutral);
+        if (lab!==prev){ flush(); h+='<div class="slot-head">'+esc(lab)+'</div>'; prev=lab; }
+        buf.push('<div class="br-m">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:m.et, peh:m.peh, pea:m.pea, nodel:true, cup:true, ligaInName:true, season:s, klass:'br-line cup-spiel'})+'</div>');
+      });
+      flush();
     }
     if (round.byes&&round.byes.length) h+='<div class="br-byes">'+round.byes.filter(id=>TEAMS[id]).map(id=>seasonClubHTML(s, id)).join('')+'<span class="muted br-bye-lab">Freilos</span></div>';
     h+='</div>';
@@ -2469,17 +2496,16 @@ function seasonLeagueTag(season, id){
 }
 function seasonClubHTML(season, id){
   const t=id&&TEAMS[id]; if(!t) return '';
-  let liga='';
-  try{ liga=season?ligaEdge(season, id):''; }catch(e){ liga=''; }
-  const edge=liga?'<span class="liga-edge">'+esc(liga)+'</span>':'';
+  const liga=yearLiga(season, id);
+  const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
   const img='<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
-  const who='<span class="who"><span class="ml-name">'+esc(t.name)+'</span><span class="ml-bl">'+esc(t.bl)+'</span></span>';
-  return '<div class="sieger-club" data-club="'+id+'">'+edge+img+who+'</div>';
+  const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(t.name)+'</span>'+tag+'</span><span class="ml-bl">'+esc(t.bl)+'</span></span>';
+  return '<div class="sieger-club" data-club="'+id+'">'+img+who+'</div>';
 }
 function siegerRow(year, winnerId, finalistId, match, season, liga){
   const home=match ? match.h : winnerId;
   const away=match ? match.a : finalistId;
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+seasonClubHTML(season, winnerId)+'</div><div class="sieger-who">'+seasonClubHTML(season, finalistId)+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, liga:!!liga, cup:!!liga, nodel:true, klass:'sieger-match'})+'</div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+seasonClubHTML(season, winnerId)+'</div><div class="sieger-who">'+seasonClubHTML(season, finalistId)+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, cup:!!liga, ligaInName:!!liga, nodel:true, klass:'sieger-match'})+'</div></div>';
 }
 function siegerHead(){
   return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Finale</div></div>';
@@ -5552,6 +5578,45 @@ function adjustGoal(k, side, dir){
 }
 
 // ---------- Events ----------
+function placeOvTip(el){
+  const tip=el.querySelector('.ov-tip'); if(!tip) return;
+  tip.classList.add('fixed');
+  const pad=8, vw=window.innerWidth, vh=window.innerHeight;
+  tip.style.maxWidth=Math.max(160, vw-pad*2)+'px';
+  const cre=el.getBoundingClientRect();
+  let tw=tip.offsetWidth, th=tip.offsetHeight;
+  let left=cre.left+cre.width/2-tw/2;
+  left=Math.max(pad, Math.min(left, vw-tw-pad));
+  let top=cre.top-th-12, below=false;
+  if (top<pad){ top=cre.bottom+12; below=true; }
+  if (top+th>vh-pad){
+    const above=cre.top-th-12;
+    if (above>=pad){ top=above; below=false; }
+    else top=Math.max(pad, vh-th-pad);
+  }
+  tip.style.left=Math.round(left)+'px';
+  tip.style.top=Math.round(top)+'px';
+  tip.classList.toggle('below', below);
+  const mid=cre.left+cre.width/2-left;
+  tip.style.setProperty('--arrow', Math.max(14, Math.min(tw-14, mid))+'px');
+}
+document.addEventListener('mouseover', ev=>{
+  const el=ev.target.closest&&ev.target.closest('.ov-c');
+  if (!el || el.classList.contains('hover')) return;
+  document.querySelectorAll('.ov-c.hover').forEach(x=>{ if(x!==el) x.classList.remove('hover'); });
+  el.classList.add('hover');
+  placeOvTip(el);
+});
+document.addEventListener('mouseout', ev=>{
+  const el=ev.target.closest&&ev.target.closest('.ov-c');
+  if (!el || (ev.relatedTarget && el.contains(ev.relatedTarget))) return;
+  el.classList.remove('hover');
+  const tip=el.querySelector('.ov-tip');
+  if (tip){ tip.classList.remove('fixed','below'); tip.style.left=''; tip.style.top=''; tip.style.maxWidth=''; }
+});
+window.addEventListener('scroll', ()=>{
+  document.querySelectorAll('.ov-c.hover').forEach(placeOvTip);
+}, true);
 document.addEventListener('click', ev=>{
   const t=ev.target;
   const sortTh=t.closest('th[data-sort]');
