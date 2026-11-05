@@ -2710,29 +2710,41 @@ function viewHistorie(lid){
     const lg=L[lid];
     const bl=lid==='BL';
     const showUp=!bl && lg.up>1;
-    const showDown=lg.down>0 || done.some(s=>(s.endData.moves||[]).some(m=>m.from===lid && m.type==='ab'));
-    const slot=item=>{
-      const id=item.id||item;
-      const t=TEAMS[id]; if(!t) return '';
-      const pl=item.pl!=null?item.pl:'';
-      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
+    const showDown=lg.down>0 || done.some(s=>((s.endData&&s.endData.moves)||[]).some(m=>m&&m.from===lid && m.type==='ab'));
+    const pktOf=(item, byId)=>{
+      const id=item&&(item.id||item);
+      let v=item&&typeof item==='object'?item.pkt:null;
+      if ((v==null||v==='') && byId && id && byId[id]) v=byId[id].pkt;
+      if (v==null||v==='') return '';
+      const n=+v;
+      return isFinite(n)?String(n):'';
     };
-    const slots=list=>{
-      const items=(list||[]).slice().sort((a,b)=>(a.pl||0)-(b.pl||0));
-      return items.length?items.map(slot).join(''):'<span class="muted">–</span>';
+    const slot=(item, byId)=>{
+      const id=item&&(item.id||item);
+      const t=id&&TEAMS[id]; if(!t) return '';
+      const pl=item&&typeof item==='object'&&item.pl!=null?item.pl:'';
+      const pkt=pktOf(item, byId);
+      const pts=pkt!==''?'<span class="hist-pts" title="'+esc(pkt)+' Punkte">'+esc(pkt)+'</span>':'';
+      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">'+pts+'</span>';
+    };
+    const slots=(list, byId)=>{
+      const items=(list||[]).slice().sort((a,b)=>((a&&a.pl)||0)-((b&&b.pl)||0));
+      return items.length?items.map(it=>slot(it, byId)).join(''):'<span class="muted">–</span>';
     };
     const cols=bl?['Meister','Champions League','Europa League','Conference League','Absteiger']:(['Meister'].concat(showUp?['Aufsteiger']:[]).concat(showDown?['Absteiger']:[]));
     h+='<table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th>'+cols.map(c=>'<th class="l">'+c+'</th>').join('')+'</tr></thead><tbody>';
-    done.slice().reverse().forEach(s=>{ const e=s.endData, t=e.tables[lid]||[];
-      const up=(e.moves||[]).filter(m=>m.from===lid&&m.type==='auf');
-      const dn=(e.moves||[]).filter(m=>m.from===lid&&m.type==='ab');
-      const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list)+'</div></td>';
+    done.slice().reverse().forEach(s=>{ const e=s.endData||{}, raw=e.tables&&e.tables[lid], t=Array.isArray(raw)?raw:[];
+      const byId={};
+      t.forEach(r=>{ if(r&&r.id) byId[r.id]=r; });
+      const up=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='auf');
+      const dn=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='ab');
+      const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list, byId)+'</div></td>';
       let cells='';
       if (bl){
-        cells=cell(t.filter(r=>r.pl===1))+cell(t.filter(r=>r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r.pl>=5&&r.pl<=6))+cell(t.filter(r=>r.pl===7))+cell(dn);
+        cells=cell(t.filter(r=>r&&r.pl===1))+cell(t.filter(r=>r&&r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r&&r.pl>=5&&r.pl<=6))+cell(t.filter(r=>r&&r.pl===7))+cell(dn);
       } else {
-        cells=cell(t.filter(r=>r.pl===1));
-        if (showUp) cells+=cell(up.filter(m=>(m.pl||0)>1));
+        cells=cell(t.filter(r=>r&&r.pl===1));
+        if (showUp) cells+=cell(up.filter(m=>m&&(m.pl||0)>1));
         if (showDown) cells+=cell(dn);
       }
       h+='<tr><td class="l">'+s.name+'</td>'+cells+'</tr>';
@@ -2755,7 +2767,7 @@ function renderAmateur(){
   $('#tabs').innerHTML=BL_ORDER.filter(b=>counts[b]).map(b=>'<a class="tab'+(b===bl?' active':'')+'" data-amateur="'+esc(b)+'">'+esc(b)+'</a>').join('');
   const list=ids.filter(id=>TEAMS[id].bl===bl).sort(byRang);
   let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine in '+esc(bl)+'.</p><div class="amateur-list">'+
-    list.map(id=>'<div data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true})+'<span class="muted" style="font-size:11px;margin-left:32px">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></div>').join('')+
+    list.map(id=>'<div data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true})+'<span class="muted" style="font-size:11px;margin-left:38px">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></div>').join('')+
     '</div></div>';
   $('#view').innerHTML=h;
 }
@@ -4277,7 +4289,7 @@ function viewAnsehenDetail(id){
   const info=ansehenInfo(id, null, true), t=TEAMS[id];
   const end=info.end, from=end-29, hot=end-9;
   const part=(label, value, note)=>'<div'+(label==='Ansehen'?' class="tot"':'')+'><span>'+label+'</span><b>'+(value==null?'–':deNum(value,2))+'</b><i>'+note+'</i></div>';
-  let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" style="width:52px;height:52px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b></div></div></div>';
+  let h='<div class="box"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button><div style="display:flex;gap:12px;align-items:center;margin-top:12px"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" style="width:64px;height:64px;object-fit:contain"><div><h3 style="margin:0">'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+' · Ansehen <b>'+(info.value==null?'ohne Wertung':deNum(info.value,2))+'</b></div></div></div>';
   h+='<div class="ansehen-break">'+part('Liga', info.liga, '30 Saisons, letzte 10 ×1,5')+part('DFB-Pokal', info.dfb.value, '15 Saisons, letzte 5 ×1,5')+part('Landespokal', info.land.value, '15 Saisons, letzte 5 ×1,5')+part('Ansehen', info.value, 'Liga + DFB-Pokal + Landespokal')+'</div>';
   h+='<p>Liga: Fenster '+from+'/'+String((from+1)%100).padStart(2,'0')+' bis '+end+'/'+String((end+1)%100).padStart(2,'0')+'. Grün markiert sind die letzten 10 Saisons (×1,5), normal gezählt die übrigen im Fenster. Graue Zeilen liegen außerhalb. Pokal: die letzten 15 Saisons, davon die letzten 5 grün. Der Schnitt teilt durch das ganze Fenster (17,5). Jahre ohne Teilnahme zählen als 0.</p>'+ansehenLegendHTML();
   h+='<h3 style="margin:8px 0">Liga</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Punkte','pts')+sortHead('Gewicht','w')+sortHead('Beitrag','beitrag')+'</tr></thead><tbody>';
@@ -5212,7 +5224,7 @@ function viewVerein(id){
 }
 function clubModal(id){
   const t=TEAMS[id], pl=clubPlacements(id);
-  let h='<div style="display:flex;gap:12px;align-items:center"><img src="'+esc(t.crest)+'" style="width:56px;height:56px;object-fit:contain"><div><h2 style="margin:0">'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+' · historische Rangliste: '+(t.rang?'Rang '+t.rang+', Schnitt '+t.schnitt.toFixed(2).replace('.',','):'ohne Wertung')+'</div></div></div>';
+  let h='<div style="display:flex;gap:12px;align-items:center"><img src="'+esc(t.crest)+'" style="width:68px;height:68px;object-fit:contain"><div><h2 style="margin:0">'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+' · historische Rangliste: '+(t.rang?'Rang '+t.rang+', Schnitt '+t.schnitt.toFixed(2).replace('.',','):'ohne Wertung')+'</div></div></div>';
   h+='<h3 style="margin-top:16px">Platzierungen im Fußballrechner</h3><table class="tbl fit"><thead><tr>'+sortHead('Saison','','l')+sortHead('Liga','','l')+sortHead('Platz','pl')+sortHead('Tore','tg')+'</tr></thead><tbody>';
   pl.forEach(p=>{ const tg=p.tore?parseInt(p.tore,10):''; h+='<tr><td class="l">'+p.season+'</td><td class="l">'+esc(leagueName(p.lid))+'</td>'+sortCell(p.pl||'', p.pl?p.pl+'. / '+p.n+(p.final?'':' (laufend)'):'–')+sortCell(tg, p.tore||'–')+'</tr>'; });
   h+='</tbody></table>';
