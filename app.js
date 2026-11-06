@@ -3445,15 +3445,18 @@ function leagueStreaks(lid){
   Object.keys(open).forEach(close);
   return holders;
 }
+function recCupKey(cup){ return typeof cup==='string' && cup ? cup : ''; }
 function recHolder(id, seasonText, cup){
+  const key=recCupKey(cup);
   const seaName=seasonText && String(seasonText).indexOf(',')>=0 ? String(seasonText).split(',').pop().trim() : seasonText;
-  const sea=seaName ? seasonByName(seaName) : null;
-  const liga=cup && sea ? ligaEdge(sea, id) : '';
-  return clubHTML(id, {nobl:cup==='land', ligaTag:liga||null});
+  const sea=key && seaName ? seasonByName(seaName) : null;
+  const liga=sea ? ligaEdge(sea, id) : '';
+  return clubHTML(id, {nobl:key!=='' && key!=='dfb', ligaTag:liga||null});
 }
 function recMatchLine(m, cup){
+  const key=recCupKey(cup);
   const season=seasonByName(m.season);
-  return '<div class="rec-line rec-pairline"><span class="rec-meta">'+esc(m.season||'')+'</span>'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, season, liga:!!cup, bl:cup!=='land', nodel:true, klass:'rec-match axis'})+'</div>';
+  return '<div class="rec-line rec-pairline"><span class="rec-meta">'+esc(m.season||'')+'</span>'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, season, liga:!!key, bl:!key || key==='dfb', nodel:true, klass:'rec-match axis'})+'</div>';
 }
 function recTeamLine(id, value, season, cup){
   return '<div class="rec-line"><span class="rec-val">'+esc(value)+'</span>'+recHolder(id, season, cup)+'<span class="rec-meta">'+esc(season||'')+'</span></div>';
@@ -3481,7 +3484,7 @@ function viewRekorde(lid){
       return (streaks[type]||[]).map(r=>recTeamLine(r.id, r.len+' '+unit, r.season)).join('');
     };
     const pairs=[
-      recPair([recCol('Höchster Sieg', wins.map(recMatchLine).join('')), recCol('Torreichstes Spiel', rich.map(recMatchLine).join(''))]),
+      recPair([recCol('Höchster Sieg', wins.map(m=>recMatchLine(m)).join('')), recCol('Torreichstes Spiel', rich.map(m=>recMatchLine(m)).join(''))]),
       recPair([recCol('Meiste Tore', statLines('tg', true, 'Tore')), recCol('Wenigste Tore', statLines('tg', false, 'Tore'))]),
       recPair([recCol('Meiste Gegentore', statLines('gt', true, 'Gegentore')), recCol('Wenigste Gegentore', statLines('gt', false, 'Gegentore'))]),
       recPair([recCol('Meiste Punkte', statLines('pkt', true, 'Punkte')), recCol('Wenigste Punkte', statLines('pkt', false, 'Punkte'))]),
@@ -6676,14 +6679,14 @@ function uiSelfTest(){
       if (l.level>=5){
         const area=AREA_BY_BL[TEAMS[id].bl];
         const ok=l.level===5 ? RL_BY_AREA[area]===l.id : l.area===area;
-        if (!ok) regionBad++;
+        if (!ok){ regionBad++; check('Region '+l.id+' '+TEAMS[id].name, false, TEAMS[id].bl+' → '+(area||'ohne Gebiet')); }
       }
     });
   });
   POOLS.forEach(p=>squads.pools[p.id].forEach(id=>{
     if (seen.has(id)) dup=true;
     seen.add(id);
-    if (AREA_BY_BL[TEAMS[id].bl]!==p.area) regionBad++;
+    if (AREA_BY_BL[TEAMS[id].bl]!==p.area){ regionBad++; check('Region '+p.id+' '+TEAMS[id].name, false, TEAMS[id].bl); }
   }));
   check('keine doppelten Vereine', !dup);
   check('kein Verein fehlt', seen.size===Object.keys(TEAMS).length, seen.size+' von '+Object.keys(TEAMS).length);
@@ -6693,7 +6696,22 @@ function uiSelfTest(){
   const ranked=withHistoryOnly(()=>Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de')));
   check('Bundesliga sind die 20 mit dem höchsten Ansehen', squads.leagues.BL.join()===ranked.slice(0,20).join());
   check('Spielstand nach der Zuteilung noch derselbe', (S.seasons[0].leagues.BL.teams||[]).join()===snap);
-  return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name)};
+  const sizes={};
+  LEAGUES.forEach(l=>{ sizes[l.id]=squads.leagues[l.id].length+'/'+l.size; });
+  POOLS.forEach(p=>{ sizes[p.id]=squads.pools[p.id].length; });
+  const ties=[
+    {season:cur().name, h:'t001', a:'t002', hg:8, ag:0},
+    {season:cur().name, h:'t003', a:'t004', hg:7, ag:0}
+  ];
+  const leagueRec=ties.map(recMatchLine).join('');
+  const leagueArrow=ties.map(m=>recMatchLine(m)).join('');
+  check('Liga-Gleichstand ohne Liga-Tag, auch über map', leagueRec.indexOf('liga-edge')<0 && leagueArrow.indexOf('liga-edge')<0 && (leagueRec.match(/ml-bl/g)||[]).length===4, String((leagueRec.match(/liga-edge/g)||[]).length));
+  const dfbRec=ties.map(m=>recMatchLine(m, 'dfb')).join('');
+  check('DFB-Gleichstand beide mit Liga und Bundesland', (dfbRec.match(/liga-edge/g)||[]).length===4 && (dfbRec.match(/ml-bl/g)||[]).length===4);
+  const landRec=ties.map(m=>recMatchLine(m, 'Bayern')).join('');
+  check('Landespokal-Gleichstand mit Liga ohne Bundesland', (landRec.match(/liga-edge/g)||[]).length===4 && landRec.indexOf('ml-bl')<0);
+  check('Index als cup erzwingt keinen Liga-Tag', recMatchLine(ties[1], 1).indexOf('liga-edge')<0);
+  return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name), sizes, regionBad};
 }
 applyBright(readBright(), false);
 const brightEl=document.getElementById('brightRange');
