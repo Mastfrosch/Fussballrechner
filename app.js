@@ -302,6 +302,21 @@ function ansehenEndYear(){
     return vy||dataEndYear();
   }catch(e){ return dataEndYear(); }
 }
+function storedDonePlacement(season, id){
+  if (!season || season.status!=='done') return null;
+  const tables=season.endData && season.endData.tables;
+  for (let i=0;i<LEAGUES.length;i++){
+    const l=LEAGUES[i];
+    const lg=season.leagues && season.leagues[l.id];
+    const rows=(tables && tables[l.id]) || (lg && lg.tables && lg.tables.all);
+    if (!rows || !rows.length) continue;
+    const row=rows.find(x=>x && x.id===id);
+    if (!row || row.pl==null) continue;
+    const n=(lg && lg.teams && lg.teams.length) || rows.length || l.size;
+    return {season:season.name, liga:l.name, ebene:l.level, n, pl:row.pl, src:'rechner'};
+  }
+  return null;
+}
 function collectPlacements(id){
   const by={};
   try{
@@ -312,25 +327,8 @@ function collectPlacements(id){
   }catch(e){}
   (S.seasons||[]).forEach(season=>{
     if (!season||!season.name||by[season.name]) return;
-    if (season.status==='done') return;
-    try{
-      LEAGUES.forEach(l=>{
-        const lg=season.leagues&&season.leagues[l.id];
-        if (!lg||!(lg.teams||[]).includes(id)) return;
-        let row=null;
-        try{ row=(leagueTable(season, l.id)||[]).find(x=>x&&x.id===id); }catch(err){ row=null; }
-        if (!row&&lg.tables&&lg.tables.all) row=lg.tables.all.find(x=>x&&x.id===id);
-        if (!row||row.pl==null) return;
-        by[season.name]={season:season.name, liga:l.name, ebene:l.level, n:(lg.teams||[]).length||l.size, pl:row.pl, src:'rechner', live:true};
-      });
-      if (!by[season.name]){
-        POOLS.forEach(p=>{
-          const pool=(season.pools&&season.pools[p.id])||[];
-          const i=pool.indexOf(id);
-          if (i>=0) by[season.name]={season:season.name, liga:p.name, ebene:7, n:pool.length, pl:i+1, src:'rechner', live:true};
-        });
-      }
-    }catch(e){}
+    const row=storedDonePlacement(season, id);
+    if (row) by[season.name]=row;
   });
   return Object.keys(by).map(k=>by[k]);
 }
@@ -343,6 +341,7 @@ function ansehenLedger(id, endYear){
   };
   if (TEAMS[id]){
     collectPlacements(id).forEach(p=>{
+      if (!p || p.live || p.pl==null) return;
       const y=seasonYear(p.season);
       if (!y||y>end) return;
       const age=end-y;
@@ -471,7 +470,49 @@ function ansehenSelfTest(){
   const sum=ansehenRound2(a.lines.reduce((s,l)=>s+l.today,0));
   check('Summe der Übersicht', a.value===sum && a.value===b.value, a.value+' gegen '+sum);
   check('zweiter Aufruf identisch', a.value===ansehenLedger('t001').value);
-  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:a.value}};
+  const histBefore=historyEntries('t001').filter(r=>r.src==='historie'&&r.pl!=null).length;
+  check('importierte Historie bleibt', histBefore>0, String(histBefore));
+  const saved={seasons:S.seasons, chronicle:S.chronicle, view:S.view, chronSeen, chronIndex, chronBuilt};
+  try{
+    const id='t001';
+    const others=[];
+    for (let i=2;i<=20;i++) others.push('t'+String(i).padStart(3,'0'));
+    const teams=[id].concat(others);
+    const rows=teams.map((tid,i)=>({id:tid, pl:i+1}));
+    const running={name:'2098/99', status:'running', leagues:{BL:{teams, tables:{all:rows.slice()}}}, pools:{AMBY:[id].concat(others)}, endData:{tables:{BL:rows.slice()}}};
+    const fresh={name:'2099/00', status:'running', leagues:{BL:{teams}}, pools:{AMBY:[id].concat(others)}};
+    const done={name:'2097/98', status:'done', compact:true, leagues:{BL:{teams, tables:{all:rows.slice()}}}, endData:{tables:{BL:rows.slice()}}, pools:{AMBY:others.concat([id])}};
+    const poolOnly={name:'2096/97', status:'done', compact:true, leagues:{}, pools:{AMBY:[id].concat(others)}, endData:{tables:{}}};
+    S.chronicle=[];
+    chronSeen=new Set(); chronIndex=null; chronBuilt=-1;
+    S.seasons=[poolOnly, done, running, fresh];
+    S.view=3;
+    touchAnsehen();
+    const lines=ansehenLedger(id, 2099).lines.filter(l=>l.season>='2096');
+    const of=(season, kind)=>lines.filter(l=>l.season===season&&l.kind===kind);
+    check('neue Saison ohne Spiel kein Titel', of('2099/00','titel').length===0 && of('2099/00','liga').length===0 && of('2099/00','euro').length===0);
+    check('Tabellenführer mitten in der Saison kein Titel', of('2098/99','titel').length===0 && of('2098/99','euro').length===0 && of('2098/99','liga').length===0);
+    check('Pool-Reihenfolge ist keine Platzierung', of('2096/97','titel').length===0 && of('2096/97','liga').length===0 && of('2096/97','euro').length===0);
+    const doneLiga=of('2097/98','liga')[0], doneEuro=of('2097/98','euro')[0];
+    check('abgeschlossene Saison ohne Chronik zählt', of('2097/98','liga').length===1 && of('2097/98','titel').length===1 && of('2097/98','euro').length===1, of('2097/98','liga').length+'/'+of('2097/98','titel').length+'/'+of('2097/98','euro').length);
+    check('Platz 1 der abgeschlossenen Saison ist Meister', !!(doneLiga && doneLiga.label.indexOf('1./')>=0 && doneEuro && doneEuro.label.indexOf('CL')>=0), (doneLiga&&doneLiga.label)+' / '+(doneEuro&&doneEuro.label));
+    S.chronicle=[{season:'2097/98', id, liga:'Bundesliga', ebene:1, n:20, pl:1, pts:80}];
+    chronSeen=null; chronIndex=null; chronBuilt=-1;
+    touchAnsehen();
+    const once=ansehenLedger(id, 2099).lines.filter(l=>l.season==='2097/98'&&l.kind==='titel');
+    check('Chronik und Abschlusstabelle nicht doppelt', once.length===1, String(once.length));
+    const kept=collectPlacements(id).filter(r=>r.src==='historie'&&r.pl!=null).length;
+    check('Historie neben der Fixture erhalten', kept===histBefore, kept+' gegen '+histBefore);
+  }finally{
+    S.seasons=saved.seasons; S.chronicle=saved.chronicle; S.view=saved.view;
+    chronSeen=saved.chronSeen; chronIndex=saved.chronIndex; chronBuilt=saved.chronBuilt;
+    touchAnsehen();
+  }
+  const liveNow=(S.seasons||[]).filter(s=>s && s.status!=='done').map(s=>s.name);
+  const bayernNow=ansehenLedger('t001');
+  check('laufende Saison des Spielstands ohne Meistertitel', !bayernNow.lines.some(l=>l.kind==='titel' && liveNow.indexOf(l.season)>=0));
+  check('laufende Saison des Spielstands ohne Europa', !bayernNow.lines.some(l=>l.kind==='euro' && liveNow.indexOf(l.season)>=0));
+  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:a.value, historie:histBefore}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
 // Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
