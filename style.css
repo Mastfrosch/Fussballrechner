@@ -13,7 +13,10 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .nav-menu-btn.active,.nav-menu.open>.nav-menu-btn,.top-tools.open>.nav-menu-btn{color:var(--ink);font-weight:650;border-bottom-color:var(--green);background:#f3f7f4}
 .nav-drop{display:none;position:absolute;top:100%;left:0;min-width:196px;background:#fff;border:1px solid var(--line);padding:4px 0;z-index:40}
 .nav-menu:hover>.nav-drop,.nav-menu.open>.nav-drop,.top-tools:hover>.nav-drop,.top-tools.open>.nav-drop{display:block}
-.top-tools{margin-left:auto}
+.bright-ctl{display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 8px 0 4px;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.bright-ctl input{width:84px;margin:0;accent-color:var(--green)}
+#main{filter:brightness(var(--app-bright,1))}
+.top-tools{margin-left:0}
 .top-tools>.nav-drop{left:auto;right:0;min-width:220px}
 .nav-item{display:block;padding:6px 12px;color:var(--text);text-decoration:none;cursor:pointer;line-height:1.35;font-size:12.5px}
 .nav-item:hover{background:#f4f6f7}
@@ -139,6 +142,7 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .liga-tag{color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;flex:0 0 auto}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
 .club .mk{color:var(--muted);font-size:11px;margin:0 3px}
+.mk-out{color:var(--muted);font-size:11px;flex:0 0 auto;white-space:nowrap}
 .club:hover .nm{text-decoration:underline}
 .pts{font-weight:700}
 .form{display:inline-flex;gap:2px}
@@ -233,7 +237,30 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .map-tools{display:flex;gap:8px;align-items:center}
 .map-credit{margin:0;padding:8px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}
 .hist-split{border-top:2px solid var(--green);background:#e7f3ec;color:#145c38;font-weight:700;text-align:left;padding:7px 8px}
-.twin{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.twin{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.twin>.card{min-width:0}
+.twin>.card>table.tbl.stand{width:100%;table-layout:fixed}
+.twin>.card>table.tbl.stand th:nth-child(1),
+.twin>.card>table.tbl.stand td:nth-child(1){width:34px}
+.twin>.card>table.tbl.stand th:nth-child(3),
+.twin>.card>table.tbl.stand td:nth-child(3),
+.twin>.card>table.tbl.stand th:nth-child(4),
+.twin>.card>table.tbl.stand td:nth-child(4),
+.twin>.card>table.tbl.stand th:nth-child(5),
+.twin>.card>table.tbl.stand td:nth-child(5),
+.twin>.card>table.tbl.stand th:nth-child(6),
+.twin>.card>table.tbl.stand td:nth-child(6){width:32px}
+.twin>.card>table.tbl.stand th:nth-child(7),
+.twin>.card>table.tbl.stand td:nth-child(7){width:62px}
+.twin>.card>table.tbl.stand th:nth-child(8),
+.twin>.card>table.tbl.stand td:nth-child(8){width:42px}
+.twin>.card>table.tbl.stand th:nth-child(9),
+.twin>.card>table.tbl.stand td:nth-child(9){width:40px}
+.twin>.card>table.tbl.stand th:nth-child(10),
+.twin>.card>table.tbl.stand td:nth-child(10){width:96px}
+.twin>.card>table.tbl.stand td.l{overflow:hidden}
+.twin>.card>table.tbl.stand .club,
+.twin>.card>table.tbl.stand .club .nm{max-width:none}
 .ansehen-tools{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 .ansehen-break{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
 .ansehen-break div{background:#f4f7f5;border:1px solid var(--line);border-radius:0;padding:8px 10px;min-width:0}
@@ -390,8 +417,9 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .ansehen-tools .searchbox{max-width:280px}
 .pokal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .pokal-bar select{min-width:180px;max-width:100%}
-.match.cup{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 16px;width:100%;min-width:0}
-.match.cup.match-nodel{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr)}
+.match.cup,.match.axis{grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr) 16px;width:100%;min-width:0}
+.match.cup.match-nodel,.match.axis.match-nodel{grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr)}
+.match.axis .scorecol,.match.cup .scorecol{width:96px}
 .match.cup .side{min-width:0;overflow:hidden;gap:4px}
 .match.cup .ml-crest{width:32px;height:32px;flex-basis:32px}
 .match.cup .ml-name{font-size:12px}
@@ -461,8 +489,8 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .sieger-club{display:flex;align-items:center;gap:6px;min-width:0}
 .sieger-club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px}
 .sieger-club .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
-.sieger-club .ml-name{display:flex;align-items:baseline;gap:4px;font-size:13px;min-width:0;overflow:hidden}
-.sieger-club .nm-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sieger-club .ml-name{display:flex;align-items:baseline;gap:4px;font-size:13px;min-width:0;overflow:visible}
+.sieger-club .nm-txt{min-width:0;overflow:visible;text-overflow:clip;white-space:nowrap}
 .sieger-club .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15}
 .match.cup .ml-name:has(.liga-tag){display:flex;align-items:baseline;gap:4px}
 .br-round .br-m{border:0;border-top:1px solid var(--line);margin:0;padding:2px 8px}
@@ -487,9 +515,44 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .an-course b{color:#3a4a42;font-weight:650}
 .place-chart{width:100%;height:auto;background:#f7faf8;border:1px solid var(--line)}
 .place-chart polyline{fill:none;stroke:#1d6b45;stroke-width:2}
-.place-chart circle{fill:#1d6b45}
+.place-chart line.seg{stroke:#1d6b45;stroke-width:2}
+.place-chart line.seg.up{stroke:#1b7a3a;stroke-width:2.5}
+.place-chart line.seg.down{stroke:#b42318;stroke-width:2.5}
+.place-chart circle{fill:#fff;stroke:#1d6b45;stroke-width:1.5}
+.place-chart .dot.up circle{fill:#e5f6ea;stroke:#1b7a3a}
+.place-chart .dot.down circle{fill:#fdecea;stroke:#b42318}
+.place-chart .dot text{font-size:8px;fill:#1c1c1c;text-anchor:middle;font-weight:700}
 .place-chart line.band{stroke:#d5e0d8;stroke-width:1}
 .place-chart text{font-size:11px;fill:#5d6b64}
+.place-chart .dot text{font-size:8px;fill:#1c1c1c;font-weight:700}
+.ansehen-embed{margin-top:8px}
+.an-hero{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:18px;align-items:center;margin:8px 0 14px}
+.an-kicker{font-size:12px;color:var(--muted);letter-spacing:.02em}
+.an-total{font-size:42px;line-height:1.05;font-weight:700;font-variant-numeric:tabular-nums;color:#163828}
+.an-hero p{margin:8px 0 0;max-width:36em;color:#3c4741}
+.an-donut-wrap{display:flex;gap:16px;align-items:center}
+.an-donut{width:168px;height:168px;flex:0 0 168px}
+.an-donut-k{font-size:11px;fill:#6b7280}
+.an-donut-v{font-size:18px;font-weight:700;fill:#163828}
+.an-legs{display:flex;flex-direction:column;gap:4px;min-width:180px}
+.an-leg{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.an-leg i{width:12px;height:12px;display:block}
+.an-leg b{font-variant-numeric:tabular-nums}
+.an-course-svg{width:100%;height:auto;background:#f7faf8;border:1px solid var(--line)}
+.an-course-svg polyline{fill:none;stroke:#1d6b45;stroke-width:2}
+.an-course-svg .area{fill:#1d6b45;opacity:.12}
+.an-course-svg circle{fill:#1d6b45}
+.an-course-svg text{font-size:10px;fill:#5d6b64}
+.an-aging{margin:8px 0 12px;max-width:46em}
+.an-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.an-filter button{border:1px solid var(--line);background:#fff;padding:4px 10px;cursor:pointer}
+.an-filter button.active{background:#e7f2eb;border-color:#1d6b45;font-weight:650}
+.an-fold{border-top:1px solid var(--line);padding:8px 0}
+.an-fold summary{cursor:pointer;font-weight:650;margin-bottom:8px}
+.an-hero-name{display:flex;gap:12px;align-items:center;margin:12px 0}
+.an-hero-name img{width:56px;height:56px;object-fit:contain}
+.rec-line.rec-pairline{display:block;width:100%}
+.rec-line.rec-pairline .rec-meta{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
 .title-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .title-grid>div{background:#f7faf8;border:1px solid var(--line);border-radius:0;padding:8px 10px}
 .title-grid .seasons{color:#555;font-size:12px;line-height:1.35}
@@ -497,8 +560,8 @@ tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .sc-past>.muted{margin:0 0 2px}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
-.sieger-box{overflow:hidden}
-.sieger-row{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr) minmax(0,1.7fr);column-gap:12px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.sieger-box{overflow:visible}
+.sieger-row{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr) minmax(0,1.7fr);column-gap:12px;align-items:center;padding:9px 0;min-height:56px;border-bottom:1px solid var(--line)}
 .sieger-head{color:var(--muted);font-size:11px;font-weight:600}
 .sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
 .sieger-who{min-width:0}
