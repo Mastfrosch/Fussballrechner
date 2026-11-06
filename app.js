@@ -407,7 +407,7 @@ function ansehenLedger(id, endYear){
       if (r.won&&!scale.missing) push({season:r.season, src:'rechner', kind:'titel', label:'Landespokal-Titel '+(r.bl||''), original:scale.title||0, age, factor:titleFactor(age), note:'Rechner-Titel · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
     });
     (S.seasons||[]).forEach(season=>{
-      if (!season||!season.name||!season.supercup||seasonYear(season.name)>end) return;
+      if (!season||season.status!=='done'||!season.name||!season.supercup||seasonYear(season.name)>end) return;
       let winner=null;
       try{ winner=supercupWinner(season.supercup); }catch(e){ winner=null; }
       if (winner!==id) return;
@@ -2085,8 +2085,7 @@ function finalizeSeason(opts){
   ns.supercup = buildSupercup(s);
   compactSeason(s);
   S.seasons.push(ns); S.view=S.seasons.length-1; S.ui.tab='tabelle'; S.ui.md={};
-  if (!(opts && opts.batch)){ save(); render(); }
-  toast('Saison '+ns.name+' wurde erstellt.');
+  if (!(opts && opts.batch)){ save(); render(); toast('Saison '+ns.name+' wurde erstellt.'); }
 }
 
 // ---------- Pokal ----------
@@ -5248,10 +5247,18 @@ function viewAnsehenDetail(id, embedded){
   const info=ansehenInfo(id), t=TEAMS[id];
   const rows=ansehenSeasonRows(info);
   const rowSum=ansehenRound2(rows.reduce((s,r)=>s+r.sum,0));
+  const sumKind=k=>ansehenRound2((info.lines||[]).filter(l=>l.kind===k).reduce((s,l)=>s+(l.today||0),0));
+  const parts=[
+    {key:'liga', label:'Liga', value:sumKind('liga'), color:'#1d6b45'},
+    {key:'titel', label:'Titel', value:sumKind('titel'), color:'#c4a15a'},
+    {key:'dfb', label:'DFB-Pokal', value:sumKind('dfb'), color:'#2f6f9f'},
+    {key:'land', label:'Landespokal', value:sumKind('land'), color:'#6d8f78'},
+    {key:'euro', label:'Europa', value:sumKind('euro'), color:'#8a5a9a'}
+  ];
   let h=embedded?'<div class="ansehen-embed">':'<div class="box ansehen-embed"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button>';
   if (!embedded) h+='<div class="an-hero-name"><img src="'+esc(t.crest)+'" alt=""><div><h3>'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+'</div></div></div>';
-  h+='<div class="an-kicker">Ansehen bis '+info.end+'</div><div class="an-total">'+deNum(info.value,2)+'</div>';
-  h+='<p class="an-aging">Eine Zeile ist eine Saison. Liga, DFB-Pokal und Landespokal sind die Runden- und Platzpunkte. Titel stehen extra und nicht noch einmal in der Pokalspalte. Der Supercup ist ein kleiner Titel von '+deNum(ANSEHEN.supercup.title,2)+'.</p>';
+  h+='<div class="an-hero"><div><div class="an-kicker">Ansehen bis '+info.end+'</div><div class="an-total">'+deNum(info.value,2)+'</div>';
+  h+='<p class="an-aging">Eine Zeile ist eine Saison. Liga, DFB-Pokal und Landespokal sind die Runden- und Platzpunkte. Titel stehen extra und nicht noch einmal in der Pokalspalte. Der Supercup ist ein kleiner Titel von '+deNum(ANSEHEN.supercup.title,2)+'.</p></div>'+ansehenDonut(parts)+'</div>';
   h+='<table class="tbl an-season"><thead><tr><th class="l">Saison</th><th>Liga</th><th>DFB</th><th>Land</th><th>Titel</th><th>Europa</th><th>Summe</th></tr></thead><tbody>';
   if (!rows.length) h+='<tr><td class="l" colspan="7"><span class="muted">Keine gespeicherten Erfolge bis zu dieser Saison.</span></td></tr>';
   rows.forEach(r=>{
@@ -6739,51 +6746,106 @@ function mulberry32(seed){
     return ((t^t>>>14)>>>0)/4294967296;
   };
 }
-function measureSeasonRow(season, index){
-  const bl=(season.endData&&season.endData.tables&&season.endData.tables.BL)||[];
-  const champ=bl.find(r=>r&&r.pl===1);
-  let dfb=null, sc=null;
-  try{ const fin=cupFinalists(season.cups&&season.cups.dfb); dfb=fin&&fin.winner; }catch(e){}
-  try{ sc=supercupWinner(season.supercup); }catch(e){}
-  const end=seasonYear(season.name);
-  const ids=['t001','t002','t003'];
-  if (champ && ids.indexOf(champ.id)<0) ids.push(champ.id);
-  if (sc && ids.indexOf(sc)<0) ids.push(sc);
-  const clubs=ids.map(id=>{
-    const info=ansehenLedger(id, end);
-    const bad=info.lines.filter(l=>!isFinite(l.today)||l.today<0).length;
-    const scLines=info.lines.filter(l=>l.label==='Supercup-Titel'&&l.season===season.name);
-    const dup={};
-    let duplicated=0;
-    info.lines.forEach(l=>{ const k=l.season+'|'+l.kind+'|'+l.label; if(dup[k]) duplicated++; dup[k]=1; });
-    return {id, name:TEAMS[id].name, value:info.value, bad, supercupLines:scLines.length, duplicated};
-  });
-  return {i:index+1, season:season.name, meister:champ&&TEAMS[champ.id]?TEAMS[champ.id].name:'', dfb:dfb&&TEAMS[dfb]?TEAMS[dfb].name:'', supercup:sc&&TEAMS[sc]?TEAMS[sc].name:'', clubs};
+function expectedAnsehenFactor(line){
+  if (!line) return 0;
+  if (line.kind==='titel') return titleFactor(line.age);
+  if (!(line.original||0) && !(line.factor||0)) return 0;
+  return seasonFactor(line.age, line.src==='rechner');
 }
-function measureAnsehenSnapshot(){
+function measureBoard(endYear){
   const ids=Object.keys(TEAMS);
-  const vals=[];
-  let nan=0;
-  ids.forEach(id=>{
-    const v=ansehenValue(id);
-    if(!isFinite(v)||v<0) nan++;
-    else vals.push(v);
+  const kinds=['liga','dfb','land','titel','euro'];
+  const field={liga:0,dfb:0,land:0,titel:0,euro:0};
+  const audit={clubs:ids.length, lines:0, nan:0, negative:0, duplicateKeys:0, factorMismatch:0, supercupDoubles:0, historieOver50:0, rechnerBelowFloor:0, sumMismatch:0};
+  const rows=ids.map(id=>{
+    const info=ansehenLedger(id, endYear);
+    const parts={liga:0,dfb:0,land:0,titel:0,euro:0};
+    const seen={}, scSeen={};
+    info.lines.forEach(l=>{
+      audit.lines++;
+      if (!isFinite(l.today)) audit.nan++;
+      else if (l.today<0) audit.negative++;
+      if (parts[l.kind]!=null && isFinite(l.today)) parts[l.kind]+=l.today;
+      const key=l.season+'|'+l.kind+'|'+l.label+'|'+l.original;
+      if (seen[key]) audit.duplicateKeys++;
+      else seen[key]=1;
+      if (l.label==='Supercup-Titel'){
+        if (scSeen[l.season]) audit.supercupDoubles++;
+        scSeen[l.season]=1;
+      }
+      if (l.src==='historie' && l.age>=50 && l.kind!=='titel' && l.factor!==0) audit.historieOver50++;
+      if (l.src==='rechner' && l.age>=50 && l.kind!=='titel' && (l.original||0)>0 && Math.abs((l.factor||0)-ANSEHEN.rechnerFloorW)>0.001) audit.rechnerBelowFloor++;
+      const expect=expectedAnsehenFactor(l);
+      if (Math.abs((l.factor||0)-expect)>0.001) audit.factorMismatch++;
+    });
+    kinds.forEach(k=>{ parts[k]=ansehenRound2(parts[k]); field[k]+=parts[k]; });
+    const partSum=ansehenRound2(kinds.reduce((s,k)=>s+parts[k],0));
+    if (Math.abs(partSum-info.value)>0.05) audit.sumMismatch++;
+    return {id, name:TEAMS[id].name, value:info.value, liga:parts.liga, dfb:parts.dfb, land:parts.land, titel:parts.titel, euro:parts.euro};
   });
-  vals.sort((a,b)=>b-a);
-  const sum=ansehenRound2(vals.reduce((s,v)=>s+v,0));
-  return {clubs:vals.length, nan, max:vals[0]||0, p10:vals[Math.floor(vals.length*0.1)]||0, median:vals[Math.floor(vals.length/2)]||0, min:vals[vals.length-1]||0, sum};
+  rows.sort((a,b)=>b.value-a.value || a.name.localeCompare(b.name,'de'));
+  const vals=rows.map(r=>r.value).filter(v=>isFinite(v));
+  kinds.forEach(k=>field[k]=ansehenRound2(field[k]));
+  field.sum=ansehenRound2(kinds.reduce((s,k)=>s+field[k],0));
+  const share=k=>field.sum?ansehenRound2(100*field[k]/field.sum):0;
+  return {
+    stichtag:endYear,
+    clubs:rows.length,
+    dist:{max:vals[0]||0, p10:vals[Math.floor(vals.length*0.1)]||0, median:vals[Math.floor(vals.length/2)]||0, min:vals[vals.length-1]||0, sum:ansehenRound2(vals.reduce((s,v)=>s+v,0))},
+    field, fieldShare:{liga:share('liga'), dfb:share('dfb'), land:share('land'), titel:share('titel'), euro:share('euro')},
+    audit,
+    order:rows.map(r=>r.id),
+    top:rows.slice(0,10).map((r,i)=>Object.assign({rank:i+1}, r))
+  };
 }
-function simulateIsolated(n, seed){
+function heritageSplit(id, endYear){
+  const info=ansehenLedger(id, endYear);
+  const g={value:info.value, historie:0, historieAge50:0, rechnerAge0to4:0, rechnerAge50:0, titel:0, titelAge60:0, lines:info.lines.length};
+  info.lines.forEach(l=>{
+    const v=l.today||0;
+    if (l.src==='historie'){ g.historie+=v; if (l.age>=50) g.historieAge50+=v; }
+    else {
+      if (l.age<=4) g.rechnerAge0to4+=v;
+      if (l.age>=50) g.rechnerAge50+=v;
+    }
+    if (l.kind==='titel'){ g.titel+=v; if (l.age>=60) g.titelAge60+=v; }
+  });
+  ['historie','historieAge50','rechnerAge0to4','rechnerAge50','titel','titelAge60'].forEach(k=>g[k]=ansehenRound2(g[k]));
+  return g;
+}
+function clubLeagueName(season, id){
+  if (!season) return '';
+  const lid=clubLeagueId(season, id);
+  if (L[lid]) return L[lid].name;
+  if (P[lid] || Object.keys(season.pools||{}).some(pid=>(season.pools[pid]||[]).indexOf(id)>=0)) return 'Amateurliga';
+  return '';
+}
+let simHold=null;
+function releaseSim(){
+  if (!simHold) return false;
+  Math.random=simHold.random;
+  S=simHold.state;
+  saveHold=0;
+  resetDerivedIndex();
+  simHold=null;
+  return true;
+}
+function simulateIsolated(n, seed, hold){
   const backup=S;
   const random=Math.random;
   const t0=performance.now();
-  const report={seed:seed==null?20261106:seed|0, asked:n|0, done:0, seasons:[], snaps:{}, error:null, start:'', end:''};
+  const user={seasons:(backup.seasons||[]).length, view:backup.view, name:backup.seasons&&backup.seasons[backup.view]?backup.seasons[backup.view].name:'', ansehen:ansehenValue('t001')};
+  const report={seed:seed==null?20261106:seed|0, asked:n|0, done:0, seasons:[], milestones:{}, moves:{auf:[], ab:[]}, error:null, userBefore:user, stichtag:'Jahr der abgeschlossenen Saison. Die danach geöffnete Saison ist nicht enthalten.'};
   try{
     Math.random=mulberry32(report.seed);
     S=newGame();
     resetDerivedIndex();
     saveHold=1;
-    report.start=S.seasons[0].name;
+    const first=S.seasons[0];
+    report.startSeason=first.name;
+    report.startYear=dataEndYear();
+    report.milestones['0']=measureBoard(report.startYear);
+    report.milestones['0'].label='vor '+first.name;
     for(let i=0;i<(n|0);i++){
       const s=latest();
       if(!s || s.status!=='running'){ report.error='keine laufende Saison vor Schritt '+(i+1); break; }
@@ -6798,25 +6860,88 @@ function simulateIsolated(n, seed){
       s.endData=computeTransition(s);
       s.status='ending';
       suggestPicks(s.endData);
+      const moving=(s.endData&&s.endData.moves)||[];
       finalizeSeason({quiet:true, batch:true});
       ageSeasons();
       const done=S.seasons[S.seasons.length-2];
-      report.seasons.push(measureSeasonRow(done, i));
+      const bl=(done.endData&&done.endData.tables&&done.endData.tables.BL)||[];
+      const champ=bl.find(r=>r&&r.pl===1);
+      let dfb=null, sc=null;
+      try{ const fin=cupFinalists(done.cups&&done.cups.dfb); dfb=fin&&fin.winner; }catch(e){}
+      try{ sc=supercupWinner(done.supercup); }catch(e){}
+      report.seasons.push({i:i+1, season:done.name, year:seasonYear(done.name), meister:champ&&TEAMS[champ.id]?TEAMS[champ.id].name:'', dfb:dfb&&TEAMS[dfb]?TEAMS[dfb].name:'', supercup:sc&&TEAMS[sc]?TEAMS[sc].name:''});
+      moving.forEach(m=>{
+        if (!m || !TEAMS[m.id] || !L[m.from]) return;
+        const row={season:done.name, year:seasonYear(done.name), id:m.id, name:TEAMS[m.id].name, from:m.from, fromName:L[m.from].name, fromLevel:L[m.from].level, to:m.to, toName:L[m.to]?L[m.to].name:(P[m.to]?'Amateurliga':String(m.to||'')), toLevel:L[m.to]?L[m.to].level:7, pl:m.pl, type:m.type};
+        if (m.type==='auf' && report.moves.auf.length<40 && L[m.to] && L[m.to].level<L[m.from].level) report.moves.auf.push(row);
+        if (m.type==='ab' && report.moves.ab.length<40) report.moves.ab.push(row);
+      });
       report.done=i+1;
-      if(report.done===1||report.done===5||report.done===10||report.done===20||report.done===50||report.done===n) report.snaps[report.done]=measureAnsehenSnapshot();
+      if (report.done===10||report.done===50||report.done===n){
+        const board=measureBoard(seasonYear(done.name));
+        board.label='Ende '+done.name;
+        report.milestones[String(report.done)]=board;
+      }
     }
-    const last=S.seasons[S.seasons.length-2]||latest();
-    report.end=last?last.name:'';
-    const bayern=ansehenLedger('t001', seasonYear(report.end));
-    report.bayern={value:bayern.value, historieOver50:bayern.lines.filter(l=>l.src==='historie'&&l.age>=50&&l.kind!=='titel'&&l.factor!==0).length, supercup:bayern.lines.filter(l=>l.label==='Supercup-Titel').length, bad:bayern.lines.filter(l=>!isFinite(l.today)||l.today<0).length};
+    const last=S.seasons[S.seasons.length-2];
+    const opened=latest();
+    report.endSeason=last?last.name:'';
+    report.endYear=last?seasonYear(last.name):0;
+    report.openSeason=opened?opened.name:'';
+    report.openYear=opened?seasonYear(opened.name):0;
+    if (last && report.milestones['100']){
+      const closed=report.milestones['100'];
+      const openBoard=measureBoard(report.openYear);
+      report.crosscheck={
+        closedYear:report.endYear, closedMax:closed.dist.max, closedBayern:(closed.top.find(r=>r.id==='t001')||{}).value,
+        openYear:report.openYear, openMax:openBoard.dist.max, openBayern:(openBoard.order.indexOf('t001')>=0?ansehenLedger('t001', report.openYear).value:null)
+      };
+      const bayernClosed=closed.top.find(r=>r.id==='t001')||closed.order.indexOf('t001');
+      report.crosscheck.closedBayern=ansehenLedger('t001', report.endYear).value;
+      report.crosscheck.bayernRankClosed=closed.order.indexOf('t001')+1;
+      report.crosscheck.bayernRankOpen=openBoard.order.indexOf('t001')+1;
+      void bayernClosed;
+    }
+    const startOrder=report.milestones['0']?report.milestones['0'].order:[];
+    const startRank=id=>startOrder.indexOf(id)+1;
+    const pick=(list, pred)=>list.find(pred)||list[0]||null;
+    const auf=pick(report.moves.auf, m=>m.fromLevel>=3 && startRank(m.id)>30);
+    const ab=pick(report.moves.ab, m=>m.fromLevel<=2 && startRank(m.id)>10 && (!auf || m.id!==auf.id));
+    const describe=m=>{
+      if (!m) return null;
+      const end=report.endYear;
+      return Object.assign({}, m, {
+        startRank:startRank(m.id),
+        endRank:report.milestones['100']?report.milestones['100'].order.indexOf(m.id)+1:0,
+        atMove:heritageSplit(m.id, m.year),
+        atEnd:heritageSplit(m.id, end),
+        atStart:heritageSplit(m.id, report.startYear),
+        leagueAtEnd:clubLeagueName(latest(), m.id)
+      });
+    };
+    report.examples={auf:describe(auf), ab:describe(ab), bayern:Object.assign({id:'t001', name:TEAMS.t001.name, startRank:startRank('t001'), endRank:report.milestones['100']?report.milestones['100'].order.indexOf('t001')+1:0, leagueAtEnd:clubLeagueName(latest(), 't001')}, {atStart:heritageSplit('t001', report.startYear), atEnd:heritageSplit('t001', report.endYear)})};
+    const mileKeys=['0','10','50','100'].filter(k=>report.milestones[k]);
+    mileKeys.forEach(key=>{
+      report.milestones[key].top.forEach(r=>{
+        r.ranks={};
+        mileKeys.forEach(k=>r.ranks[k]=report.milestones[k].order.indexOf(r.id)+1);
+      });
+    });
+    mileKeys.forEach(key=>delete report.milestones[key].order);
+    report.moves={auf:report.moves.auf.length, ab:report.moves.ab.length};
   }catch(e){
     report.error=String(e&&e.stack||e&&e.message||e);
   }finally{
     report.ms=Math.round(performance.now()-t0);
     Math.random=random;
-    S=backup;
-    saveHold=0;
-    resetDerivedIndex();
+    if (hold && !report.error && report.done===(n|0)){
+      simHold={state:backup, random};
+      saveHold=1;
+    } else {
+      S=backup;
+      saveHold=0;
+      resetDerivedIndex();
+    }
   }
   return report;
 }
@@ -6933,5 +7058,5 @@ function boot(){
 boot();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenSelfTest, uiSelfTest, simulateIsolated, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, get state(){return S;}, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenSelfTest, uiSelfTest, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();

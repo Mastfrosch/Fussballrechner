@@ -635,10 +635,10 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .fx-spiel{padding-left:4px;padding-right:4px}
 .fx-bye .fx-spiel{text-align:right;color:#5c6b76;font-size:12px;letter-spacing:.04em;padding-right:10px}
 tr.fx-top td{background:#fbf8ef}
-.fx-spiel .match.fx-line{display:grid;grid-template-columns:minmax(10em,24em) 6.4em minmax(10em,24em);width:max-content;max-width:100%;border:0;padding:2px 0;gap:8px}
-.fx-line .side{min-width:0;overflow:hidden}
-.fx-line .ml-name{font-size:14.5px;color:#1c1c1c;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:18em}
-.match.fx-line .ml-crest{width:22px;height:22px;flex:0 0 22px}
+.fx-spiel .match.fx-line{display:grid;grid-template-columns:minmax(12em,1fr) 6.6em minmax(12em,1fr);width:100%;max-width:100%;border:0;padding:6px 0;gap:10px}
+.fx-line .side{min-width:0;overflow:visible}
+.fx-line .ml-name{font-size:14.5px;color:#1c1c1c;overflow:visible;text-overflow:clip;white-space:normal;min-width:0;max-width:none;line-height:1.25}
+.match.fx-line .ml-crest{width:28px;height:28px;flex:0 0 28px}
 .match.fx-box .scoreline,.match.fx-box.tone-open .score{background:#eef1f4;border-radius:0;padding:1px 7px;min-width:2.8em;box-sizing:border-box}
 .match.fx-box.tone-win .scoreline{background:#e5f6ea}
 .match.fx-box.tone-draw .scoreline{background:#fff4e0}
