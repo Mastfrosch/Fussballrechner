@@ -264,6 +264,16 @@ function euroOf(level, place){
   if (place===7) return {key:'UECL', pts:ANSEHEN.euro.UECL};
   return null;
 }
+function euroClaim(src, level, place, id, season){
+  if (src!=='rechner') return null;
+  const league=euroOf(level, place);
+  let key=league?league.key:null;
+  let cup=false;
+  try{ cup=(runsById(id)||[]).some(r=>r&&r.comp==='dfb'&&r.season===season&&r.won); }catch(e){ cup=false; }
+  if (cup && key!=='CL') key='EL';
+  if (!key) return null;
+  return {key, pts:ANSEHEN.euro[key]};
+}
 function landAnsehenScale(ids, season, roundNames){
   const names=(roundNames||[]).filter(Boolean);
   let field=0, unknown=0;
@@ -357,8 +367,8 @@ function ansehenLedger(id, endYear){
       const note=age>=50?(rechner?'Rechner-Saison, dauerhafter Grundwert':'importierte Historie, älter als 50 Jahre'):(rechner?'im Rechner gespielt':'importierte Historie');
       push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:(p.liga||'Liga')+' '+p.pl+'.'+(p.n?'/'+p.n:''), original:placePoints(level, p.n||spec.size||18, p.pl), age, factor, note});
       if (p.pl===1) push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age), note:(rechner?'Rechner-Titel':'historischer Titel')+' · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
-      const euro=euroOf(level, p.pl);
-      if (euro) push({season:p.season, src:rechner?'rechner':'historie', kind:'euro', label:'Qualifikation '+euro.key, original:euro.pts, age, factor, note:'nur der höchste Wettbewerb dieser Saison'});
+      const euro=euroClaim(rechner?'rechner':'historie', level, p.pl, id, p.season);
+      if (euro) push({season:p.season, src:'rechner', kind:'euro', label:'Qualifikation '+euro.key, original:euro.pts, age, factor, note:'Rechner-Regel: Bundesliga 1–4 CL, 5–6 EL, 7 UECL. DFB-Pokalsieger EL, wenn das höher ist. Nur der höchste Wettbewerb.'});
     });
     let runs=[];
     try{ runs=runsById(id)||[]; }catch(e){ runs=[]; }
@@ -372,8 +382,9 @@ function ansehenLedger(id, endYear){
         if (!prev||pts>prev.pts||(pts===prev.pts&&r.won&&!prev.won)) dfbBest[r.season]={round:r.round, pts, won:!!r.won};
       } else if (r.comp==='land'){
         const key=r.season+'|'+(r.bl||'');
+        const rank=roundRank(r.round);
         const prev=landBest[key];
-        if (!prev||(r.won&&!prev.won)) landBest[key]={season:r.season, bl:r.bl||'', round:r.round||'', won:!!r.won};
+        if (!prev||rank>prev.rank||(rank===prev.rank&&r.won&&!prev.won)) landBest[key]={season:r.season, bl:r.bl||'', round:r.round||'', won:!!r.won, rank};
       }
     });
     Object.keys(dfbBest).forEach(season=>{
@@ -547,7 +558,97 @@ function ansehenSelfTest(){
   const bayernNow=ansehenLedger('t001');
   check('laufende Saison des Spielstands ohne Meistertitel', !bayernNow.lines.some(l=>l.kind==='titel' && liveNow.indexOf(l.season)>=0));
   check('laufende Saison des Spielstands ohne Europa', !bayernNow.lines.some(l=>l.kind==='euro' && liveNow.indexOf(l.season)>=0));
-  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:a.value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
+  check('keine erfundene historische Europa-Qualifikation', !bayernNow.lines.some(l=>l.src==='historie'&&l.kind==='euro'));
+  const byeCup={rounds:[
+    {name:'1. Runde', byes:['tBye'], matches:[{h:'tWin', a:'tOpp', hg:3, ag:1}]},
+    {name:'2. Runde', byes:[], matches:[{h:'tBye', a:'tWin', hg:null, ag:null}]}
+  ]};
+  const byeReached=cupReached(byeCup);
+  const byePts=id=>ANSEHEN.dfb[byeReached[id].name];
+  check('Freilos und Sieger erreichen dieselbe 2. Runde', byeReached.tBye.name==='2. Runde' && byeReached.tWin.name==='2. Runde' && byeReached.tOpp.name==='1. Runde');
+  check('Freilos und Sieger haben dieselben Runde-2-Punkte', byePts('tBye')===byePts('tWin') && byePts('tBye')===ANSEHEN.dfb['2. Runde'] && byePts('tOpp')===ANSEHEN.dfb['1. Runde']);
+  const stamp={
+    seasons:S.seasons, chronicle:S.chronicle, pokalRuns:S.pokalRuns, view:S.view,
+    chronSeen, chronIndex, chronBuilt, runIndex, runBuilt, runSeasons,
+    n:(S.seasons||[]).length, an:ansehenValue('t001')
+  };
+  try{
+    const id='t010';
+    const teams=['t010'];
+    for (let i=11;i<=29;i++) teams.push('t'+String(i).padStart(3,'0'));
+    const rows=teams.map((tid,i)=>({id:tid, pl:i+1}));
+    const early={name:'2088/89', status:'done', compact:true, leagues:{BL:{teams, tables:{all:rows}}}, endData:{tables:{BL:rows}}, pools:{}};
+    const mid={name:'2094/95', status:'done', compact:true, leagues:{BL:{teams, tables:{all:rows.map((r,i)=>({id:r.id, pl:((i+3)%20)+1}))}}}, endData:{tables:{}}, pools:{}};
+    const future={name:'2099/00', status:'done', compact:true, leagues:{BL:{teams, tables:{all:rows}}}, endData:{tables:{BL:rows}}, pools:{}};
+    S.seasons=[early, mid, future];
+    S.view=1;
+    S.chronicle=[{season:'2088/89', id, liga:'Bundesliga', ebene:1, n:20, pl:1, pts:80}];
+    S.pokalRuns=[
+      {season:'2088/89', id, comp:'land', bl:'Bayern', round:'Achtelfinale', won:false},
+      {season:'2088/89', id, comp:'land', bl:'Bayern', round:'Finale', won:false},
+      {season:'2088/89', id:'t011', comp:'dfb', round:'Finale', won:true},
+      {season:'2088/89', id:'t012', comp:'dfb', round:'Finale', won:true}
+    ];
+    chronSeen=null; chronIndex=null; chronBuilt=-1; runIndex=null; runBuilt=-1; runSeasons=null;
+    touchAnsehen();
+    const land=ansehenLedger(id, 2094).lines.filter(l=>l.kind==='land'&&l.season==='2088/89');
+    check('weiteste Landespokalrunde', land.length===1 && land[0].label.indexOf('Finale')>=0 && land[0].label.indexOf('Achtelfinale')<0, land.map(l=>l.label).join(','));
+    S.chronicle.push({season:'2088/89', id:'t011', liga:'Bundesliga', ebene:1, n:20, pl:8, pts:40});
+    S.chronicle.push({season:'2088/89', id:'t012', liga:'Bundesliga', ebene:1, n:20, pl:1, pts:80});
+    chronIndex=null; chronBuilt=-1; chronSeen=null;
+    touchAnsehen();
+    const euro8=ansehenLedger('t011', 2094).lines.filter(l=>l.kind==='euro'&&l.season==='2088/89');
+    const euro1=ansehenLedger('t012', 2094).lines.filter(l=>l.kind==='euro'&&l.season==='2088/89');
+    check('DFB-Sieger ohne Ligaplatz Europa bekommt nur EL', euro8.length===1 && euro8[0].label.indexOf('EL')>=0 && euro8[0].label.indexOf('UECL')<0, euro8.map(l=>l.label).join(','));
+    check('DFB-Sieger mit CL behält nur CL', euro1.length===1 && euro1[0].label.indexOf('CL')>=0 && euro1[0].label.indexOf('EL')<0, euro1.map(l=>l.label).join(','));
+    const atEarly=ansehenInfo(id, 2088).value;
+    const atMid=ansehenInfo(id, 2094);
+    const discounted=ansehenRound2(atMid.lines.filter(l=>l.season==='2088/89').reduce((s,l)=>s+l.today,0));
+    const head=ansehenHead(id);
+    check('Verlauf ist der damalige Gesamtstand', head.indexOf('2088/89 '+deNum(atEarly,2))>=0 && head.indexOf('2094/95 '+deNum(atMid.value,2))>=0, head);
+    check('Verlauf ist nicht der heutige Saisonbeitrag', atEarly>discounted, atEarly+' gegen '+discounted);
+    check('Verlauf schließt die Zukunft aus', head.indexOf('2099/00')<0 && !atMid.lines.some(l=>l.season==='2099/00'));
+    const scale={budget:3.25, title:0.59, rounds:['Finale'], n:2, field:1.2, unknown:0, byLevel:{7:2}};
+    const keptCup={id:'land:Bayern', kind:'land', bl:'Bayern', name:'Landespokal Bayern', entrants:['t010','t011'], rounds:[{name:'Finale', matches:[]}], ansehenScale:scale};
+    const freshIds=['t020','t021','t022','t023'];
+    const fresh={name:'2077/78', status:'done', compact:true, pools:{}, leagues:{L3:{teams:freshIds, tables:{all:freshIds.map((tid,i)=>({id:tid, pl:i+1}))}}}, cups:{dfb:null, land:{Bayern:{id:'land:Bayern', kind:'land', bl:'Bayern', name:'Landespokal Bayern', entrants:freshIds.slice(), rounds:[{name:'Halbfinale'},{name:'Finale'}]}}}};
+    const expected=landAnsehenScale(freshIds, fresh, ['Halbfinale','Finale']);
+    const disk=packForDisk({v:1, seasons:[
+      {name:'2080/81', status:'done', compact:true, leagues:{}, pools:{}, cups:{dfb:null, land:{Bayern:keptCup}}}
+    ], chronicle:[], pokalRuns:[], view:0});
+    const back=unpackState(JSON.parse(JSON.stringify(disk)));
+    const got=back.seasons[0].cups.land.Bayern.ansehenScale;
+    check('ansehenScale übersteht pack und reload', !!got && got.budget===3.25 && got.field===1.2 && got.rounds[0]==='Finale', JSON.stringify(got));
+    shrinkSeason(fresh);
+    check('Archiv friert die Skala ein und löscht das Feld', !fresh.cups.land.Bayern.entrants && fresh.cups.land.Bayern.ansehenScale.budget===expected.budget, JSON.stringify(fresh.cups.land.Bayern.ansehenScale));
+    const disk2=packForDisk({v:1, seasons:[fresh], chronicle:[], pokalRuns:[], view:0});
+    const back2=unpackState(JSON.parse(JSON.stringify(disk2)));
+    check('eingefrorene Skala übersteht Archiv und Reload', back2.seasons[0].cups.land.Bayern.ansehenScale.budget===expected.budget && !back2.seasons[0].cups.land.Bayern.entrants);
+    const base=ansehenValue(id);
+    S.chronicle.push({season:'2090/91', id, liga:'Bundesliga', ebene:1, n:20, pl:1, pts:80});
+    chronIndex=null; chronBuilt=-1; chronSeen=null;
+    check('Cache hält den alten Wert bis zur Invalidierung', ansehenValue(id)===base);
+    touchAnsehen();
+    check('touchAnsehen verwirft den Cache', ansehenValue(id)!==base);
+    S.seasons=stamp.seasons; S.view=stamp.view; S.pokalRuns=stamp.pokalRuns; S.chronicle=stamp.chronicle;
+    chronSeen=null; chronIndex=null; chronBuilt=-1; runIndex=null; runBuilt=-1; runSeasons=null;
+    touchAnsehen();
+    if (stamp.seasons.length>1){
+      const firstYear=seasonYear(stamp.seasons[0].name);
+      const lastName=stamp.seasons[stamp.seasons.length-1].name;
+      S.view=0;
+      touchAnsehen();
+      const earlyLines=ansehenLedger('t001', firstYear).lines;
+      check('Saisonwechsel blendet spätere Jahre aus', firstYear<seasonYear(lastName) && !earlyLines.some(l=>l.season===lastName));
+    }
+  }finally{
+    S.seasons=stamp.seasons; S.chronicle=stamp.chronicle; S.pokalRuns=stamp.pokalRuns; S.view=stamp.view;
+    chronSeen=stamp.chronSeen; chronIndex=stamp.chronIndex; chronBuilt=stamp.chronBuilt;
+    runIndex=stamp.runIndex; runBuilt=stamp.runBuilt; runSeasons=stamp.runSeasons;
+    touchAnsehen();
+  }
+  check('Tests stellen den Spielstand wieder her', S.seasons===stamp.seasons && S.chronicle===stamp.chronicle && S.pokalRuns===stamp.pokalRuns && S.view===stamp.view && (S.seasons||[]).length===stamp.n && ansehenValue('t001')===stamp.an);
+  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
 // Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
@@ -882,6 +983,7 @@ function packCup(cup){
   const out={id:cup.id, name:cup.name, kind:cup.kind, bl:cup.bl, entrants:cup.entrants, pro:cup.pro, amateur:cup.amateur, spots:cup.spots, rounds};
   if (cup.roundNames) out.roundNames=cup.roundNames;
   if (cup.archived) out.archived=true;
+  if (cup.ansehenScale && cup.ansehenScale.budget!=null) out.ansehenScale=cup.ansehenScale;
   return out;
 }
 function unpackCup(cup){
@@ -1793,8 +1895,20 @@ function shrinkCup(cup){
   cup.rounds=[{name:'Finale', drawn:true, neutral:cup.kind==='dfb', archived:false, byes:[], matches:fin?[fin]:[]}];
   delete cup.entrants; delete cup.pro; delete cup.amateur;
 }
+function freezeLandScale(season){
+  if (!season || !season.cups || !season.cups.land) return;
+  Object.keys(season.cups.land).forEach(bl=>{
+    const cup=season.cups.land[bl];
+    if (!cup || (cup.ansehenScale && cup.ansehenScale.budget!=null)) return;
+    const ids=cup.entrants||[];
+    if (!ids.length) return;
+    const names=(cup.roundNames&&cup.roundNames.length)?cup.roundNames:(cup.rounds||[]).map(r=>r&&r.name).filter(Boolean);
+    cup.ansehenScale=landAnsehenScale(ids, season, names);
+  });
+}
 function shrinkSeason(season){
   if (!season || season.slim==='core' || season.status!=='done' || !season.compact) return false;
+  freezeLandScale(season);
   if (season.cups){
     shrinkCup(season.cups.dfb);
     if (season.cups.land) Object.keys(season.cups.land).forEach(bl=>shrinkCup(season.cups.land[bl]));
@@ -4995,7 +5109,7 @@ function ansehenLegendHTML(){
     curve+='<tr><td class="l">'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age),2)+'</td></tr>';
   });
   const rule='Rechner: Alter 0–'+c.fullUntil+' Faktor 1. Alter '+(c.fullUntil+1)+'–'+c.midUntil+' jede Saison −'+deNum(c.midStep,3)+'. Alter '+(c.midUntil+1)+'–'+c.gentleUntil+' jede Saison −'+deNum(c.gentleStep,3)+', von '+deNum(c.gentleAt10,2)+' auf '+deNum(c.lateAt20,2)+'. Alter '+(c.gentleUntil+1)+'–'+c.floorAt+' linear von '+deNum(c.lateAt20,2)+' auf '+deNum(ANSEHEN.rechnerFloorW,2)+', also '+deNum(lateStep,4)+' pro Jahr. Ab Alter '+c.floorAt+' bleibt der Rechner-Faktor '+deNum(ANSEHEN.rechnerFloorW,2)+'. Alter '+ (c.floorAt-1)+' ist '+deNum(seasonFactor(c.floorAt-1, true),2)+', Alter '+c.floorAt+' ist '+deNum(seasonFactor(c.floorAt, true),2)+'. Importierte Historie ist ab Alter '+c.floorAt+' genau 0. Titel: jedes Jahr −0,01 des Ursprungswerts, ab Alter 60 genau 0,40.';
-  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten. Meister inklusive Titel bleiben bei jedem gleichen Rechner-Alter von 0 bis 150 unter dem letzten Platz der nächsthöheren Liga. Gleiche Stufe, gleiche Skala.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde, nicht die Summe aller vorherigen Runden. Der Titel ist ein eigener Posten. Die 2. Runde bleibt bei jedem Rechner-Alter von 0 bis 150 über 1. Runde plus dem Maximum aus Landespokal-Finale und Landespokal-Titel.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table><p>Europa, nur der höchste Wettbewerb: CL '+ANSEHEN.euro.CL+', EL '+ANSEHEN.euro.EL+', UECL '+ANSEHEN.euro.UECL+'.</p></div></div><div class="ansehen-card"><h3>Alterskurve</h3><p>'+rule+'</p><table class="tbl"><thead><tr><th class="l">Alter</th><th>Rechner</th><th>Historie</th><th>Titel</th></tr></thead><tbody>'+curve+'</tbody></table></div><p class="muted">Landespokal: Budget aus Teilnehmerfeld und Rundenzahl, vor der Saison festgehalten. Fehlt das Feld, steht das in der Zeile und sie zählt 0.</p>';
+  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten. Meister inklusive Titel bleiben bei jedem gleichen Rechner-Alter von 0 bis 150 unter dem letzten Platz der nächsthöheren Liga. Gleiche Stufe, gleiche Skala.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde, nicht die Summe aller vorherigen Runden. Der Titel ist ein eigener Posten. Die 2. Runde bleibt bei jedem Rechner-Alter von 0 bis 150 über 1. Runde plus dem Maximum aus Landespokal-Finale und Landespokal-Titel.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table><p>Europa nur im Rechner, nur der höchste Wettbewerb: Bundesliga 1–4 CL '+ANSEHEN.euro.CL+', 5–6 EL '+ANSEHEN.euro.EL+', 7 UECL '+ANSEHEN.euro.UECL+'. Der DFB-Pokalsieger erhält EL, wenn das höher ist als der Ligaplatz. Importierte Historie hat keine gespeicherte Europateilnahme und bleibt ohne diesen Posten.</p></div></div><div class="ansehen-card"><h3>Alterskurve</h3><p>'+rule+'</p><table class="tbl"><thead><tr><th class="l">Alter</th><th>Rechner</th><th>Historie</th><th>Titel</th></tr></thead><tbody>'+curve+'</tbody></table></div><p class="muted">Landespokal: Budget aus Teilnehmerfeld und Rundenzahl, vor der Saison festgehalten. Fehlt das Feld, steht das in der Zeile und sie zählt 0.</p>';
 }
 function weightClass(factor){ return factor>=0.96?'w-hot':factor>0?'w-on':'w-off'; }
 function viewAnsehenDetail(id){
@@ -5221,14 +5335,19 @@ function ansehenHead(id){
   let cur=null, course='';
   try{ const v=ansehenValue(id); if (v!=null && isFinite(+v)) cur=+v; }catch(e){ cur=null; }
   try{
-    const info=ansehenInfo(id);
-    const by={};
-    (info.lines||[]).forEach(l=>{ by[l.season]=(by[l.season]||0)+l.today; });
-    const list=Object.keys(by).sort((a,b)=>a<b?1:-1).slice(0,8);
-    course=list.map(s=>esc(s)+' '+esc(deNum(by[s],2))).join(' · ');
+    const end=ansehenEndYear();
+    const seen=new Set(), years=[];
+    (S.seasons||[]).forEach(s=>{
+      const y=seasonYear(s&&s.name);
+      if (!s||!s.name||!y||y>end||seen.has(y)) return;
+      seen.add(y);
+      years.push({y, name:s.name});
+    });
+    years.sort((a,b)=>b.y-a.y);
+    course=years.slice(0,8).map(s=>esc(s.name)+' '+esc(deNum(ansehenInfo(id, s.y).value,2))).join(' · ');
   }catch(e){ course=''; }
   let h='<div class="ansehen-now">Ansehen <b>'+(cur==null?'–':esc(deNum(cur,2)))+'</b></div>';
-  if (course) h+='<div class="an-course"><b>Verlauf</b> '+course+'</div>';
+  if (course) h+='<div class="an-course" title="Gesamtansehen zum jeweiligen Saisonende, ohne spätere Jahre"><b>Verlauf</b> '+course+'</div>';
   return h;
 }
 function cupRunLine(run, empty){
