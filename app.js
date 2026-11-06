@@ -214,26 +214,31 @@ function simStrength(id){
 // Platzierungen und Pokalrunden, nichts wird aufsummiert in den Spielstand geschrieben.
 const ANSEHEN = {
   levels:{
-    1:{first:400,last:200,title:200,floor:8},
-    2:{first:170,last:110,title:12,floor:5},
-    3:{first:96,last:62,title:8,floor:3},
-    4:{first:54,last:36,title:5,floor:2},
-    5:{first:30,last:18,title:3,floor:1.2},
-    6:{first:15,last:8,title:2,floor:0.7},
-    7:{first:6,last:2,title:1,floor:0.4}
+    1:{first:480,last:240,title:180},
+    2:{first:160,last:104,title:10},
+    3:{first:74,last:48,title:4},
+    4:{first:34,last:22,title:1.8},
+    5:{first:16,last:10.4,title:0.8},
+    6:{first:7.4,last:4.8,title:0.35},
+    7:{first:3.2,last:1.8,title:0.16}
   },
   euro:{CL:36,EL:22,UECL:12},
   dfb:{'1. Runde':40,'2. Runde':110,'Achtelfinale':150,'Viertelfinale':180,'Halbfinale':200,'Finale':215,title:55},
   land:{levelW:{1:0,2:0,3:6,4:4.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, capBudget:32, titleShare:0.18},
-  rechnerFloorW:0.08
+  rechnerFloorW:0.12,
+  curve:{fullUntil:4, midUntil:10, midStep:0.035, gentleUntil:20, gentleAt10:0.79, gentleStep:0.012, lateAt20:0.67, floorAt:50}
 };
 function ansehenRound2(x){ return Math.round((+x||0)*100)/100; }
 function ageWeight(age){
   const a=Math.max(0, age|0);
-  if (a<=4) return 1;
-  if (a<=10) return ansehenRound2(1-(a-4)*0.035);
-  if (a<=20) return ansehenRound2(0.79-(a-10)*0.012);
-  if (a<=49) return ansehenRound2(0.67-(a-20)*0.014);
+  const c=ANSEHEN.curve;
+  if (a<=c.fullUntil) return 1;
+  if (a<=c.midUntil) return ansehenRound2(1-(a-c.fullUntil)*c.midStep);
+  if (a<=c.gentleUntil) return ansehenRound2(c.gentleAt10-(a-c.midUntil)*c.gentleStep);
+  if (a<c.floorAt){
+    const span=c.floorAt-c.gentleUntil;
+    return ansehenRound2(c.lateAt20-(c.lateAt20-ANSEHEN.rechnerFloorW)*((a-c.gentleUntil)/span));
+  }
   return 0;
 }
 function titleFactor(age){
@@ -417,38 +422,68 @@ function ansehenValue(id){
 function ansehenSelfTest(){
   const fails=[];
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
-  for (let lv=2;lv<=7;lv++){
-    const champ=placePoints(lv, ANSEHEN.levels[lv].size||18, 1)+ANSEHEN.levels[lv].title;
-    const last=ANSEHEN.levels[lv-1].last;
-    check('Meister Stufe '+lv+' < Letzter Stufe '+(lv-1), champ<last, champ+' gegen '+last);
+  let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
+  for (let age=0; age<=150; age++){
+    const w=seasonFactor(age, true), tf=titleFactor(age);
+    for (let lv=2; lv<=7; lv++){
+      const champ=ansehenRound2(placePoints(lv, 18, 1)*w)+ansehenRound2(ANSEHEN.levels[lv].title*tf);
+      const last=ansehenRound2(placePoints(lv-1, 18, 18)*w);
+      const gap=ansehenRound2(last-champ);
+      if (gap<worstLeague.gap) worstLeague={gap, age, lv, champ, last};
+    }
   }
+  check('Ligahierarchie jedes Rechner-Alter 0–150', worstLeague.gap>0, 'knapp Stufe '+worstLeague.lv+' Alter '+worstLeague.age+' Rest '+worstLeague.gap+' ('+worstLeague.champ+' gegen '+worstLeague.last+')');
   const bl1=placePoints(1,20,1)+ANSEHEN.levels[1].title, bl2=placePoints(1,20,2);
   check('BL-Meister deutlich vor Platz 2', bl1>bl2+150, bl1+' gegen '+bl2);
+  let worstBl={ratio:Infinity, age:-1, meister:0, p2:0};
+  for (let age=0; age<=150; age++){
+    const w=seasonFactor(age, true), tf=titleFactor(age);
+    const meister=ansehenRound2(placePoints(1,20,1)*w)+ansehenRound2(ANSEHEN.levels[1].title*tf);
+    const p2=ansehenRound2(bl2*w);
+    const ratio=p2>0?meister/p2:Infinity;
+    if (ratio<worstBl.ratio) worstBl={ratio, age, meister, p2};
+  }
+  check('BL-Meister bleibt vor Platz 2', worstBl.meister>worstBl.p2 && worstBl.ratio>1.25, 'knapp Alter '+worstBl.age+' '+worstBl.meister+' gegen '+worstBl.p2);
   check('Alter 5 > 6', ageWeight(5)>ageWeight(6));
   check('Alter 10 > 11', ageWeight(10)>ageWeight(11));
   check('Alter 20 > 21', ageWeight(20)>ageWeight(21));
+  check('Anker Alter 10', ageWeight(10)===ANSEHEN.curve.gentleAt10);
+  check('Anker Alter 20', ageWeight(20)===ANSEHEN.curve.lateAt20);
   check('kein Sprung 10/11', ageWeight(10)-ageWeight(11)<0.03);
   check('kein Sprung 20/21', ageWeight(20)-ageWeight(21)<0.03);
-  check('Alter 49 noch positiv', ageWeight(49)>0);
+  let maxLate=0, maxLateAt=0, rose=false;
+  for (let age=0; age<150; age++){
+    const d=ansehenRound2(seasonFactor(age, true)-seasonFactor(age+1, true));
+    if (d<0) rose=true;
+    if (age>=20 && d>maxLate){ maxLate=d; maxLateAt=age; }
+  }
+  check('Rechner-Kurve fällt nicht wieder', !rose);
+  check('kein Sprung 49/50', ansehenRound2(seasonFactor(49, true)-seasonFactor(50, true))<=0.03 && seasonFactor(49, true)>seasonFactor(50, true), seasonFactor(49,true)+' → '+seasonFactor(50,true));
+  check('später Abfall bleibt ein Jahresschritt', maxLate<=0.03, 'Alter '+maxLateAt+' Schritt '+maxLate);
+  const slopeEarly=(seasonFactor(10, true)-seasonFactor(20, true))/10;
+  const slopeLate=(seasonFactor(20, true)-seasonFactor(50, true))/30;
+  check('ab 21 stärker als 11–20', slopeLate>slopeEarly, slopeLate+' gegen '+slopeEarly);
   check('Alter 50 Historie raus', ageWeight(50)===0 && seasonFactor(50, false)===0);
-  check('Alter 51 Historie raus', ageWeight(51)===0);
-  check('Rechner nach 50 bleibt', seasonFactor(51, true)===ANSEHEN.rechnerFloorW);
+  check('Alter 51 und 150 Historie raus', seasonFactor(51, false)===0 && seasonFactor(150, false)===0);
+  check('Rechner 50 bis 150 bleibt Grundwert', seasonFactor(50, true)===ANSEHEN.rechnerFloorW && seasonFactor(51, true)===ANSEHEN.rechnerFloorW && seasonFactor(150, true)===ANSEHEN.rechnerFloorW);
   check('Titel 0', titleFactor(0)===1);
   check('Titel 1', titleFactor(1)===0.99);
   check('Titel 59', titleFactor(59)===0.41);
   check('Titel 60', titleFactor(60)===0.4);
   check('Titel 100', titleFactor(100)===0.4);
+  check('Titel 150', titleFactor(150)===0.4);
   const maxLand=ANSEHEN.land.capBudget*(1+ANSEHEN.land.titleShare);
   check('DFB 2. Runde > 1. Runde + maximaler Landespokal', ANSEHEN.dfb['2. Runde']>ANSEHEN.dfb['1. Runde']+maxLand, ANSEHEN.dfb['2. Runde']+' gegen '+(ANSEHEN.dfb['1. Runde']+maxLand));
-  let worst=Infinity, worstAge=-1;
-  for (let age=0; age<=100; age++){
+  const landTitle=ansehenRound2(ANSEHEN.land.capBudget*ANSEHEN.land.titleShare);
+  let worstDfb={gap:Infinity, age:-1, left:0, right:0};
+  for (let age=0; age<=150; age++){
     const w=seasonFactor(age, true), tf=titleFactor(age);
-    const left=ANSEHEN.dfb['2. Runde']*w;
-    const right=ANSEHEN.dfb['1. Runde']*w + ANSEHEN.land.capBudget*w + ANSEHEN.land.capBudget*ANSEHEN.land.titleShare*tf;
-    const gap=left-right;
-    if (gap<worst){ worst=gap; worstAge=age; }
+    const left=ansehenRound2(ANSEHEN.dfb['2. Runde']*w);
+    const right=ansehenRound2(ANSEHEN.dfb['1. Runde']*w)+ansehenRound2(ANSEHEN.land.capBudget*w)+ansehenRound2(landTitle*tf);
+    const gap=ansehenRound2(left-right);
+    if (gap<worstDfb.gap) worstDfb={gap, age, left, right};
   }
-  check('DFB-Invariante über alle Rechner-Alter', worst>0, 'knapp bei Alter '+worstAge+' Rest '+ansehenRound2(worst));
+  check('DFB-Invariante jedes Rechner-Alter 0–150', worstDfb.gap>0, 'knapp Alter '+worstDfb.age+' Rest '+worstDfb.gap+' ('+worstDfb.left+' gegen '+worstDfb.right+')');
   const allIds=Object.keys(TEAMS);
   const slice=(from,n)=>allIds.slice(from, from+n);
   const fake=(pairs)=>{
@@ -512,7 +547,7 @@ function ansehenSelfTest(){
   const bayernNow=ansehenLedger('t001');
   check('laufende Saison des Spielstands ohne Meistertitel', !bayernNow.lines.some(l=>l.kind==='titel' && liveNow.indexOf(l.season)>=0));
   check('laufende Saison des Spielstands ohne Europa', !bayernNow.lines.some(l=>l.kind==='euro' && liveNow.indexOf(l.season)>=0));
-  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:a.value, historie:histBefore}};
+  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:a.value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
 // Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
@@ -4934,20 +4969,33 @@ function leagueLabel(lid){
   if (P[lid]) return P[lid].name+' (7)';
   return lid ? leagueName(lid) : '–';
 }
+function ansehenPts(x){
+  const n=ansehenRound2(x);
+  const d=Math.abs(n-Math.round(n))<1e-9?0:(Math.abs(n*10-Math.round(n*10))<1e-9?1:2);
+  return deNum(n, d);
+}
 function ansehenLegendHTML(){
   const cell=(a,b)=>'<tr><td class="l">'+a+'</td><td>'+esc(String(b))+'</td></tr>';
-  const lv=ANSEHEN.levels;
+  const names=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga','Oberliga','Amateurliga'];
   let liga='';
-  [1,2,3,4,5,6,7].forEach(level=>{
-    const s=lv[level];
-    const name=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga','Oberliga','Amateurliga'][level-1];
-    liga+=cell(name+' Meister / Letzter', s.first+' / '+s.last);
-    liga+=cell(name+' Meistertitel', s.title);
+  names.forEach((name,i)=>{
+    const s=ANSEHEN.levels[i+1];
+    liga+=cell(name+' Platz 1 / Letzter', ansehenPts(s.first)+' / '+ansehenPts(s.last));
+    liga+=cell(name+' Meistertitel', ansehenPts(s.title));
+    liga+=cell(name+' Meister inklusive Titel', ansehenPts(s.first+s.title));
   });
   let dfb='';
-  ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{ dfb+=cell(r, ANSEHEN.dfb[r]); });
-  dfb+=cell('Sieger-Titel, zusätzlich', ANSEHEN.dfb.title);
-  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten. Meister einer Liga inklusive Titel bleiben unter dem letzten Platz der nächsthöheren Liga. Gleiche Stufe, gleiche Skala.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde, nicht die Summe aller vorherigen Runden. Der Titel ist ein eigener Posten. Die 2. Runde bleibt über dem Maximum aus 1. Runde plus stärkstem Landespokal.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table><p>Europa, nur der höchste Wettbewerb: CL '+ANSEHEN.euro.CL+', EL '+ANSEHEN.euro.EL+', UECL '+ANSEHEN.euro.UECL+'.</p></div></div><p class="muted">Alter der Saisonleistung: Jahre 0–4 voll, danach gleitend weniger, ab 50 Jahren fällt importierte Historie auf 0. Im Rechner gespielte Jahre behalten dann '+deNum(ANSEHEN.rechnerFloorW*100,0)+' % als Grundwert. Titel verlieren jedes Jahr 1 % des ursprünglichen Titelwerts und bleiben ab 60 Jahren bei 40 %. Landespokal: Budget aus Teilnehmerfeld und Rundenzahl, vor der Saison festgehalten. Fehlt das Feld, steht das in der Zeile und sie zählt 0.</p>';
+  ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{ dfb+=cell(r, ansehenPts(ANSEHEN.dfb[r])); });
+  dfb+=cell('Sieger-Titel, zusätzlich', ansehenPts(ANSEHEN.dfb.title));
+  const c=ANSEHEN.curve;
+  const lateStep=(c.lateAt20-ANSEHEN.rechnerFloorW)/(c.floorAt-c.gentleUntil);
+  const ages=[0,4,5,10,11,20,21,30,40,49,50,60,100,150];
+  let curve='';
+  ages.forEach(age=>{
+    curve+='<tr><td class="l">'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age),2)+'</td></tr>';
+  });
+  const rule='Rechner: Alter 0–'+c.fullUntil+' Faktor 1. Alter '+(c.fullUntil+1)+'–'+c.midUntil+' jede Saison −'+deNum(c.midStep,3)+'. Alter '+(c.midUntil+1)+'–'+c.gentleUntil+' jede Saison −'+deNum(c.gentleStep,3)+', von '+deNum(c.gentleAt10,2)+' auf '+deNum(c.lateAt20,2)+'. Alter '+(c.gentleUntil+1)+'–'+c.floorAt+' linear von '+deNum(c.lateAt20,2)+' auf '+deNum(ANSEHEN.rechnerFloorW,2)+', also '+deNum(lateStep,4)+' pro Jahr. Ab Alter '+c.floorAt+' bleibt der Rechner-Faktor '+deNum(ANSEHEN.rechnerFloorW,2)+'. Alter '+ (c.floorAt-1)+' ist '+deNum(seasonFactor(c.floorAt-1, true),2)+', Alter '+c.floorAt+' ist '+deNum(seasonFactor(c.floorAt, true),2)+'. Importierte Historie ist ab Alter '+c.floorAt+' genau 0. Titel: jedes Jahr −0,01 des Ursprungswerts, ab Alter 60 genau 0,40.';
+  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten. Meister inklusive Titel bleiben bei jedem gleichen Rechner-Alter von 0 bis 150 unter dem letzten Platz der nächsthöheren Liga. Gleiche Stufe, gleiche Skala.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde, nicht die Summe aller vorherigen Runden. Der Titel ist ein eigener Posten. Die 2. Runde bleibt bei jedem Rechner-Alter von 0 bis 150 über 1. Runde plus dem Maximum aus Landespokal-Finale und Landespokal-Titel.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table><p>Europa, nur der höchste Wettbewerb: CL '+ANSEHEN.euro.CL+', EL '+ANSEHEN.euro.EL+', UECL '+ANSEHEN.euro.UECL+'.</p></div></div><div class="ansehen-card"><h3>Alterskurve</h3><p>'+rule+'</p><table class="tbl"><thead><tr><th class="l">Alter</th><th>Rechner</th><th>Historie</th><th>Titel</th></tr></thead><tbody>'+curve+'</tbody></table></div><p class="muted">Landespokal: Budget aus Teilnehmerfeld und Rundenzahl, vor der Saison festgehalten. Fehlt das Feld, steht das in der Zeile und sie zählt 0.</p>';
 }
 function weightClass(factor){ return factor>=0.96?'w-hot':factor>0?'w-on':'w-off'; }
 function viewAnsehenDetail(id){
