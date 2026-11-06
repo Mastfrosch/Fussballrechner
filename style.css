@@ -15,7 +15,8 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .nav-menu:hover>.nav-drop,.nav-menu.open>.nav-drop,.top-tools:hover>.nav-drop,.top-tools.open>.nav-drop{display:block}
 .bright-ctl{display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 8px 0 4px;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
 .bright-ctl input{width:84px;margin:0;accent-color:var(--green)}
-#main{filter:brightness(var(--app-bright,1))}
+#app{filter:brightness(var(--app-bright,1))}
+.bright-ctl{filter:brightness(calc(1 / var(--app-bright, 1)))}
 .top-tools{margin-left:0}
 .top-tools>.nav-drop{left:auto;right:0;min-width:220px}
 .nav-item{display:block;padding:6px 12px;color:var(--text);text-decoration:none;cursor:pointer;line-height:1.35;font-size:12.5px}
@@ -617,7 +618,16 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .fx-grid{width:max-content;max-width:100%;border-collapse:collapse}
 .fx-grid th{text-align:left;font-size:12px;letter-spacing:.04em;color:#5c6b76;font-weight:650;padding:8px 14px;background:#f4f7fa;border-bottom:1px solid var(--line)}
 .fx-grid th:nth-child(3){text-align:center}
-.fx-grid td{padding:8px 14px;border-top:1px solid #e6ebef;vertical-align:middle;font-size:14.5px}
+.hscroll{overflow-x:scroll;overflow-y:hidden;max-width:100%;padding-bottom:2px;scrollbar-color:#7d9a88 #e7eee9}
+.hscroll::-webkit-scrollbar{height:12px}
+.hscroll::-webkit-scrollbar-track{background:#e7eee9}
+.hscroll::-webkit-scrollbar-thumb{background:#6f8f7e}
+.hscroll .an-course-svg,.hscroll .place-chart{width:auto;max-width:none;height:auto;display:block}
+.an-season{width:100%}
+.fx-grid td{padding:12px 14px;border-top:1px solid #e6ebef;vertical-align:middle;font-size:14.5px}
+.fx-line .ml-name{overflow:visible;text-overflow:clip;white-space:normal;max-width:none}
+.match.fx-line .ml-crest{width:28px;height:28px;flex:0 0 28px}
+.fx-spiel .match.fx-line{width:100%}
 .fx-md{white-space:nowrap}
 .fx-md b{font-weight:650;font-size:14.5px}
 .fx-badge{display:block;margin-top:1px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a6d1d}
