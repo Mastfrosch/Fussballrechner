@@ -752,6 +752,7 @@ function ansehenSelfTest(){
   check('kein Landespokal im Register', !reg.some(r=>r.comp==='land'));
   const fdgb1957=reg.filter(r=>r.comp==='fdgb'&&r.year===1957);
   check('FDGB 1957 steht einmal als SC Lokomotive Leipzig', fdgb1957.length===1 && fdgb1957[0].original==='SC Lokomotive Leipzig' && fdgb1957[0].id==='t084');
+  check('1952 ist Volkspolizei, 1963 Motor Jena, 1964 Aufbau Magdeburg', historicalTitleRows().find(r=>r.comp==='fdgb'&&r.year===1952).original==='SG Volkspolizei Dresden' && historicalTitleRows().find(r=>r.comp==='ddr'&&r.year===1963).original==='SC Motor Jena' && historicalTitleRows().find(r=>r.comp==='fdgb'&&r.year===1964).original==='SC Aufbau Magdeburg');
   check('Wismut liegt bei Aue, Karl-Marx-Stadt bei Chemnitz', reg.filter(r=>r.original.indexOf('Wismut')>=0).every(r=>r.id==='t033') && reg.find(r=>r.comp==='ddr'&&r.year===1967).id==='t056');
   const blLines=ansehenLedger('t001').lines.filter(l=>l.kind==='titel' && l.label==='Meistertitel Bundesliga');
   const seenBl={}; let blDup=0;
@@ -3286,12 +3287,12 @@ function titleRowsFor(comp){
   return hist.concat(simulatedTitleRows(comp).filter(r=>!seen[r.year]));
 }
 function titleWinnerHTML(r){
-  if (r.id && TEAMS[r.id]){
-    const same=!r.original || r.original===TEAMS[r.id].name;
-    return clubHTML(r.id)+(same?'':'<div class="muted">damals '+esc(r.original)+'</div>');
-  }
-  const why=r.map==='offen'?'Zuordnung offen, noch kein Ansehen':(r.map==='fehlt_ausland'?'Verein fehlt im Spiel, nicht umgelegt':'Verein fehlt im Spiel');
-  return '<div><b>'+esc(r.original)+'</b><div class="muted">'+esc(why)+'</div></div>';
+  const hist=r.original||'';
+  const now=r.id && TEAMS[r.id];
+  if (!now) return '<b class="title-hist">'+esc(hist)+'</b>';
+  const crest='<img class="ml-crest" src="'+esc(now.crest)+'" alt="">';
+  if (!hist || hist===now.name) return '<span class="title-who">'+crest+'<b>'+esc(now.name)+'</b></span>';
+  return '<span class="title-who">'+crest+'<b>'+esc(hist)+'</b><span class="muted">heute '+esc(now.name)+'</span></span>';
 }
 function titleAudit(endYear){
   const end=endYear||ansehenEndYear();
@@ -3300,10 +3301,11 @@ function titleAudit(endYear){
     const key=r.id||('offen:'+r.original);
     let row=clubs[key];
     if (!row){
-      row=clubs[key]={id:r.id||'', name:r.id&&TEAMS[r.id]?TEAMS[r.id].name:r.original, crest:r.id&&TEAMS[r.id]?TEAMS[r.id].crest:'', open:!r.id, map:r.map||'', de:0, blNew:0, blOld:0, dfb:0, ddr:0, fdgb:0, delta:0, note:r.note||''};
+      row=clubs[key]={id:r.id||'', name:r.id&&TEAMS[r.id]?TEAMS[r.id].name:r.original, crest:r.id&&TEAMS[r.id]?TEAMS[r.id].crest:'', open:!r.id, map:r.map||'', de:0, blNew:0, blOld:0, dfb:0, ddr:0, fdgb:0, delta:0, note:r.note||'', originals:[]};
       clubs[key]=row;
     }
     if (!r.id) row.open=true;
+    if (r.original && row.originals.indexOf(r.original)<0 && r.original!==row.name) row.originals.push(r.original);
     if (r.comp==='de') row.de++;
     else if (r.comp==='ddr') row.ddr++;
     else if (r.comp==='fdgb') row.fdgb++;
@@ -3332,7 +3334,7 @@ function titleAudit(endYear){
 }
 function titleRegisterHTML(comp){
   const rows=titleRowsFor(comp).slice().sort((a,b)=>b.year-a.year);
-  let h='<div class="box"><h3>'+esc(titelGroup(comp))+'</h3><p class="muted">Nur das Ausgabejahr und der Sieger. Historische Endspiele und Tordifferenzen sind nicht gespeichert.</p>';
+  let h='<div class="box"><h3>'+esc(titelGroup(comp))+'</h3><p class="muted">Zuerst der Verein, der den Titel in diesem Jahr gewonnen hat. Dahinter steht der heutige Nachfolger, wenn er im Spiel ist. Fehlt er, bleibt nur der historische Name.</p>';
   if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
   h+='<table class="tbl fit title-reg"><thead><tr><th>Jahr</th><th class="l">Sieger</th></tr></thead><tbody>';
   rows.forEach(r=>{ h+='<tr><td>'+r.year+'</td><td class="l">'+titleWinnerHTML(r)+'</td></tr>'; });
@@ -7616,6 +7618,12 @@ function uiSelfTest(){
   check('Rangliste zeigt Liga, Pokale, Titel, Europa und Gesamt', rankHtml.indexOf('>Liga<')>=0 && rankHtml.indexOf('DFB-Pokal')>=0 && rankHtml.indexOf('Landespokal')>=0 && rankHtml.indexOf('>Titel<')>=0 && rankHtml.indexOf('Europa')>=0 && rankHtml.indexOf('Gesamt')>=0 && rankHtml.indexOf('class="bl"')>=0);
   const dfbReg=titleRegisterHTML('dfb');
   check('DFB-Siegerliste nennt Jahr und Sieger', dfbReg.indexOf('Jahr')>=0 && dfbReg.indexOf('Sieger')>=0 && dfbReg.indexOf('Finalist')<0 && dfbReg.indexOf('2026')>=0);
+  const lok57=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='fdgb'&&r.year===1957));
+  const rb22=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='dfb'&&r.year===2022));
+  const bay26=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='bl'&&r.year===2026));
+  check('1957 nennt zuerst SC Lokomotive Leipzig und dann Lok', lok57.indexOf('SC Lokomotive Leipzig')>=0 && lok57.indexOf('SC Lokomotive Leipzig')<lok57.indexOf('1. FC Lokomotive Leipzig') && lok57.indexOf('heute')>=0);
+  check('fehlender Verein bleibt nur der Name', rb22.indexOf('RB Leipzig')>=0 && rb22.indexOf('<img')<0);
+  check('gleicher Name wird nicht doppelt genannt', bay26.indexOf('heute')<0 && bay26.indexOf('FC Bayern München')>=0 && bay26.indexOf('<img')>=0);
   const cupWas=S.ui.cup;
   S.ui.cup='Bayern';
   const landReg=viewCupWinners();
