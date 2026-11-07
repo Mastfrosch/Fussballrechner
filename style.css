@@ -647,6 +647,10 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .fx-grid{width:max-content;max-width:100%;border-collapse:collapse}
 .fx-grid th{text-align:left;font-size:12px;letter-spacing:.04em;color:#5c6b76;font-weight:650;padding:8px 14px;background:#f4f7fa;border-bottom:1px solid var(--line)}
 .fx-grid th:nth-child(3){text-align:center}
+.land-matrix table{width:max-content;min-width:100%}
+.land-matrix th,.land-matrix td{white-space:nowrap}
+.land-matrix th.l,.land-matrix thead th.l{position:sticky;left:0;z-index:1;background:var(--head)}
+.land-matrix tbody th.l{background:var(--card)}
 .hscroll{overflow-x:scroll;overflow-y:hidden;max-width:100%;padding-bottom:2px;scrollbar-color:#7d9a88 #e7eee9}
 .hscroll::-webkit-scrollbar{height:12px}
 .hscroll::-webkit-scrollbar-track{background:#e7eee9}

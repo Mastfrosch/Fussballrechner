@@ -215,18 +215,17 @@ function simStrength(id){
 // Platzierungen und Pokalrunden, nichts wird aufsummiert in den Spielstand geschrieben.
 const ANSEHEN = {
   levels:{
-    1:{first:480,last:240,title:180},
-    2:{first:160,last:104,title:0},
-    3:{first:74,last:48,title:0},
-    4:{first:34,last:22,title:0},
-    5:{first:16,last:10.4,title:0},
-    6:{first:7.4,last:4.8,title:0},
-    7:{first:3.2,last:1.8,title:0}
+    1:{title:180, euroUntil:7, euroFirst:420, euroLast:360, midFirst:336, midLast:300, relStep:4},
+    2:{title:0, safeFirst:200, safeLast:174, promoStep:6, relStep:2},
+    3:{title:0, safeFirst:112, safeLast:86, promoStep:4, relStep:2},
+    4:{title:0, safeFirst:52, safeLast:38, promoStep:2, relStep:1},
+    5:{title:0, safeFirst:22, safeLast:16.4, promoStep:0, relStep:0.4},
+    6:{title:0, safeFirst:8, safeLast:6.5, promoStep:0.4, relStep:0.2}
   },
-  promotionTo:{1:28,2:12,3:5,4:2.2,5:1,6:0.45},
-  euro:{CL:36,EL:22,UECL:12},
-  dfb:{'1. Runde':40,'2. Runde':110,'Achtelfinale':150,'Viertelfinale':180,'Halbfinale':200,'Finale':215,title:55},
-  land:{levelW:{1:0,2:0,3:6,4:4.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, capBudget:32, titleShare:0.28},
+  amateurUp:4,
+  euro:{CL:100,EL:75,UECL:45},
+  dfb:{'1. Runde':40,'2. Runde':60,'Achtelfinale':80,'Viertelfinale':110,'Halbfinale':140,'Finale':170,title:50},
+  land:{levelW:{1:0,2:0,3:9,4:6.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, winnerCap:35, titleShare:0.28, capBudget:35/1.28},
   supercup:{title:0.2},
   rechnerFloorW:0.12,
   curve:{fullUntil:4, midUntil:10, midStep:0.035, gentleUntil:20, gentleAt10:0.79, gentleStep:0.012, lateAt20:0.67, floorAt:50}
@@ -262,17 +261,44 @@ function seasonFactor(age, rechner){
   if (a>=50) return rechner ? ANSEHEN.rechnerFloorW : 0;
   return ageWeight(a);
 }
-function placePoints(level, n, place){
-  const spec=ANSEHEN.levels[level]||ANSEHEN.levels[7];
-  const nn=Math.max(1, n|0), pl=Math.min(Math.max(1, place|0), nn);
-  if (nn<=1) return spec.first;
-  let t=(pl-1)/(nn-1);
-  if (level===1 && nn>=12){
-    const euro=Math.min(7, nn-2);
-    if (pl<=euro+1) t=0.62*(pl-1)/euro;
-    else t=0.62+0.38*(pl-(euro+1))/(nn-(euro+1));
+function leagueSample(level){ return LEAGUES.find(l=>l.level===level)||null; }
+function zoneCounts(level, n, downOverride){
+  const sample=leagueSample(level);
+  const nn=Math.max(1, n|0);
+  let up=sample?(sample.up||0):0;
+  let down=downOverride!=null?downOverride:(sample?(sample.down||0):0);
+  up=Math.max(0, Math.min(up, nn-1));
+  down=Math.max(0, Math.min(down, nn-up-1));
+  return {n:nn, up, down, safeFirst:up+1, safeLast:nn-down};
+}
+function placeSpan(first, last, i, count){
+  if (count<=1) return ansehenRound2(first);
+  return ansehenRound2(first+(last-first)*i/(count-1));
+}
+function placePoints(level, n, place, downOverride){
+  const spec=ANSEHEN.levels[level];
+  const z=zoneCounts(level, n, downOverride);
+  const pl=Math.min(Math.max(1, place|0), z.n);
+  if (!spec || level>=7) return 0;
+  if (z.n<=1) return ansehenRound2(level===1?spec.euroFirst:spec.safeFirst);
+  const safeCount=z.safeLast-z.safeFirst+1;
+  const safeAt=idx=>level===1
+    ? placeSpan(spec.midFirst, spec.midLast, idx, safeCount)
+    : placeSpan(spec.safeFirst, spec.safeLast, idx, safeCount);
+  if (level===1){
+    const euroN=Math.min(spec.euroUntil||7, z.safeLast);
+    if (pl<=euroN) return placeSpan(spec.euroFirst, spec.euroLast, pl-1, euroN);
+    if (pl<=z.safeLast) return placeSpan(spec.midFirst, spec.midLast, pl-euroN-1, z.safeLast-euroN);
+  } else if (pl>=z.safeFirst && pl<=z.safeLast){
+    return safeAt(pl-z.safeFirst);
   }
-  return ansehenRound2(spec.first-(spec.first-spec.last)*t);
+  if (pl<=z.up){
+    const edge=ansehenRound2((level===1?spec.euroFirst:spec.safeFirst)*1.15);
+    return ansehenRound2(edge+(z.up-pl)*(spec.promoStep||0));
+  }
+  const base=level===1?spec.midLast:spec.safeLast;
+  const edge=ansehenRound2(base*0.9);
+  return ansehenRound2(edge-(pl-z.safeLast-1)*(spec.relStep||0));
 }
 function euroRank(key){ return {CL:3,EL:2,UECL:1}[key]||0; }
 function euroOf(level, place, eighth){
@@ -353,6 +379,11 @@ function eighthForSeason(name){
   if (!season||(season.status!=='done'&&season.status!=='ending')) return false;
   return dfbEighthOpen(season);
 }
+function sameSpielklasse(a, b){
+  const norm=s=>String(s||'').replace(/\s+/g,' ').trim();
+  const left=norm(a&&a.liga), right=norm(b&&b.liga);
+  return !!left && left===right;
+}
 function promotionsOf(id, end){
   const rows=collectPlacements(id).filter(p=>p&&p.season&&p.pl!=null&&seasonYear(p.season)<=end);
   rows.sort((a,b)=>seasonYear(a.season)-seasonYear(b.season));
@@ -360,23 +391,67 @@ function promotionsOf(id, end){
   for (let i=0;i<rows.length-1;i++){
     const a=rows[i], b=rows[i+1];
     if (seasonYear(b.season)!==seasonYear(a.season)+1) continue;
-    const from=a.ebene||7, to=b.ebene||7;
-    if (to<from){ found.push({season:a.season, to, src:a.src==='rechner'?'rechner':'historie'}); seen[a.season]=1; }
+    if (a.ebene==null || b.ebene==null) continue;
+    const from=a.ebene, to=b.ebene;
+    if (!(to<from) || sameSpielklasse(a, b)) continue;
+    found.push({season:a.season, to, from, src:a.src==='rechner'?'rechner':'historie', via:'chronik'});
+    seen[a.season]=1;
   }
   (S.seasons||[]).forEach(season=>{
     if (!season||!season.name||seen[season.name]||!season.endData) return;
-    if (season.status!=='done'&&season.status!=='ending') return;
+    if (season.status!=='done') return;
     const y=seasonYear(season.name);
     if (!y||y>end) return;
     const up=(season.endData.moves||[]).find(m=>m&&m.id===id&&m.type==='auf'&&L[m.to]&&L[m.from]&&L[m.to].level<L[m.from].level);
-    if (up){ found.push({season:season.name, to:L[up.to].level, src:'rechner'}); seen[season.name]=1; return; }
+    if (up){ found.push({season:season.name, to:L[up.to].level, from:L[up.from].level, pl:up.pl, n:L[up.from].size, src:'rechner', via:'move'}); seen[season.name]=1; return; }
     const picks=season.endData.picks||{};
     Object.keys(picks).forEach(lid=>{
       if (seen[season.name]||!L[lid]) return;
-      if ((picks[lid]||[]).indexOf(id)>=0){ found.push({season:season.name, to:L[lid].level, src:'rechner'}); seen[season.name]=1; }
+      if ((picks[lid]||[]).indexOf(id)>=0){ found.push({season:season.name, to:L[lid].level, from:7, src:'rechner', via:'pick'}); seen[season.name]=1; }
     });
   });
   return found;
+}
+function landWinnerTotal(budget){
+  const b=ansehenRound2(budget);
+  return ansehenRound2(b+ansehenRound2(b*ANSEHEN.land.titleShare));
+}
+function cappedLandBudget(raw){
+  const limit=ANSEHEN.land.winnerCap;
+  const mathCap=limit/(1+ANSEHEN.land.titleShare);
+  const capped=Math.min(Math.max(0, +raw||0), mathCap);
+  let cents=Math.round(capped*100);
+  if (capped>=mathCap-1e-8) cents=Math.min(cents, Math.floor(mathCap*100+1e-6));
+  while (cents>0 && landWinnerTotal(cents/100)>limit) cents--;
+  return cents/100;
+}
+function finishLandScale(field, rounds, n, unknown, byLevel){
+  const names=(rounds||[]).filter(Boolean);
+  const roundN=Math.max(1, names.length||1);
+  const raw=(field/8)*(1+ANSEHEN.land.roundK*(roundN-1));
+  const budget=cappedLandBudget(raw);
+  const title=ansehenRound2(budget*ANSEHEN.land.titleShare);
+  return {budget, title, rounds:names.slice(), n:n||0, field:ansehenRound2(field), unknown:unknown||0, byLevel:byLevel||{}};
+}
+function landWinnerSum(scale){
+  if (!scale || scale.missing || !(scale.rounds||[]).length) return 0;
+  const fin=landRoundPoints(scale, scale.rounds[scale.rounds.length-1]);
+  return ansehenRound2(fin+landTitleOf(scale));
+}
+function landScaleFromStored(stored){
+  const byLevel={};
+  let field=0;
+  Object.keys((stored&&stored.byLevel)||{}).forEach(k=>{
+    const c=+stored.byLevel[k]||0;
+    byLevel[k]=c;
+    const w=ANSEHEN.land.levelW[k];
+    field+=c*(w!=null?w:ANSEHEN.land.unknownW);
+  });
+  const unknown=+((stored&&stored.unknown)||0);
+  field+=unknown*ANSEHEN.land.unknownW;
+  const scale=finishLandScale(field, stored.rounds||[], stored.n||0, unknown, byLevel);
+  scale.migrated=true;
+  return scale;
 }
 function landAnsehenScale(ids, season, roundNames){
   const names=(roundNames||[]).filter(Boolean);
@@ -394,11 +469,7 @@ function landAnsehenScale(ids, season, roundNames){
     byLevel[level]=(byLevel[level]||0)+1;
     field+=ANSEHEN.land.levelW[level]!=null?ANSEHEN.land.levelW[level]:ANSEHEN.land.unknownW;
   });
-  const rounds=Math.max(1, names.length||1);
-  const raw=(field/8)*(1+ANSEHEN.land.roundK*(rounds-1));
-  const budget=ansehenRound2(Math.min(ANSEHEN.land.capBudget, raw));
-  const title=ansehenRound2(budget*ANSEHEN.land.titleShare);
-  return {budget, title, rounds:names.slice(), n:(ids||[]).length, field:ansehenRound2(field), unknown, byLevel};
+  return finishLandScale(field, names, (ids||[]).length, unknown, byLevel);
 }
 function landRoundPoints(scale, roundName){
   if (!scale || scale.missing) return 0;
@@ -420,13 +491,21 @@ function landScaleOf(seasonName, bl){
     const season=(S.seasons||[]).find(s=>s&&s.name===seasonName);
     const cup=season&&season.cups&&season.cups.land&&season.cups.land[bl];
     if (!cup) return {missing:true, reason:'Landespokal nicht gespeichert'};
-    if (cup.ansehenScale && cup.ansehenScale.budget!=null) return cup.ansehenScale;
-    const ids=cup.entrants||[];
-    if (!ids.length) return {missing:true, reason:'Teilnehmerfeld nicht gespeichert'};
+    const stored=cup.ansehenScale;
     const names=(cup.roundNames&&cup.roundNames.length)?cup.roundNames:(cup.rounds||[]).map(r=>r&&r.name).filter(Boolean);
-    const scale=landAnsehenScale(ids, season, names);
-    cup.ansehenScale=scale;
-    return scale;
+    const ids=cup.entrants||[];
+    if (stored&&stored.byLevel&&Object.keys(stored.byLevel).length){
+      const scale=landScaleFromStored(stored);
+      if (!(scale.rounds||[]).length && names.length) scale.rounds=names.slice();
+      return scale;
+    }
+    if (ids.length){
+      const scale=landAnsehenScale(ids, season, names.length?names:((stored&&stored.rounds)||[]));
+      if (!(stored&&stored.budget!=null)) cup.ansehenScale=scale;
+      return scale;
+    }
+    if (stored&&stored.field!=null) return finishLandScale(stored.field, stored.rounds||names, stored.n||0, stored.unknown||0, stored.byLevel||{});
+    return {missing:true, reason:'Teilnehmerfeld nicht gespeichert'};
   }catch(e){ return {missing:true, reason:'Teilnehmerfeld nicht lesbar'}; }
 }
 function ansehenEndYear(){
@@ -515,12 +594,20 @@ function ansehenLedger(id, endYear){
       const y=seasonYear(p.season);
       if (!y||y>end) return;
       const age=end-y;
-      const level=p.ebene||7;
-      const spec=ANSEHEN.levels[level]||ANSEHEN.levels[7];
+      const level=p.ebene||0;
+      const spec=ANSEHEN.levels[level];
+      if (!spec || level>=7) return;
       const rechner=p.src==='rechner';
       const factor=seasonFactor(age, rechner);
+      let down=null;
+      if (rechner){
+        const sea=(S.seasons||[]).find(s=>s&&s.name===p.season);
+        const lg=LEAGUES.find(l=>l.name===p.liga);
+        if (sea&&sea.endData&&sea.endData.downOf&&lg&&sea.endData.downOf[lg.id]!=null) down=sea.endData.downOf[lg.id];
+      }
+      const nn=p.n||(leagueSample(level)&&leagueSample(level).size)||18;
       const note=age>=50?(rechner?'Rechner-Saison, dauerhafter Grundwert':'importierte Historie, älter als 50 Jahre'):(rechner?'im Rechner gespielt':'importierte Historie');
-      push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:(p.liga||'Liga')+' '+p.pl+'.'+(p.n?'/'+p.n:''), original:placePoints(level, p.n||spec.size||18, p.pl), age, factor, note});
+      push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:(p.liga||'Liga')+' '+p.pl+'.'+(p.n?'/'+p.n:''), original:placePoints(level, nn, p.pl, down), age, factor, note});
       if (p.pl===1 && level===1 && spec.title){
         push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', durable:true, label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age, true), note:titleNote(true, rechner)});
       }
@@ -576,11 +663,19 @@ function ansehenLedger(id, endYear){
       push({season:season.name, src:'rechner', kind:'titel', durable:true, label:'Supercup-Titel', original:ANSEHEN.supercup.title, age, factor:titleFactor(age, true), note:titleNote(true, true)});
     });
     promotionsOf(id, end).forEach(p=>{
-      const original=ANSEHEN.promotionTo[p.to]||0;
-      if (!original) return;
+      if (lines.some(l=>l.season===p.season && l.kind==='liga')) return;
       const age=end-seasonYear(p.season);
-      const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga'};
-      push({season:p.season, src:p.src==='rechner'?'rechner':'historie', kind:'aufstieg', durable:false, label:'Aufstieg '+(names[p.to]||''), original, age, factor:titleFactor(age, false), note:'Einmalig für den tatsächlich vollzogenen Aufstieg. 1 % des Ursprungswerts pro Jahr, ohne Boden, ab Alter 100 bei 0. Kein Meistertitel daneben.'});
+      const rechner=p.src==='rechner';
+      const factor=seasonFactor(age, rechner);
+      if (p.from>=7){
+        push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:'Aufstieg aus der Amateurliga', original:ANSEHEN.amateurUp, age, factor, note:'Einmal 4 Ligapunkte für den belegten Aufstieg. Kein weiterer Bonus und kein Meistertitel. Wer nicht aufsteigt, hat keine Amateur-Platzierung.'});
+        return;
+      }
+      if (p.via==='move' && p.pl && p.from && ANSEHEN.levels[p.from]){
+        const nn=p.n||(leagueSample(p.from)&&leagueSample(p.from).size)||18;
+        const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga'};
+        push({season:p.season, src:'rechner', kind:'liga', label:(names[p.from]||'Liga')+' '+p.pl+'.'+(nn?'/'+nn:''), original:placePoints(p.from, nn, p.pl), age, factor, note:'Ligaplatz der abgeschlossenen Saison. Ein Aufstiegsplatz enthält die 15 Prozent. Keine zweite Aufstiegszeile.'});
+      }
     });
     applyHistoricalTitles(id, end, lines, push);
   }
@@ -617,14 +712,20 @@ function ansehenSelfTest(){
 function ansehenSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
+  const sizeOfLevel=lv=>{ const s=leagueSample(lv); return s?s.size:18; };
   for (let age=0; age<=150; age++){
-    const w=seasonFactor(age, true), tf=titleFactor(age, false);
-    for (let lv=2; lv<=7; lv++){
-      const champ=ansehenRound2(placePoints(lv, 18, 1)*w)+ansehenRound2(ANSEHEN.levels[lv].title*tf);
-      const last=ansehenRound2(placePoints(lv-1, 18, 18)*w);
+    const w=seasonFactor(age, true);
+    for (let lv=2; lv<=6; lv++){
+      const champ=ansehenRound2(placePoints(lv, sizeOfLevel(lv), 1)*w);
+      const aboveN=sizeOfLevel(lv-1);
+      const last=ansehenRound2(placePoints(lv-1, aboveN, aboveN)*w);
       const gap=ansehenRound2(last-champ);
       if (gap<worstLeague.gap) worstLeague={gap, age, lv, champ, last};
     }
+    const am=ansehenRound2(ANSEHEN.amateurUp*w);
+    const olLast=ansehenRound2(placePoints(6, 18, 18, 7)*w);
+    const gapAm=ansehenRound2(olLast-am);
+    if (gapAm<worstLeague.gap) worstLeague={gap:gapAm, age, lv:7, champ:am, last:olLast};
   }
   check('Ligahierarchie jedes Rechner-Alter 0–150', worstLeague.gap>0, 'knapp Stufe '+worstLeague.lv+' Alter '+worstLeague.age+' Rest '+worstLeague.gap+' ('+worstLeague.champ+' gegen '+worstLeague.last+')');
   const bl1=placePoints(1,20,1)+ANSEHEN.levels[1].title, bl2=placePoints(1,20,2);
@@ -669,18 +770,20 @@ function ansehenSelfTestBody(fails){
   check('Bundesliga-Meistertitel hat Boden', meisterDurable(1) && !meisterDurable(2) && !meisterDurable(7));
   check('Titel 0', titleFactor(0)===1);
   check('Titel 60 bleibt 40 %', titleFactor(60)===0.4 && titleFactor(150)===0.4);
-  const maxLand=ANSEHEN.land.capBudget*(1+ANSEHEN.land.titleShare);
-  check('DFB 2. Runde > 1. Runde + maximaler Landespokal', ANSEHEN.dfb['2. Runde']>ANSEHEN.dfb['1. Runde']+maxLand, ANSEHEN.dfb['2. Runde']+' gegen '+(ANSEHEN.dfb['1. Runde']+maxLand));
-  const landTitle=ansehenRound2(ANSEHEN.land.capBudget*ANSEHEN.land.titleShare);
-  let worstDfb={gap:Infinity, age:-1, left:0, right:0};
-  for (let age=0; age<=150; age++){
-    const w=seasonFactor(age, true), tf=titleFactor(age);
-    const left=ansehenRound2(ANSEHEN.dfb['2. Runde']*w);
-    const right=ansehenRound2(ANSEHEN.dfb['1. Runde']*w)+ansehenRound2(ANSEHEN.land.capBudget*w)+ansehenRound2(landTitle*tf);
-    const gap=ansehenRound2(left-right);
-    if (gap<worstDfb.gap) worstDfb={gap, age, left, right};
+  const landCap=finishLandScale(400*ANSEHEN.land.levelW[3], ['1','2','3','4','5','6','7','8'], 400, 0, {3:400});
+  const landCapSum=landWinnerSum(landCap);
+  let centOk=true, centBad='';
+  for (let c=0;c<=2735;c++){
+    const total=landWinnerTotal(c/100);
+    if (c<=2734 && total>35){ centOk=false; centBad=c+' → '+total; break; }
+    if (c===2735 && !(total>35)){ centOk=false; centBad='2735 bleibt '+total; break; }
   }
-  check('DFB-Invariante jedes Rechner-Alter 0–150', worstDfb.gap>0, 'knapp Alter '+worstDfb.age+' Rest '+worstDfb.gap+' ('+worstDfb.left+' gegen '+worstDfb.right+')');
+  check('Landespokalsieger bleibt bei höchstens 35', landCap.budget===27.34 && landCapSum===35 && centOk && Math.abs(ANSEHEN.land.capBudget-35/1.28)<1e-12, landCap.budget+'/'+landCapSum+'/'+centBad);
+  check('3. und 4. Liga wiegen im Landespokal mehr', ANSEHEN.land.levelW[3]>6 && ANSEHEN.land.levelW[4]>4.5, ANSEHEN.land.levelW[3]+'/'+ANSEHEN.land.levelW[4]);
+  const dfbRounds=['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'];
+  let dfbRise=true;
+  for (let i=1;i<dfbRounds.length;i++) if (!(ANSEHEN.dfb[dfbRounds[i]]>ANSEHEN.dfb[dfbRounds[i-1]])) dfbRise=false;
+  check('DFB-Runden sind die erreichte Runde und der Sieger hat 220', dfbRise && ANSEHEN.dfb['1. Runde']===40 && ANSEHEN.dfb['2. Runde']===60 && ANSEHEN.dfb.Finale===170 && ANSEHEN.dfb.title===50 && ANSEHEN.dfb.Finale+ANSEHEN.dfb.title===220);
   const allIds=Object.keys(TEAMS);
   const slice=(from,n)=>allIds.slice(from, from+n);
   const fake=(pairs)=>{
@@ -697,7 +800,14 @@ function ansehenSelfTestBody(fails){
   const roundPts=(scale, name)=>ansehenRound2(scale.budget*((scale.rounds.indexOf(name)+1)/scale.rounds.length));
   check('Freilos gleiche Runde', roundPts(bScale,'Achtelfinale')===roundPts(bScale,'Achtelfinale'));
   const euro1=euroOf(1,1), euro4=euroOf(1,4), euro5=euroOf(1,5), euro7=euroOf(1,7), euro8=euroOf(1,8);
-  check('CL vor EL vor UECL', euro1.pts>euro5.pts && euro5.pts>euro7.pts && euro1.key==='CL' && euro4.key==='CL' && !euro8);
+  check('CL vor EL vor UECL', euro1.pts===100 && euro5.pts===75 && euro7.pts===45 && euro1.key==='CL' && euro4.key==='CL' && !euro8);
+  check('Landespokale bleiben abgestuft und höchstens 35', landWinnerSum(bScale)<=35 && landWinnerSum(rScale)<=35 && landWinnerSum(bScale)>landWinnerSum(rScale), landWinnerSum(bScale)+'/'+landWinnerSum(rScale));
+  const openLand=cur()&&cur().cups&&cur().cups.land;
+  if (openLand){
+    const sums=BL_ORDER.map(bl=>openLand[bl]?landWinnerSum(landScaleOf(cur().name, bl)):null).filter(v=>v!=null);
+    const uniq=new Set(sums.map(String));
+    check('alle geöffneten Landespokale bleiben verschieden und bei höchstens 35', sums.length===BL_ORDER.length && uniq.size>1 && sums.every(v=>v<=35), sums.join(' · '));
+  }
   const a=ansehenLedger('t001'), b=ansehenLedger('t001');
   const sum=ansehenRound2(a.lines.reduce((s,l)=>s+l.today,0));
   check('Summe der Übersicht', a.value===sum && a.value===b.value, a.value+' gegen '+sum);
@@ -853,9 +963,20 @@ function ansehenSelfTestBody(fails){
     chronSeen=null; chronIndex=null; chronBuilt=-1;
     touchAnsehen();
   }
-  const p7=placePoints(1,18,7), p8=placePoints(1,18,8), p17=placePoints(1,18,17), p18=placePoints(1,18,18);
-  const midStep=ansehenRound2((p8-p17)/9), lastStep=ansehenRound2(p17-p18);
-  check('Bundesliga 8 bis 18 ist eng und der letzte Platz nicht abgerissen', Math.abs(midStep-lastStep)<0.05 && p7-p8>lastStep*1.5 && p18>placePoints(2,18,1), p7+'/'+p8+'/'+p17+'/'+p18);
+  const p7=placePoints(1,20,7), p8=placePoints(1,20,8), p17=placePoints(1,20,17), p18=placePoints(1,20,18), p20=placePoints(1,20,20);
+  const midStep=ansehenRound2((p8-p17)/9);
+  check('Bundesliga 20: Platz 17 ist die Basis, 18 bis 20 sind Abstieg', zoneCounts(1,20).safeLast===17 && p18===ansehenRound2(p17*0.9) && p20<p18 && p17>p18 && p7-p8>midStep, p7+'/'+p8+'/'+p17+'/'+p18+'/'+p20);
+  LEAGUES.forEach(l=>{
+    const z=zoneCounts(l.level, l.size);
+    const strict=(()=>{ let prev=1e9; for (let pl=1;pl<=l.size;pl++){ const v=placePoints(l.level, l.size, pl); if (!(v<prev)) return false; prev=v; } return true; })();
+    const promo=z.up?placePoints(l.level, l.size, z.up)===ansehenRound2(placePoints(l.level, l.size, z.up+1)*1.15):true;
+    const rel=z.down?placePoints(l.level, l.size, z.safeLast+1)===ansehenRound2(placePoints(l.level, l.size, z.safeLast)*0.9):true;
+    const above=leagueSample(l.level-1);
+    const under=above?placePoints(l.level, l.size, 1)<placePoints(above.level, above.size, above.size):true;
+    check(l.short+' hält 15 Prozent, 10 Prozent und die Liga darüber', strict && promo && rel && under, l.short);
+  });
+  check('Regionalliga mit sieben Absteigern bleibt über der Oberliga', placePoints(5,18,1)>placePoints(6,18,18,7) && placePoints(6,18,18,7)>ANSEHEN.amateurUp);
+  check('Amateur ohne Aufstieg hat keine Platzpunkte', placePoints(7,87,1)===0 && placePoints(7,87,87)===0);
   check('gespeicherter Landestitel folgt 28 Prozent des Budgets', landTitleOf({budget:10, title:1.8})===2.8);
   const squad=buildInitialSquads();
   const squadOk=LEAGUES.every(l=>squad.leagues[l.id] && squad.leagues[l.id].length===l.size);
@@ -873,6 +994,25 @@ function ansehenSelfTestBody(fails){
     if (family(a.liga) && family(a.liga)===family(b.liga) && b.ebene<a.ebene) reformFalse++;
   });
   check('Reform 2008 erzeugt keinen Aufstieg innerhalb derselben Spielklasse', reformFalse===0, String(reformFalse));
+  ['t118','t745','t760'].forEach(id=>{
+    const line=ansehenLedger(id, 2012).lines.find(l=>l.season==='2011/12' && l.label==='Aufstieg aus der Amateurliga');
+    check(id+' bleibt 2011/12 in derselben Landesliga ohne Amateurpunkte', !line);
+  });
+  const realAm=ansehenLedger('t768', 2010).lines.filter(l=>l.season==='2009/10' && l.label==='Aufstieg aus der Amateurliga');
+  check('belegter Aufstieg aus der Landesliga bleibt bei 4', realAm.length===1 && realAm[0].original===4 && !ansehenLedger('t768', 2010).lines.some(l=>l.season==='2009/10' && l.kind==='titel'));
+  let sameClassBonus=0;
+  Object.keys(TEAMS).forEach(id=>{
+    const rows=historyEntries(id).filter(r=>r.src==='historie');
+    for (let i=0;i<rows.length-1;i++){
+      const a=rows[i], b=rows[i+1];
+      if (seasonYear(b.season)!==seasonYear(a.season)+1 || a.liga!==b.liga || !(b.ebene<a.ebene)) continue;
+      if (ansehenLedger(id, seasonYear(a.season)+1).lines.some(l=>l.season===a.season && l.label==='Aufstieg aus der Amateurliga')) sameClassBonus++;
+    }
+  });
+  check('keine gleiche Spielklasse wird als Amateur-Aufstieg gebucht', sameClassBonus===0, String(sameClassBonus));
+  const histSmall=ansehenLedger('t118', 2012).lines.find(l=>l.season==='2011/12' && l.kind==='liga');
+  check('Ebene 7 ohne Aufstieg hat keine Ligazeile', !histSmall);
+  check('historische Bundesliga mit 18 Mannschaften zont anders als mit 20', placePoints(1,18,17)!==placePoints(1,20,17) && zoneCounts(1,18).safeLast===15 && zoneCounts(1,20).safeLast===17, placePoints(1,18,17)+'/'+placePoints(1,20,17));
   const openCup={name:'2080/81', status:'running', leagues:{BL:{teams:['t001','t007','t018'], tables:{all:[{id:'t001',pl:1},{id:'t007',pl:7},{id:'t018',pl:18}]}}}, cups:{dfb:{entrants:['t001','t007','t018'], rounds:[{name:'Halbfinale', drawn:true, byes:['t007'], matches:[{h:'t001',a:'t018',hg:null,ag:null}]}]}}};
   check('Offener Außenseiter hält Platz 8 grau', dfbEighthOpen(openCup)===false);
   openCup.cups.dfb.rounds[0].matches[0].hg=1; openCup.cups.dfb.rounds[0].matches[0].ag=0;
@@ -914,23 +1054,65 @@ function ansehenSelfTestBody(fails){
     touchAnsehen();
     const up=ansehenLedger('t011', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='aufstieg');
     const upAlso=ansehenLedger('t012', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='aufstieg');
+    const liga1=ansehenLedger('t011', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='liga');
+    const liga3=ansehenLedger('t012', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='liga');
     const stay=ansehenLedger('t013', 2092).lines.filter(l=>l.season==='2091/92'&&(l.kind==='aufstieg'||l.kind==='titel'));
+    const stayLiga=ansehenLedger('t013', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='liga');
     const down=ansehenLedger('t014', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='aufstieg');
+    const downLiga=ansehenLedger('t014', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='liga');
     const noTitle=ansehenLedger('t011', 2092).lines.filter(l=>l.season==='2091/92'&&l.kind==='titel');
-    check('Meister und Nichtmeister bekommen denselben Aufstieg, ohne Titel', up.length===1 && up[0].to==null && up[0].original===ANSEHEN.promotionTo[2] && up[0].src==='rechner' && upAlso.length===1 && noTitle.length===0, up.map(l=>l.label+'/'+l.src).join(','));
-    check('Staffelsieger ohne Aufstieg und Absteiger bleiben ohne Bonus', stay.length===0 && down.length===0);
+    check('Aufstiegsplätze stecken im Ligawert und unterscheiden sich', up.length===0 && upAlso.length===0 && noTitle.length===0 && liga1.length===1 && liga3.length===1 && liga1[0].original===placePoints(3,20,1) && liga3[0].original===placePoints(3,20,3) && liga1[0].original>liga3[0].original, liga1.map(l=>l.original).join(',')+'/'+liga3.map(l=>l.original).join(','));
+    check('gleich gebliebener Staffelsieger hat keinen Extra-Bonus, der Absteiger den Abschlag', stay.length===0 && stayLiga.length===1 && stayLiga[0].original===placePoints(5,18,1) && down.length===0 && downLiga.length===1 && downLiga[0].original===placePoints(2,18,16));
     const last={name:'2094/95', status:'done', leagues:{}, pools:{}, endData:{moves:[{id:'t015', from:'L3', to:'BL2', type:'auf', pl:2},{id:'t016', from:'BL2', to:'L3', type:'ab', pl:18}], picks:{OLBY:['t017']}}};
     S.seasons.push(last);
     touchAnsehen();
+    const lastLiga=ansehenLedger('t015', 2094).lines.filter(l=>l.season==='2094/95'&&l.kind==='liga');
     const lastUp=ansehenLedger('t015', 2094).lines.filter(l=>l.kind==='aufstieg'&&l.season==='2094/95');
-    const lastDown=ansehenLedger('t016', 2094).lines.filter(l=>l.kind==='aufstieg'&&l.season==='2094/95');
-    const amUp=ansehenLedger('t017', 2094).lines.filter(l=>l.kind==='aufstieg'&&l.season==='2094/95');
-    check('letzte Saison zählt Aufstieg und Amateur, nicht den Abstieg', lastUp.length===1 && lastUp[0].src==='rechner' && lastDown.length===0 && amUp.length===1 && amUp[0].original===ANSEHEN.promotionTo[6]);
+    const lastDown=ansehenLedger('t016', 2094).lines.filter(l=>l.season==='2094/95'&&(l.kind==='aufstieg'||l.kind==='liga'));
+    const amUp=ansehenLedger('t017', 2094).lines.filter(l=>l.season==='2094/95');
+    check('Bewegung ohne Tabelle bucht den Ligaplatz einmal, Amateur genau 4', lastUp.length===0 && lastLiga.length===1 && lastLiga[0].original===placePoints(3,20,2) && lastDown.length===0 && amUp.length===1 && amUp[0].kind==='liga' && amUp[0].original===4 && !amUp.some(l=>l.kind==='titel'||l.kind==='aufstieg'));
     const amEuro=ansehenLedger('t090', 2092).lines.filter(l=>l.season==='2092/93');
-    check('Amateur-Pokalsieger bekommt UECL ohne Ligaplatz', amEuro.filter(l=>l.kind==='euro').length===1 && amEuro.some(l=>l.kind==='euro'&&l.original===ANSEHEN.euro.UECL) && !amEuro.some(l=>l.kind==='liga'));
+    check('Amateur-Pokalsieger bekommt UECL 45 ohne Ligaplatz', amEuro.filter(l=>l.kind==='euro').length===1 && amEuro.some(l=>l.kind==='euro'&&l.original===45) && !amEuro.some(l=>l.kind==='liga'));
   }finally{
     S.seasons=keepS; S.chronicle=keepC; S.pokalRuns=keepR; S.view=keepV;
     chronSeen=null; chronIndex=null; chronBuilt=-1; runIndex=null; runBuilt=-1; runSeasons=null;
+    touchAnsehen();
+  }
+  const endKeepS=S.seasons, endKeepC=S.chronicle, endKeepV=S.view;
+  try{
+    S.chronicle=[];
+    chronSeen=null; chronIndex=null; chronBuilt=-1;
+    const rlIds=[];
+    for (let i=0;i<18;i++) rlIds.push('t'+String(200+i).padStart(3,'0'));
+    rlIds[11]='t040';
+    const rlRows=rlIds.map((id,i)=>({id, pl:i+1}));
+    const dlg={name:'2096/97', status:'ending', leagues:{RLN:{teams:rlIds.slice(), tables:{all:rlRows}}}, pools:{}, endData:{
+      moves:[{id:'t041', from:'L3', to:'BL2', type:'auf', pl:1}],
+      picks:{OLBY:['t042']},
+      downOf:{RLN:7},
+      tables:{RLN:rlRows}
+    }};
+    S.seasons=[dlg]; S.view=0; touchAnsehen();
+    const at=id=>ansehenLedger(id, 2096).lines.filter(l=>l.season==='2096/97');
+    check('offener Abschluss bucht noch keine Saisonpunkte', at('t041').length===0 && at('t042').length===0 && at('t040').length===0);
+    dlg.status='running'; delete dlg.endData; touchAnsehen();
+    check('Abbruch nimmt die vorläufige Wertung zurück', at('t041').length===0 && at('t042').length===0 && at('t040').length===0);
+    dlg.status='ending';
+    dlg.endData={moves:[{id:'t041', from:'L3', to:'BL2', type:'auf', pl:1}], picks:{OLBY:['t043']}, downOf:{RLN:7}, tables:{RLN:rlRows}};
+    touchAnsehen();
+    check('eine andere Auswahl im Dialog bleibt ohne Punkte', at('t041').length===0 && at('t042').length===0 && at('t043').length===0 && at('t040').length===0);
+    dlg.status='done'; touchAnsehen();
+    const moved=at('t041'), picked=at('t043'), dropped=at('t042'), stayed=at('t040');
+    check('nach dem Abschluss steht jede Zeile einmal', moved.length===1 && moved[0].kind==='liga' && moved[0].original===placePoints(3,20,1) && picked.length===1 && picked[0].kind==='liga' && picked[0].original===4 && dropped.length===0 && stayed.length===1 && stayed[0].original===placePoints(5,18,12,7), (stayed[0]&&stayed[0].original)+'/'+placePoints(5,18,12,7));
+    LEAGUES.forEach(l=>{
+      const z=zoneCounts(l.level, l.size, l.level>=5?7:null);
+      const edge=l.up?placePoints(l.level, l.size, l.up)===ansehenRound2(placePoints(l.level, l.size, l.up+1)*1.15):true;
+      const rel=z.down?placePoints(l.level, l.size, z.safeLast+1, l.level>=5?7:null)===ansehenRound2(placePoints(l.level, l.size, z.safeLast, l.level>=5?7:null)*0.9):true;
+      check(l.id+' zont die konfigurierte Größe', edge && rel && placePoints(l.level, l.size, 1, l.level>=5?7:null)>placePoints(l.level, l.size, l.size, l.level>=5?7:null));
+    });
+  }finally{
+    S.seasons=endKeepS; S.chronicle=endKeepC; S.view=endKeepV;
+    chronSeen=null; chronIndex=null; chronBuilt=-1;
     touchAnsehen();
   }
   const bayernParts=ansehenParts(ansehenLedger('t001'));
@@ -943,7 +1125,7 @@ function ansehenSelfTestBody(fails){
     const row=reg.find(r=>r.comp===comp);
     check(comp+' hat den Bundesliga-Titelwert', !!row && titelOriginalPoints(comp)===180 && titelOriginalPoints(comp)===ANSEHEN.levels[1].title);
   });
-  check('DFB und FDGB haben denselben Pokalwert', titelOriginalPoints('dfb')===55 && titelOriginalPoints('fdgb')===55 && titelOriginalPoints('dfb')===ANSEHEN.dfb.title);
+  check('DFB und FDGB haben denselben Pokalwert 50', titelOriginalPoints('dfb')===50 && titelOriginalPoints('fdgb')===50 && titelOriginalPoints('dfb')===ANSEHEN.dfb.title);
   check('große Titel altern gleich bis 40 Prozent', titleFactor(0,true)===1 && titleFactor(59,true)===0.41 && titleFactor(60,true)===0.4 && titleFactor(150,true)===0.4);
   check('volle historische Saison aus der Quelle', seasonFull('1908/09')==='1908/1909' && seasonFull('1954/55')==='1954/1955' && seasonFull('2003/04')==='2003/2004' && seasonFull('1999/00')==='1999/2000' && seasonFull('1956')==='1956');
   const usedCup=new Set();
@@ -1053,9 +1235,11 @@ function ansehenSelfTestBody(fails){
   check('Bayern 1932 ist ein großer Titel', !!de1932 && de1932.durable===true && de1932.original===180 && de1932.factor===titleFactor(de1932.age, true));
   const lok1957=ansehenLedger('t084').lines.filter(l=>l.histKey==='fdgb|1957');
   const chem1957=ansehenLedger('t139').lines.filter(l=>l.histKey==='fdgb|1957');
-  check('FDGB 1957 zählt einmal nur bei Lok', lok1957.length===1 && chem1957.length===0 && lok1957[0].original===55 && lok1957[0].label==='FDGB-Pokal-Titel', lok1957.length+'/'+chem1957.length);
+  check('FDGB 1957 zählt einmal nur bei Lok', lok1957.length===1 && chem1957.length===0 && lok1957[0].original===50 && lok1957[0].label==='FDGB-Pokal-Titel', lok1957.length+'/'+chem1957.length);
+  const frozenOnly=landScaleFromStored({budget:99, title:40, rounds:['Finale'], n:2, field:12, unknown:0, byLevel:{3:2}});
+  check('eingefrorene Ligazahlen werden neu gerechnet und nicht geraten', frozenOnly.byLevel[3]===2 && frozenOnly.field===ansehenRound2(2*ANSEHEN.land.levelW[3]) && frozenOnly.budget!==99 && landWinnerSum(frozenOnly)<=35);
   check('unterer Meistertitel bleibt ohne Boden', titleFactor(99, false)===0.01 && titleFactor(100, false)===0 && titleFactor(60, true)===0.4);
-  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
+  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
 // Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
@@ -3748,7 +3932,7 @@ function landPointsHTML(s, cup){
   roundsHtml+='<tr><td class="l">Titel, einmalig für den Sieger</td>'+sortCell(titleNow, ansehenPts(titleNow))+'</tr>';
   roundsHtml+='<tr data-pin="1"><td class="l"><b>Sieger insgesamt</b></td>'+sortCell(sum, ansehenPts(sum))+'</tr>';
   roundsHtml+='</tbody></table>';
-  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher, höchstens '+ansehenPts(ANSEHEN.land.capBudget)+'. Daraus folgt das Budget '+ansehenPts(scale.budget)+'. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent dieses Budgets, auch wenn eine ältere Skala noch einen anderen Titel gespeichert hat.</p>'+mix+roundsHtml+'</div>';
+  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher. Das Budget bleibt bei höchstens '+ansehenPts(cappedLandBudget(ANSEHEN.land.capBudget))+', damit Finalrunde plus Titel zusammen höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+' sind. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent dieses Budgets, auch wenn eine ältere Skala noch einen anderen Titel gespeichert hat.</p>'+mix+roundsHtml+'</div>';
 }
 function rowSeason(r){
   if (r.season) return r.season;
@@ -6106,7 +6290,7 @@ function rulesHTML(){
     changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+p.down+' statt '+l.down+'.</b> '+esc(p.reason)+'</li>'; });
     h+='</ul>';
   } else h+='<p>In der Saison '+esc(s.name)+' hat nach dem aktuellen Stand jede Staffel die geplante Abstiegszahl.</p>';
-  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Den Bonus gibt es einmalig für den tatsächlich vollzogenen Aufstieg, auch für Nichtmeister und Relegationssieger, nicht für den Verlierer und nicht für einen Staffelsieger ohne Aufstieg.</p></div>';
+  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der Regionalliga und Oberliga hängt die Abstiegszahl von der Saison ab. Ein Abstiegsplatz ist kein Aufstieg.</p></div>';
   return h;
 }
 function ansehenParts(info){
@@ -6158,7 +6342,7 @@ function viewAnsehen(){
   list.sort((a,b)=>(b.info.value==null?-1:b.info.value)-(a.info.value==null?-1:a.info.value) || TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de'));
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
-  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln, Aufstieg und Europa. Der Supercup steckt in der Titelspalte. Nach einer Sortierung oder Suche steht vorn die sichtbare Position, klein daneben der ursprüngliche Gesamtrang. In der Grundordnung ohne Filter ist das dieselbe Zahl. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
+  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln und Europa. Der Amateur-Aufstieg steckt mit 4 Punkten in der Liga. Ein Aufstiegsplatz einer gespielten Liga steckt ebenfalls im Ligawert, die Spalte Aufstieg bleibt deshalb leer. Der Supercup steckt in der Titelspalte. Nach einer Sortierung oder Suche steht vorn die sichtbare Position, klein daneben der ursprüngliche Gesamtrang. In der Grundordnung ohne Filter ist das dieselbe Zahl. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
   h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Aufstieg','aufstieg')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
   list.forEach(r=>{
     const name=TEAMS[r.id].name;
@@ -6180,18 +6364,20 @@ function ansehenPts(x){
 }
 function ansehenLegendHTML(){
   const cell=(a,b)=>'<tr><td class="l">'+a+'</td><td>'+esc(String(b))+'</td></tr>';
-  const names=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga','Oberliga','Amateurliga'];
+  const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga'};
   let liga='';
-  names.forEach((name,i)=>{
-    const s=ANSEHEN.levels[i+1];
-    liga+=cell(name+' Platz 1 / Letzter', ansehenPts(s.first)+' / '+ansehenPts(s.last));
-    liga+=cell(name+' Meistertitel', ansehenPts(s.title));
-    liga+=cell(name+' Meister inklusive Titel', ansehenPts(s.first+s.title));
+  [1,2,3,4,5,6].forEach(level=>{
+    const sample=leagueSample(level);
+    const n=sample?sample.size:18;
+    liga+=cell(names[level]+' Platz 1 / Letzter', ansehenPts(placePoints(level,n,1))+' / '+ansehenPts(placePoints(level,n,n)));
+    liga+=cell(names[level]+' Meistertitel', ansehenPts(ANSEHEN.levels[level].title));
   });
+  liga+=cell('Amateur-Aufsteiger', ansehenPts(ANSEHEN.amateurUp));
   let dfb='';
   ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{ dfb+=cell(r, ansehenPts(ANSEHEN.dfb[r])); });
   dfb+=cell('Sieger-Titel, zusätzlich', ansehenPts(ANSEHEN.dfb.title));
-  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel ist ein eigener Posten.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div></div>'+ageScaleHTML();
+  dfb+=cell('Sieger insgesamt', ansehenPts(ANSEHEN.dfb.Finale+ANSEHEN.dfb.title));
+  return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Die Bundesliga hat 20 Mannschaften. Platz 17 ist dort der letzte Nichtabstiegsplatz, die Plätze 18 bis 20 liegen 10 Prozent darunter. Aufstiegsplätze der anderen Ligen liegen 15 Prozent über dem besten Platz dahinter. Der Meistertitel steht nur bei Platz 1 der Bundesliga extra dazu.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel ist ein eigener Posten. FDGB-Siege haben denselben Titelwert, ohne erfundene Runden.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div></div>'+ageScaleHTML();
 }
 function ageScaleHTML(){
   const ages=[0,1,4,5,10,11,20,21,49,50,59,60,99,100,150];
@@ -6200,42 +6386,86 @@ function ageScaleHTML(){
     const band=ageBand(age);
     rows+='<tr class="band-'+band.id+'"><td class="l">'+esc(band.label)+'</td><td>'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age, true),2)+'</td><td>'+deNum(titleFactor(age, false),2)+'</td></tr>';
   });
-  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Deutsche Meisterschaft, Bundesliga, DDR-Meisterschaft, DFB-Pokal, FDGB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Der Aufstiegsbonus hat denselben Jahresabzug, aber keinen Boden, und ist ab Alter 100 bei 0.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>Aufstieg</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Deutsche Meisterschaft, Bundesliga, DDR-Meisterschaft, DFB-Pokal, FDGB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Ligapunkte, auch die 4 Punkte eines Amateur-Aufsteigers, altern wie die Rechner-Saison.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>ohne Boden</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function landMixText(scale){
+  if (!scale || scale.missing) return '–';
+  const parts=[];
+  Object.keys(scale.byLevel||{}).map(k=>+k).sort((a,b)=>a-b).forEach(lv=>{
+    parts.push((LAND_LEVEL[lv]||('Stufe '+lv))+' '+scale.byLevel[lv]);
+  });
+  if (scale.unknown) parts.push('ohne Liga '+scale.unknown);
+  return parts.join(' · ')||'–';
+}
+function landCompareHTML(){
+  const s=cur();
+  const seasonName=s&&s.name||'';
+  const head=BL_ORDER.map(bl=>'<th>'+esc(bl)+'</th>').join('');
+  const cells=fn=>BL_ORDER.map(bl=>{
+    const cup=s&&s.cups&&s.cups.land&&s.cups.land[bl];
+    let scale={missing:true};
+    if (cup){ try{ scale=landScaleOf(seasonName, bl)||scale; }catch(e){ scale={missing:true}; } }
+    return '<td>'+fn(cup, scale)+'</td>';
+  }).join('');
+  const row=(label, fn)=>'<tr><th class="l">'+label+'</th>'+cells(fn)+'</tr>';
+  const weights=[3,4,5,6,7].map(lv=>(LAND_LEVEL[lv]||lv)+' '+ansehenPts(ANSEHEN.land.levelW[lv])).join(' · ');
+  let h='<div class="ansehen-card"><h3>Landespokale '+esc(seasonName)+'</h3>';
+  h+='<p>Alle 16 Pokale der geöffneten Saison stehen nebeneinander. Gezählt wird das Feld dieser Saison. Eine eingefrorene Mischung behält ihre Ligazahlen und wird mit den aktuellen Gewichten neu gerechnet, ohne die heutigen Ligen zu raten. Gewichte: '+weights+'. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Budgets. Finalrunde plus Titel sind zusammen höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+'. Die Wertung jedes einzelnen Pokals bleibt im Wettbewerb.</p>';
+  h+='<div class="hscroll land-matrix"><table class="tbl"><thead><tr><th class="l">Vergleich</th>'+head+'</tr></thead><tbody>';
+  h+=row('Anzahl', (cup,scale)=>scale.missing?'–':String(scale.n||0));
+  h+=row('Ligaverteilung', (cup,scale)=>esc(landMixText(scale)));
+  h+=row('Feldgewicht', (cup,scale)=>scale.missing?'–':ansehenPts(scale.field));
+  h+=row('Budget', (cup,scale)=>scale.missing?'–':ansehenPts(scale.budget));
+  h+=row('Runden', (cup,scale)=>scale.missing?'–':esc((scale.rounds||[]).join(', ')||'–'));
+  h+=row('Titel', (cup,scale)=>scale.missing?'–':ansehenPts(landTitleOf(scale)));
+  h+=row('Sieger gesamt', (cup,scale)=>scale.missing||!(scale.rounds||[]).length?'–':ansehenPts(landWinnerSum(scale)));
+  h+='</tbody></table></div></div>';
+  return h;
 }
 function ansehenGuideHTML(){
   const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga',7:'Amateurliga', dfb:'DFB-Pokal', land:'Landespokal', alter:'Alter'};
   const guide=S.ui.ansehenGuide||'1';
   const tabs=[['1','Bundesliga'],['2','2. Bundesliga'],['3','3. Liga'],['4','4. Liga'],['5','Regionalliga'],['6','Oberliga'],['7','Amateurliga'],['dfb','DFB-Pokal'],['land','Landespokal'],['alter','Alter']];
   const bar='<div class="toggle">'+tabs.map(([k,n])=>'<button type="button" data-act="ansehenGuide" data-v="'+k+'" class="'+(guide===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
-  const sizeOf=level=>{
-    const found=LEAGUES.filter(l=>l.level===+level);
-    return found.length?found[0].size:(+level===7?18:18);
-  };
   let body='';
   if (guide==='dfb'){
     let dfb='';
     ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{ dfb+='<tr><td class="l">'+r+'</td><td>'+ansehenPts(ANSEHEN.dfb[r])+'</td></tr>'; });
     dfb+='<tr><td class="l">Titel extra</td><td>'+ansehenPts(ANSEHEN.dfb.title)+'</td></tr>';
-    body='<div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel hat den Grundwert '+ansehenPts(ANSEHEN.dfb.title)+', gleich dem FDGB-Pokal, und altert wie die großen Titel. Europa: Plätze 1–4 CL '+ansehenPts(ANSEHEN.euro.CL)+', 5–6 EL '+ansehenPts(ANSEHEN.euro.EL)+', 7 und gegebenenfalls 8 UECL '+ansehenPts(ANSEHEN.euro.UECL)+'. Der Pokalsieger erhält UECL, wenn das höher ist als sein Ligaplatz. Supercup: '+ansehenPts(ANSEHEN.supercup.title)+'.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div>';
+    dfb+='<tr><td class="l">Sieger insgesamt</td><td>'+ansehenPts(ANSEHEN.dfb.Finale+ANSEHEN.dfb.title)+'</td></tr>';
+    body='<div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Der Sieger hat die Finalrunde plus '+ansehenPts(ANSEHEN.dfb.title)+' Titel, zusammen '+ansehenPts(ANSEHEN.dfb.Finale+ANSEHEN.dfb.title)+'. Der FDGB-Pokal hat denselben Titelwert und keine erfundenen Runden. Europa steht extra und nur einmal: CL '+ansehenPts(ANSEHEN.euro.CL)+', EL '+ansehenPts(ANSEHEN.euro.EL)+', UECL '+ansehenPts(ANSEHEN.euro.UECL)+'. Der Pokalsieger erhält UECL, wenn das höher ist als sein Ligaplatz, auch ohne Ligazeile. Supercup: '+ansehenPts(ANSEHEN.supercup.title)+'.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div>';
   } else if (guide==='land'){
-    const weights=Object.keys(ANSEHEN.land.levelW).map(k=>'<tr><td>'+names[k]+'</td><td>'+ansehenPts(ANSEHEN.land.levelW[k])+'</td></tr>').join('');
-    body='<div class="ansehen-card"><h3>Landespokal</h3><p>Das Feldgewicht und die Runden bleiben. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des gespeicherten Budgets. Ein altes Budget wird nicht aus den heutigen Ligen neu gerechnet.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Gewicht</th></tr></thead><tbody>'+weights+'</tbody></table></div>';
+    body=landCompareHTML();
   } else if (guide==='alter'){
     body=ageScaleHTML();
+  } else if (guide==='7'){
+    body='<div class="ansehen-card"><h3>Amateurliga</h3><p>Die Amateurliga wird nicht gespielt. Es gibt keine Platzrangliste und keine Punkte für Vereine, die bleiben. Wer tatsächlich aufsteigt, bekommt einmal '+ansehenPts(ANSEHEN.amateurUp)+' Ligapunkte, in jeder Staffel gleich, ohne weiteren Bonus und ohne Meistertitel.</p><table class="tbl"><thead><tr><th class="l">Wertung</th><th>Liga</th><th>Gesamt</th></tr></thead><tbody><tr><td class="l">Aufsteiger</td><td>'+ansehenPts(ANSEHEN.amateurUp)+'</td><td>'+ansehenPts(ANSEHEN.amateurUp)+'</td></tr></tbody></table></div>';
   } else {
     const level=+guide||1;
-    const n=level===7?((cur()&&cur().pools&&POOLS[0]&&cur().pools[POOLS[0].id]||[]).length||18):sizeOf(level);
+    const sample=leagueSample(level);
+    const n=sample?sample.size:18;
+    const z=zoneCounts(level, n);
     let rows='';
     for (let pl=1; pl<=n; pl++){
-      const euro=euroOf(level, pl, pl===8);
-      const title=pl===1&&level===1?ansehenPts(ANSEHEN.levels[1].title):'–';
-      const up=ANSEHEN.promotionTo[level]&&pl===1?'Aufstieg nach hier '+ansehenPts(ANSEHEN.promotionTo[level]):'';
-      rows+='<tr><td>'+pl+'</td><td>'+ansehenPts(placePoints(level, n, pl))+'</td><td>'+title+'</td><td>'+(euro?euro.key+' '+ansehenPts(euro.pts)+(pl===8?' nur wenn der Pokal in die Top 7 geht':''):'–')+'</td><td>'+(up||'–')+'</td></tr>';
+      const liga=placePoints(level, n, pl);
+      const euro=euroOf(level, pl, false);
+      const euro8=level===1&&pl===8?euroOf(1, 8, true):null;
+      const title=pl===1&&level===1?ANSEHEN.levels[1].title:0;
+      const euroPts=euro?euro.pts:0;
+      const gesamt=ansehenRound2(liga+euroPts+title);
+      let zone='Mittelfeld';
+      if (z.up && pl===z.up) zone='Aufstiegsplatz +15 %';
+      else if (pl<=z.up) zone='Aufstiegsplatz';
+      else if (z.down && pl===z.safeLast+1) zone='Abstieg −10 %';
+      else if (z.down && pl>z.safeLast) zone='Abstieg';
+      else if (level===1 && pl<=7) zone='Europa';
+      const euroCell=euro?euro.key+' '+ansehenPts(euro.pts):(euro8?'UECL '+ansehenPts(euro8.pts)+', nur wenn der Pokalsieger in den Top 7 steht':'–');
+      rows+='<tr><td>'+pl+'</td><td class="l">'+zone+'</td><td>'+ansehenPts(liga)+'</td><td>'+euroCell+'</td><td>'+(title?ansehenPts(title):'–')+'</td><td>'+ansehenPts(gesamt)+'</td></tr>';
     }
     const note=level===1
-      ? 'Die Europaplätze liegen weiter auseinander. Die Plätze 8 bis 17 liegen eng. Platz 18 bleibt der letzte der Liga. Der Meistertitel ist 180 und altert wie die deutsche Meisterschaft vor 1963 und die DDR-Meisterschaft.'
-      : 'Kein Meistertitel. Wer tatsächlich in die nächste Liga aufsteigt, bekommt einmal den Aufstiegsbonus '+ansehenPts(ANSEHEN.promotionTo[level]||0)+' der Zielliga. Der verliert 1 % pro Jahr und ist ab Alter 100 bei 0.';
-    body='<div class="ansehen-card"><h3>'+names[level]+'</h3><p>'+n+' Plätze. '+note+'</p><table class="tbl"><thead><tr><th>Platz</th><th>Liga</th><th>Titel extra</th><th>Europa</th><th>Aufstieg</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+      ? 'Die Bundesliga hat 20 Mannschaften. Platz 17 ist der letzte Nichtabstiegsplatz, die Plätze 18 bis 20 haben 10 Prozent weniger. Die Europaplätze 1 bis 7 liegen weiter auseinander als die Plätze 8 bis 17. Der Meistertitel steht nur bei Platz 1. Europa ist eine eigene Zeile und kommt nicht noch einmal in den Ligapunkt.'
+      : 'Ein Aufstiegsplatz hat 15 Prozent mehr als der beste Platz dahinter, auch wenn der Verein am Ende nicht aufsteigt. Ein Abstiegsplatz hat 10 Prozent weniger als der letzte Nichtabstiegsplatz. Das ist der Rangzonenwert, kein zusätzlicher Aufstiegsbonus. Vier Punkte gibt es nur für den tatsächlich vollzogenen Aufstieg aus der Amateurliga. '+(level>=5?'Die Abstiegszahl der Staffel folgt der Saison. Hier steht die geplante Zahl.':'Die Auf- und Abstiegszahlen sind fest.');
+    body='<div class="ansehen-card"><h3>'+names[level]+'</h3><p>'+n+' Plätze. '+note+'</p><table class="tbl"><thead><tr><th>Platz</th><th class="l">Zone</th><th>Liga</th><th>Europa</th><th>Titel</th><th>Gesamt</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
   return '<div class="box ansehen-guide"><h3>So wird Ansehen gezählt</h3>'+bar+body+'</div>';
 }
@@ -8193,10 +8423,19 @@ function uiSelfTestBody(fails){
   const guideWas=S.ui.ansehenGuide;
   S.ui.ansehenGuide='1';
   const guideBl=ansehenGuideHTML();
+  S.ui.ansehenGuide='2';
+  const guideL2=ansehenGuideHTML();
+  S.ui.ansehenGuide='7';
+  const guideAm=ansehenGuideHTML();
+  S.ui.ansehenGuide='land';
+  const guideLand=ansehenGuideHTML();
   S.ui.ansehenGuide='dfb';
   const guideDfb=ansehenGuideHTML();
   S.ui.ansehenGuide=guideWas;
-  check('Wertungsreiter nutzt die Ligafunktion', guideBl.indexOf(String(placePoints(1,20,1)))>=0 && guideDfb.indexOf(String(ANSEHEN.dfb['2. Runde']))>=0 && guideDfb.indexOf(ansehenPts(ANSEHEN.supercup.title))>=0 && guideBl.indexOf('Landespokal')>=0);
+  check('Wertungsreiter nutzt die Ligafunktion', guideBl.indexOf(String(placePoints(1,20,1)))>=0 && guideDfb.indexOf(String(ANSEHEN.dfb['2. Runde']))>=0 && guideDfb.indexOf('220')>=0 && guideDfb.indexOf(ansehenPts(ANSEHEN.supercup.title))>=0 && guideBl.indexOf('Landespokal')>=0);
+  check('Bundesliga ohne Aufstiegsspalte, 2. Liga mit Aufstiegsplatz', guideBl.indexOf('Aufstiegsplatz')<0 && guideBl.indexOf('Abstieg −10 %')>=0 && guideL2.indexOf('Aufstiegsplatz +15 %')>=0 && guideL2.indexOf('<th>Aufstieg</th>')<0);
+  check('Amateur zeigt nur den Aufsteiger', guideAm.indexOf('Aufsteiger')>=0 && guideAm.indexOf('>1<')<0 && guideAm.indexOf(ansehenPts(ANSEHEN.amateurUp))>=0);
+  check('alle Landespokale stehen nebeneinander', BL_ORDER.every(bl=>guideLand.indexOf(bl)>=0) && guideLand.indexOf('Sieger gesamt')>=0 && guideLand.indexOf('land-matrix')>=0);
   const sortTab=S.ui.tab, sortLeague=S.ui.league, sortSec=S.ui.ansehenSec, sortId=S.ui.ansehenId;
   const rankText=table=>{
     const row=table.tBodies[0].rows[0];
