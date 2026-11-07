@@ -991,9 +991,14 @@ function ansehenSelfTestBody(fails){
     const once=new Set(matches.map(m=>m.h+'>'+m.a));
     check(label, !landShort && ids.length===64 && uniq.size===64 && cup.pro.length===32 && cup.amateur.length===32 && landOk && split && matches.length===32 && homeOk && once.size===32 && expect(cup), ids.length+'/'+cup.pro.length+'/'+cup.amateur.length);
   };
-  checkField('ohne Titelverteidiger bleiben 64 und die Landespokalsieger', buildCups(nextBase, prevBase).dfb, cup=>{
-    return cupL3.slice(0,8).every(id=>cup.entrants.indexOf(id)>=0) && cup.pro.indexOf(cupBl2[11])>=0 && cup.amateur.indexOf(cupBl2[12])>=0 && cup.amateur.indexOf(cupBl[0])<0;
+  checkField('Titelverteidiger der Bundesliga ändert die Töpfe nicht', buildCups(nextBase, prevBase).dfb, cup=>{
+    return cup.defender===cupBl[0] && cupL3.slice(0,8).every(id=>cup.entrants.indexOf(id)>=0) && cup.pro.indexOf(cupBl2[11])>=0 && cup.amateur.indexOf(cupBl2[12])>=0 && cup.amateur.indexOf(cupBl[0])<0;
   });
+  const firstSeason=seasonOf(cupBl, cupBl2, cupL3);
+  const firstPool=POOLS[0] && POOLS[0].id;
+  if (firstPool) firstSeason.pools[firstPool]=BL_ORDER.map(st=>takeCup(st,1)[0]).filter(Boolean);
+  const first=buildCups(firstSeason, null).dfb;
+  check('erste Saison ohne Titelverteidiger bleibt bei 64 und 32 zu 32', !first.defender && first.entrants.length===64 && new Set(first.entrants).size===64 && first.pro.length===32 && first.amateur.length===32 && cupL3.slice(0,8).every(id=>first.entrants.indexOf(id)>=0) && first.pro.indexOf(cupBl2[11])>=0 && first.amateur.indexOf(cupBl2[12])>=0 && first.spots.length===16);
   const defend=(id, nextBl, nextBl2)=>{
     const prev=seasonOf(cupBl, cupBl2, cupL3);
     prev.cups={dfb:{rounds:[{name:'Finale', drawn:true, matches:[{h:id, a:cupBl[0]===id?cupBl[1]:cupBl[0], hg:1, ag:0}]}]}, land:landCups(landWinners)};
@@ -1014,6 +1019,12 @@ function ansehenSelfTestBody(fails){
   const nextBl2=cupBl2.slice(0,19).concat([promoted]);
   checkField('Aufsteiger ist über die neue 2. Liga dabei, ohne zweiten 3.-Liga-Platz', defend(promoted, nextBl, nextBl2), cup=>{
     return cup.entrants.filter(id=>id===promoted).length===1 && cup.pro.indexOf(promoted)>=0 && cup.entrants.indexOf(relegated)<0;
+  });
+  const relegatedWinner=cupBl[19];
+  const nextAfterDropBl=cupBl.slice(0,19).concat([cupBl2[0]]);
+  const nextAfterDropBl2=[relegatedWinner].concat(cupBl2.slice(1));
+  checkField('abgestiegener Titelverteidiger bleibt im Profitopf', defend(relegatedWinner, nextAfterDropBl, nextAfterDropBl2), cup=>{
+    return cup.pro.indexOf(relegatedWinner)>=0 && cup.amateur.indexOf(relegatedWinner)<0 && cup.pro.indexOf(cupBl2[11])>=0 && cup.amateur.indexOf(cupBl2[12])>=0 && cup.entrants.filter(id=>id===relegatedWinner).length===1;
   });
   check('1904, 1922 und 1945 haben keinen Meister', !reg.some(r=>r.comp==='de' && (r.year===1904||r.year===1922||r.year===1945)));
   check('keine historischen Titel ab 2027', !reg.some(r=>r.year>=2027));
