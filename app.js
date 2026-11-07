@@ -944,6 +944,77 @@ function ansehenSelfTestBody(fails){
   check('DFB und FDGB haben denselben Pokalwert', titelOriginalPoints('dfb')===55 && titelOriginalPoints('fdgb')===55 && titelOriginalPoints('dfb')===ANSEHEN.dfb.title);
   check('große Titel altern gleich bis 40 Prozent', titleFactor(0,true)===1 && titleFactor(59,true)===0.41 && titleFactor(60,true)===0.4 && titleFactor(150,true)===0.4);
   check('volle historische Saison aus der Quelle', seasonFull('1908/09')==='1908/1909' && seasonFull('1954/55')==='1954/1955' && seasonFull('2003/04')==='2003/2004' && seasonFull('1999/00')==='1999/2000' && seasonFull('1956')==='1956');
+  const usedCup=new Set();
+  const takeCup=(bl,n)=>{
+    const out=[];
+    Object.keys(TEAMS).forEach(id=>{
+      if (out.length>=n || usedCup.has(id)) return;
+      if (bl && TEAMS[id].bl!==bl) return;
+      usedCup.add(id); out.push(id);
+    });
+    return out;
+  };
+  const cupBl=takeCup(null,20), cupBl2=takeCup(null,20), cupL3=takeCup(null,20);
+  const landWinners={};
+  let landShort=false;
+  BL_ORDER.forEach(st=>{ const id=takeCup(st,1)[0]; if(!id) landShort=true; else landWinners[st]=id; });
+  const emptyLeagues=()=>{ const leagues={}; LEAGUES.forEach(l=>{ leagues[l.id]={teams:[], tables:{all:[]}}; }); return leagues; };
+  const fill=ids=>ids.map((id,i)=>({id, pl:i+1}));
+  const seasonOf=(teamsBl, teamsBl2, teamsL3)=>{
+    const leagues=emptyLeagues();
+    leagues.BL={teams:teamsBl.slice(), tables:{all:fill(teamsBl)}};
+    leagues.BL2={teams:teamsBl2.slice(), tables:{all:fill(teamsBl2)}};
+    leagues.L3={teams:teamsL3.slice(), tables:{all:fill(teamsL3)}};
+    const pools={}; POOLS.forEach(p=>{ pools[p.id]=[]; });
+    return {name:'2080/81', status:'done', leagues, pools};
+  };
+  const landCups=winner=>{
+    const land={};
+    BL_ORDER.forEach(st=>{
+      const id=winner&&winner[st];
+      if (!id) return;
+      land[st]={rounds:[{name:'Finale', drawn:true, matches:[{h:id, a:cupBl[0], hg:1, ag:0}]}]};
+    });
+    return land;
+  };
+  const prevBase=seasonOf(cupBl, cupBl2, cupL3);
+  prevBase.cups={dfb:{rounds:[{name:'Finale', drawn:true, matches:[{h:cupBl[0], a:cupBl2[0], hg:1, ag:0}]}]}, land:landCups(landWinners)};
+  const nextBase=seasonOf(cupBl, cupBl2, cupL3);
+  const checkField=(label, cup, expect)=>{
+    const ids=cup.entrants||[];
+    const uniq=new Set(ids);
+    const landOk=BL_ORDER.every(st=>uniq.has(landWinners[st]));
+    const pro=new Set(cup.pro||[]), am=new Set(cup.amateur||[]);
+    const split=ids.every(id=>(pro.has(id)?1:0)+(am.has(id)?1:0)===1);
+    const matches=pairDfb(ids, pro, false);
+    const homeOk=matches.every(m=>am.has(m.h) && pro.has(m.a));
+    const once=new Set(matches.map(m=>m.h+'>'+m.a));
+    check(label, !landShort && ids.length===64 && uniq.size===64 && cup.pro.length===32 && cup.amateur.length===32 && landOk && split && matches.length===32 && homeOk && once.size===32 && expect(cup), ids.length+'/'+cup.pro.length+'/'+cup.amateur.length);
+  };
+  checkField('ohne Titelverteidiger bleiben 64 und die Landespokalsieger', buildCups(nextBase, prevBase).dfb, cup=>{
+    return cupL3.slice(0,8).every(id=>cup.entrants.indexOf(id)>=0) && cup.pro.indexOf(cupBl2[11])>=0 && cup.amateur.indexOf(cupBl2[12])>=0 && cup.amateur.indexOf(cupBl[0])<0;
+  });
+  const defend=(id, nextBl, nextBl2)=>{
+    const prev=seasonOf(cupBl, cupBl2, cupL3);
+    prev.cups={dfb:{rounds:[{name:'Finale', drawn:true, matches:[{h:id, a:cupBl[0]===id?cupBl[1]:cupBl[0], hg:1, ag:0}]}]}, land:landCups(landWinners)};
+    const next=seasonOf(nextBl||cupBl, nextBl2||cupBl2, cupL3);
+    return buildCups(next, prev).dfb;
+  };
+  checkField('Titelverteidiger der Bundesliga bleibt einmal im Profitopf', defend(cupBl[3]), cup=>cup.pro.indexOf(cupBl[3])>=0 && cup.entrants.filter(id=>id===cupBl[3]).length===1 && cupL3.slice(0,8).every(id=>cup.entrants.indexOf(id)>=0) && cup.amateur.indexOf(cupBl2[11])<0);
+  checkField('Titelverteidiger der 2. Liga auf Platz 1 bleibt im Profitopf', defend(cupBl2[0]), cup=>cup.pro.indexOf(cupBl2[0])>=0 && cup.amateur.indexOf(cupBl2[0])<0 && cupL3[7] && cup.entrants.indexOf(cupL3[7])>=0);
+  checkField('schwächster Zweitligist rückt, der Titelverteidiger aus der unteren 2. Liga nicht', defend(cupBl2[14]), cup=>cup.pro.indexOf(cupBl2[14])>=0 && cup.amateur.indexOf(cupBl2[14])<0 && cup.amateur.indexOf(cupBl2[11])>=0 && cup.pro.indexOf(cupBl2[11])<0 && cup.entrants.indexOf(cupL3[7])>=0);
+  checkField('Drittligist im Fenster bleibt im Feld und im Profitopf', defend(cupL3[2]), cup=>cup.pro.indexOf(cupL3[2])>=0 && cup.amateur.indexOf(cupL3[2])<0 && cup.entrants.indexOf(cupL3[7])>=0 && BL_ORDER.every(st=>cup.entrants.indexOf(landWinners[st])>=0));
+  checkField('Drittligist außerhalb ersetzt den letzten 3.-Liga-Platz', defend(cupL3[10]), cup=>cup.entrants.indexOf(cupL3[10])>=0 && cup.pro.indexOf(cupL3[10])>=0 && cup.entrants.indexOf(cupL3[7])<0 && cup.entrants.indexOf(cupL3[6])>=0 && cup.amateur.indexOf(cupBl2[11])>=0 && BL_ORDER.every(st=>cup.entrants.indexOf(landWinners[st])>=0));
+  const regional=takeCup(null,1)[0];
+  checkField('Regionalliga-Titelverteidiger ersetzt den 3.-Liga-Platz und spielt im Profitopf', defend(regional), cup=>cup.pro.indexOf(regional)>=0 && cup.amateur.indexOf(regional)<0 && cup.entrants.indexOf(cupL3[7])<0 && BL_ORDER.every(st=>cup.entrants.indexOf(landWinners[st])>=0));
+  const amateurDef=landWinners[BL_ORDER[0]];
+  checkField('Amateur-Titelverteidiger bleibt und verdrängt keinen Landespokalsieger', defend(amateurDef), cup=>cup.entrants.filter(id=>id===amateurDef).length===1 && cup.pro.indexOf(amateurDef)>=0 && cup.amateur.indexOf(amateurDef)<0 && BL_ORDER.every(st=>cup.entrants.indexOf(landWinners[st])>=0));
+  const promoted=cupL3[0], relegated=cupBl2[19];
+  const nextBl=cupBl.slice();
+  const nextBl2=cupBl2.slice(0,19).concat([promoted]);
+  checkField('Aufsteiger ist über die neue 2. Liga dabei, ohne zweiten 3.-Liga-Platz', defend(promoted, nextBl, nextBl2), cup=>{
+    return cup.entrants.filter(id=>id===promoted).length===1 && cup.pro.indexOf(promoted)>=0 && cup.entrants.indexOf(relegated)<0;
+  });
   check('1904, 1922 und 1945 haben keinen Meister', !reg.some(r=>r.comp==='de' && (r.year===1904||r.year===1922||r.year===1945)));
   check('keine historischen Titel ab 2027', !reg.some(r=>r.year>=2027));
   check('kein Landespokal im Register', !reg.some(r=>r.comp==='land'));
@@ -2568,18 +2639,48 @@ function cupFinalists(cup){
   if (!w) return null;
   return {winner:w, finalist:w===m.h?m.a:m.h, match:m};
 }
+function dfbDefender(season, prev){
+  if (prev && prev.cups && prev.cups.dfb){
+    const fin=cupFinalists(prev.cups.dfb);
+    if (fin && fin.winner && TEAMS[fin.winner]) return fin.winner;
+  }
+  if (prev && prev.name){
+    const hist=(S.pokalHistory||[]).find(h=>h&&h.season===prev.name&&h.dfb);
+    if (hist && TEAMS[hist.dfb]) return hist.dfb;
+    const run=(S.pokalRuns||[]).find(r=>r&&r.comp==='dfb'&&r.won&&r.season===prev.name&&TEAMS[r.id]);
+    if (run) return run.id;
+  }
+  try{ return prevDfbWinner(season)||''; }catch(e){ return ''; }
+}
+function potOrder(st, a, b){
+  const ra=rankOf(st,a), rb=rankOf(st,b);
+  return ra.level-rb.level || ra.place-rb.place || byRang(a,b);
+}
 function buildCups(season, prev){
-  const src=prev||season;
-  const st=standingOf(src);
-  const top=new Set();
-  (st.lists.BL||[]).forEach(id=>top.add(id));
-  (st.lists.BL2||[]).forEach(id=>top.add(id));
-  (st.lists.L3||[]).slice(0,8).forEach(id=>top.add(id));
-  const pro=(st.lists.BL||[]).concat((st.lists.BL2||[]).slice(0,12));
-  const amateurLeague=(st.lists.BL2||[]).slice(12,20).concat((st.lists.L3||[]).slice(0,8));
-  const taken=new Set(top);
-  const l3=st.lists.L3||[];
-  let cursor=8;
+  const qual=standingOf(prev||season);
+  const now=standingOf(season);
+  const bl=(now.lists.BL||[]).slice();
+  const bl2=(now.lists.BL2||[]).slice().sort((a,b)=>potOrder(qual,a,b));
+  const taken=new Set();
+  bl.forEach(id=>taken.add(id));
+  bl2.forEach(id=>taken.add(id));
+  const defender=dfbDefender(season, prev);
+  const l3=(qual.lists.L3||[]).slice();
+  const defInLeague=!!(defender && taken.has(defender));
+  const l3Index=defender?l3.indexOf(defender):-1;
+  const defenderInL3Window=!defInLeague && l3Index>=0 && l3Index<8;
+  const l3Slots=(!defInLeague && defender && !defenderInL3Window)?7:8;
+  const l3Ids=[];
+  l3.forEach(id=>{
+    if (!id || taken.has(id) || l3Ids.length>=l3Slots) return;
+    if (id===defender && !defenderInL3Window) return;
+    l3Ids.push(id);
+    taken.add(id);
+  });
+  if (defender && !taken.has(defender)) taken.add(defender);
+  const st=qual;
+  let cursor=0;
+  while (cursor<l3.length && taken.has(l3[cursor])) cursor++;
   function nextL3(){
     while (cursor<l3.length){
       const id=l3[cursor++];
@@ -2613,11 +2714,23 @@ function buildCups(season, prev){
     }
   });
   const landIds=spots.map(s=>s.id);
-  const amateur=amateurLeague.concat(landIds);
-  const entrants=pro.concat(amateurLeague).concat(landIds);
+  const entrants=[];
+  const seen=new Set();
+  bl.concat(bl2, l3Ids, defender?[defender]:[], landIds).forEach(id=>{
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    entrants.push(id);
+  });
+  const pro=[];
+  const proSet=new Set();
+  const addPro=id=>{ if (id && entrants.indexOf(id)>=0 && !proSet.has(id)){ pro.push(id); proSet.add(id); } };
+  bl.forEach(addPro);
+  if (defender) addPro(defender);
+  bl2.forEach(id=>{ if (pro.length<32) addPro(id); });
+  const amateur=entrants.filter(id=>!proSet.has(id));
   const dfb={
     id:'dfb', name:'DFB-Pokal', kind:'dfb',
-    entrants, pro, amateur, spots,
+    entrants, pro, amateur, spots, defender:defender||'',
     rounds:DFB_ROUNDS.map(r=>({name:r.name, neutral:!!r.neutral, drawn:false, byes:[], matches:[]}))
   };
   const byeSt=placementStanding(season, prev);
@@ -3222,7 +3335,7 @@ function viewCupRound(s, cup, ed){
     return h;
   }
   if (cup.kind==='dfb' && ri===0){
-    h+='<p class="cup-note">64 Mannschaften. Profitopf: die 20 der Bundesliga und die Plätze 1–12 der 2. Bundesliga. Amateurtopf: Plätze 13–20 der 2. Bundesliga, Plätze 1–8 der 3. Liga und 16 über die Landespokale. In der 1. Runde spielt jeder Amateurverein zu Hause gegen einen Profi.</p>';
+    h+='<p class="cup-note">64 Mannschaften. Dabei sind die Bundesliga und die 2. Bundesliga der Pokal-Saison, die besten noch nicht qualifizierten der 3. Liga aus der Vorsaison und 16 über die Landespokale. Der Titelverteidiger ist immer dabei und immer im Profitopf, auch nach Auf- oder Abstieg. Liegt er unterhalb der 2. Liga und hätte sonst keinen Platz, ersetzt er den letzten Startplatz der 3. Liga. Damit die Töpfe 32 zu 32 bleiben, rückt der schwächste Zweitligist des Profitopfs in den Amateurtopf. In der 1. Runde hat der Amateurtopf Heimrecht.</p>';
   }
   if (cup.archived) h+='<p class="cup-note">Ältere Runden dieses Pokals sind abgelegt. Das Finale bleibt hier, die erreichte Runde jedes Vereins in der Vereinsinfo.</p>';
   if (cup.kind==='land' && ri===0 && cup.entrants && cup.entrants.length){
@@ -5940,7 +6053,7 @@ function cupRulesHTML(cup){
   const dfb=cup&&cup.kind!=='land';
   let h='<div class="box"><h3>Regeln '+(cup?esc(cup.name):'Pokal')+'</h3>';
   h+='<p>Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen über dem Spielstand. Ein Freilos ist keine eigene Runde und gibt keine Punkte.</p>';
-  if (dfb) h+='<p>(P) steht außen neben dem Titelverteidiger. Der Sieger erhält im Folgejahr die Conference League, wenn er nicht schon über die Bundesliga-Plätze 1 bis 6 höher qualifiziert ist. Liegt er in den Top 7, geht der zusätzliche Conference-League-Platz an Bundesliga-Platz 8.</p>';
+  if (dfb) h+='<p>(P) steht außen neben dem Titelverteidiger. Der Sieger erhält im Folgejahr die Conference League, wenn er nicht schon über die Bundesliga-Plätze 1 bis 6 höher qualifiziert ist. Liegt er in den Top 7, geht der zusätzliche Conference-League-Platz an Bundesliga-Platz 8.</p><p>Der Titelverteidiger ist in der nächsten Saison automatisch im DFB-Pokal und immer im Profitopf, auch wenn er inzwischen in der 3. Liga, Regionalliga oder Amateurliga spielt. Ist er dort nicht schon über Liga oder Landespokal dabei, nimmt er den letzten zusätzlichen Startplatz der 3. Liga. Ein Landespokalsieger wird dafür nicht gestrichen. Der schwächste Zweitligist des Profitopfs, nach der Platzierung der Vorsaison, rückt dann in den Amateurtopf. Das ist nie der Titelverteidiger. In der 1. Runde spielt der Amateurtopf zu Hause.</p>';
   else h+='<p>Der Landespokal-Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Saisonbudgets. Das Budget folgt dem gespeicherten Feld und wird nicht aus den heutigen Ligen neu gerechnet.</p>';
   h+='</div>';
   return h;
