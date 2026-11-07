@@ -159,8 +159,7 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .form-pop .ft-pair img{width:22px;height:22px;flex:0 0 22px}
 .form-pop .ft-name{color:#1c1f23;font-size:13px;font-weight:650;line-height:1.2;width:auto;height:auto;white-space:nowrap}
 .form-pop .ft-score{color:#1c1f23;font-size:14px;font-weight:750;line-height:1;width:auto;height:auto;background:none}
-.hin-score{position:absolute;left:50%;bottom:calc(100% + 1px);transform:translateX(-50%);font-size:10px;line-height:1;color:#6b7280;font-weight:650;white-space:nowrap;pointer-events:none}
-.match.has-hin .scorecol{position:relative}
+.hin-score{display:block;margin:1px 0 2px;font-size:10px;line-height:1.1;color:#6b7280;font-weight:650;text-align:center;white-space:nowrap;pointer-events:none}
 tr.band-full td:first-child{box-shadow:inset 3px 0 #1d6b45}
 tr.band-mid td:first-child{box-shadow:inset 3px 0 #3d8f62}
 tr.band-gentle td:first-child{box-shadow:inset 3px 0 #c4a15a}
