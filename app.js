@@ -6615,6 +6615,17 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
     if (mask) miss[g.key]=mask>>>0;
   });
   const extra=base.conf.map(c=>{ const e=base.need-c-base.closing; return e>0?e:0; });
+  // Eine Konferenz-Uhrzeit deckt die Uhr und einen Konferenzpunkt im selben Spiel.
+  function daysNeeded(i, missMap, extraArr){
+    let plain=0, confTimes=0;
+    for (const key in missMap){
+      if (!((missMap[key]>>>0)&(1<<i))) continue;
+      const g=groups.find(x=>x.key===key);
+      if (g && g.kind==='konferenz') confTimes++;
+      else plain++;
+    }
+    return plain+Math.max(confTimes, extraArr[i]||0);
+  }
   const finish=(ok, reason)=>{
     const ms=Date.now()-t0;
     RESIDUAL_STATS.ms+=ms;
@@ -6626,9 +6637,7 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
     if (popcount(miss[key])>g.n*base.days.length*2) return finish(false, 'zeit '+key);
   }
   for (let i=0;i<base.n;i++){
-    let times=0;
-    for (const key in miss) if ((miss[key]>>>0)&(1<<i)) times++;
-    if (extra[i]+times>base.days.length) return finish(false, 'zeit bund');
+    if (daysNeeded(i, miss, extra)>base.days.length) return finish(false, 'zeit bund');
   }
   const confMap={};
   base.lg.teams.forEach((id,i)=>{ confMap[id]=base.conf[i]; });
@@ -6671,7 +6680,8 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
       }
       let rest=[];
       for (let i=0;i<pairs[di].length;i++) if (!used[i]) rest.push(i);
-      for (const g of confGroups){
+      const confOrdered=confGroups.slice().sort((a,b)=>popcount(missC[b.key]||0)-popcount(missC[a.key]||0));
+      for (const g of confOrdered){
         rest.sort((a,b)=>covered((missC[g.key]||0)>>>0, pairs[di][b][0], pairs[di][b][1])-covered((missC[g.key]||0)>>>0, pairs[di][a][0], pairs[di][a][1]));
         const take=rest.splice(0, g.n);
         if (take.length<g.n) return false;
@@ -6688,9 +6698,7 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
       if (choice.length<pairs[di].length || choice.some(k=>!k)) return false;
       planG[di]=choice.slice();
       for (let i=0;i<extraC.length;i++){
-        let times=0;
-        for (const key in missC) if ((missC[key]>>>0)&(1<<i)) times++;
-        if (extraC[i]+times>left-1) return false;
+        if (daysNeeded(i, missC, extraC)>left-1) return false;
       }
     }
     for (const key in missC) if (missC[key]) return false;
@@ -6727,9 +6735,7 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
       if (popcount(missNow[key])>g.n*left*2) return false;
     }
     for (let i=0;i<extraNow.length;i++){
-      let times=0;
-      for (const key in missNow) if ((missNow[key]>>>0)&(1<<i)) times++;
-      if (extraNow[i]+times>left) return false;
+      if (daysNeeded(i, missNow, extraNow)>left) return false;
     }
     let pending=false;
     for (const key in missNow) if (missNow[key]) pending=true;
@@ -6744,7 +6750,9 @@ function solveResidual(season, lid, before, recordFrom, recordTo){
         let ci=0, leftMatches=rest.slice();
         const miss3=Object.assign({}, miss2);
         const extra3=extra2.slice();
-        for (const g of confGroups){
+        const confOrdered=confGroups.slice().sort((a,b)=>popcount((miss2[b.key]||0))-popcount((miss2[a.key]||0)));
+        for (const g of confOrdered){
+          leftMatches.sort((a,b)=>covered((miss3[g.key]||0)>>>0, pairs[di][b][0], pairs[di][b][1])-covered((miss3[g.key]||0)>>>0, pairs[di][a][0], pairs[di][a][1]));
           const take=leftMatches.splice(0, g.n);
           if (take.length<g.n) return false;
           take.forEach(i=>{
@@ -11877,6 +11885,88 @@ function terminSelfTest(){
   });
   const uiRes=uiSelfTest();
   const anRes=ansehenSelfTest();
+  (()=>{
+    const overlap=[];
+    ['BL','BL2','L3','L4','RLN','RLO','RLS','RLW','OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].forEach(lid=>{
+      if (!L[lid]) return;
+      const closing=slotTimeKey(finalSaturdaySlot(lid));
+      templateGroups(lid).forEach(g=>{ if (g.kind==='konferenz' && g.key!==closing) overlap.push(lid+' '+g.key); });
+    });
+    check('Konferenzzeit neben dem Schluss-Samstag nur So 13:30 der 2. Liga', overlap.length===1 && overlap[0]==='BL2 So 13:30', overlap.join(','));
+    const teams=squad.leagues.BL2.slice();
+    const md=[], bag={};
+    const pairDay=(opp, aSlot)=>{
+      const left=[];
+      for (let i=1;i<20;i++) if (i!==opp) left.push(i);
+      const pairs=[[0, opp]];
+      while (left.length) pairs.push([left.shift(), left.shift()]);
+      const row=pairs.map(()=>({dow:'Sa', time:'13:30', kind:'konferenz'}));
+      if (aSlot) row[0]=Object.assign({}, aSlot);
+      return {pairs, row};
+    };
+    for (let d=0; d<38; d++){
+      let built;
+      if (d<=18) built=pairDay(1+(d%19), d%2?{dow:'Fr',time:'18:30',kind:'regional'}:{dow:'Sa',time:'20:30',kind:'top'});
+      else if (d<=34) built=pairDay(1+(d%19), null);
+      else if (d===35) built=pairDay(1, null);
+      else built=pairDay(2, null);
+      md.push(built.pairs.map(p=>[p[0], p[1], d<=34?1:null, d<=34?0:null]));
+      if (d<=34) bag[d]=built.row;
+    }
+    const hasTime=(club, dow, time, until)=>{
+      for (let d=0; d<=until; d++){
+        const i=md[d].findIndex(m=>m[0]===club||m[1]===club);
+        if (i>=0 && bag[d][i].dow===dow && bag[d][i].time===time) return true;
+      }
+      return false;
+    };
+    [{dow:'So',time:'13:30',kind:'konferenz'},{dow:'Fr',time:'18:30',kind:'regional'},{dow:'Sa',time:'20:30',kind:'top'}].forEach(spec=>{
+      for (let club=1; club<20; club++){
+        if (hasTime(club, spec.dow, spec.time, 34)) continue;
+        for (let d=19; d<=34; d++){
+          const i=md[d].findIndex(m=>m[0]===club||m[1]===club);
+          if (i<=0 || bag[d][i].dow!=='Sa' || bag[d][i].time!=='13:30') continue;
+          bag[d][i]=Object.assign({}, spec);
+          break;
+        }
+      }
+    });
+    const season={name:'2099/00', status:'running', leagues:{BL2:{teams, md}}, pools:{}, kickoffs:{BL2:bag}};
+    let aConf=0, aSo=0, aFr=0, aTop=0, aSat=0;
+    for (let d=0; d<=34; d++){
+      const i=md[d].findIndex(m=>m[0]===0||m[1]===0);
+      const s=bag[d][i];
+      if (s.kind==='konferenz') aConf++;
+      if (s.dow==='So' && s.time==='13:30') aSo++;
+      if (s.dow==='Fr') aFr++;
+      if (s.time==='20:30') aTop++;
+      if (s.dow==='Sa' && s.time==='13:30') aSat++;
+    }
+    const held=blockObligations(season, 'BL2', 34);
+    check('2. Liga: So 13:30 deckt Uhrzeit und Konferenzpunkt in einem Spiel', aConf===16 && aSo===0 && aFr>0 && aTop>0 && aSat>0 && held.ok===true, JSON.stringify({aConf, aSo, aFr, aTop, aSat, held}));
+    const saved=[];
+    for (let d=0; d<=34; d++){
+      const i=md[d].findIndex(m=>m[0]===0||m[1]===0);
+      if (bag[d][i].dow==='Fr'){ saved.push({d, i, slot:bag[d][i]}); bag[d][i]={dow:'Sa', time:'20:30', kind:'top'}; }
+    }
+    const tight=blockObligations(season, 'BL2', 34);
+    check('Freitag plus So 13:30 bleiben zwei Spieltage', tight.ok===false && tight.reason==='zeit bund', JSON.stringify(tight));
+    saved.forEach(x=>{ bag[x.d][x.i]=x.slot; });
+    const locks=JSON.stringify(Object.keys(bag).filter(k=>+k<=34).sort((a,b)=>+a-+b).map(k=>bag[k]));
+    const scores=JSON.stringify(md.map(r=>r.map(m=>[m[2], m[3]])));
+    const next=scheduleNextBlock(season, 'BL2');
+    const iA=md[35].findIndex(m=>m[0]===0||m[1]===0);
+    const slotA=bag[35]&&bag[35][iA];
+    const locksSame=JSON.stringify(Object.keys(bag).filter(k=>+k<=34).sort((a,b)=>+a-+b).map(k=>bag[k]))===locks;
+    const scoresSame=JSON.stringify(md.map(r=>r.map(m=>[m[2], m[3]])))===scores;
+    const count=list=>{ const m={}; list.forEach(s=>{ const k=s.dow+' '+s.time+' '+(s.kind||''); m[k]=(m[k]||0)+1; }); return Object.keys(m).sort().map(k=>k+'='+m[k]).join(','); };
+    const shape=count(slotTemplate('BL2'))===count(bag[35]||[]);
+    const closing=finalSaturdaySlot('BL2');
+    const closeOk=[36,37].every(d=>(bag[d]||[]).length===10 && bag[d].every(s=>s.dow===closing.dow && s.time===closing.time && s.kind===closing.kind));
+    const endOk=!!(bag[35] && closeOk && blockObligations(season, 'BL2', 37).ok);
+    check('scheduleNextBlock gibt A So 13:30 und lässt den alten Block stehen', !!(next && slotA && slotA.dow==='So' && slotA.time==='13:30' && slotA.kind==='konferenz' && locksSame && scoresSame && shape && endOk), JSON.stringify({next, slotA, locksSame, scoresSame, shape, endOk}));
+    report.targeted.bl2so={overlap, aConf, held:!!held.ok, tight:tight.reason, slotA, locksSame, scoresSame};
+  })();
   report.residual={calls:RESIDUAL_STATS.calls, nodes:RESIDUAL_STATS.nodes, ms:RESIDUAL_STATS.ms, maxMs:RESIDUAL_STATS.maxMs, capped:RESIDUAL_STATS.capped, repairs:RESIDUAL_STATS.repairs};
   report.ui={ok:!!uiRes.ok, fails:uiRes.fails||[]};
   report.ansehenSelf={ok:!!anRes.ok, fails:anRes.fails||[]};
