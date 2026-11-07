@@ -503,7 +503,12 @@ function ansehenValue(id){
   return v;
 }
 function ansehenSelfTest(){
+  const navMuteWas=navMute; navMute++;
   const fails=[];
+  try{ return ansehenSelfTestBody(fails); }
+  finally{ navMute=navMuteWas; }
+}
+function ansehenSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
   for (let age=0; age<=150; age++){
@@ -3492,59 +3497,148 @@ function maybeAutoFinal(season, cup){
   if (!roundComplete(cup.rounds[cup.rounds.length-2])) return false;
   return drawCupRound(season, cup, cup.rounds.length-1);
 }
-let navStack=[], navAt=-1, navMute=0, navScroll=[];
-const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','scView','vereinId'];
+let navIndex=0, navMax=0, navMute=0, navReady=false;
+const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx'];
+function navVal(v){ return v===undefined?null:v; }
 function navState(){
   const u=S.ui||{};
   const o={view:S.view};
-  NAV_KEYS.forEach(k=>{ o[k]=u[k]==null?'':u[k]; });
-  o.cupRound=u.cupRound==null?'':u.cupRound;
-  o.ansehenKind=u.ansehenKind||'';
-  o.md=u.md && u.md[S.view+':'+u.league]!=null ? u.md[S.view+':'+u.league] : '';
+  NAV_KEYS.forEach(k=>{ o[k]=navVal(u[k]); });
+  const mdKey=S.view+':'+(u.league||'');
+  o.md=u.md && u.md[mdKey]!=null ? u.md[mdKey] : null;
+  o.cupRound=navVal(u.cupRound);
+  const tbKey=S.view+':'+(u.league||'');
+  o.termBlock=u.termBlock && u.termBlock[tbKey]!=null ? u.termBlock[tbKey] : null;
   return JSON.stringify(o);
 }
-function navRemember(){
-  if (navMute || !S || !S.ui) return;
-  const snap=navState();
-  if (navAt>=0 && navStack[navAt]===snap) return;
-  navStack=navStack.slice(0, navAt+1);
-  navScroll=navScroll.slice(0, navAt+1);
-  navStack.push(snap);
-  navScroll.push(window.scrollY||0);
-  if (navStack.length>60){ navStack.shift(); navScroll.shift(); }
-  navAt=navStack.length-1;
-  navPaint();
+function navNormalize(){
+  if (!S || !S.ui) return;
+  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
+  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
+  if (S.ui.tab==='ansehen') S.ui.ansehenSec=S.ui.ansehenSec==='liste'?'liste':'wertung';
+  if (S.ui.tab==='pokal'){
+    const s=cur();
+    try{ ensureCups(s); }catch(e){}
+    const land=s.cups && s.cups.land;
+    const key=S.ui.cup && (S.ui.cup==='dfb' || (land && land[S.ui.cup])) ? S.ui.cup : 'dfb';
+    S.ui.cup=key;
+    const cup=getCup(s, key);
+    if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+    if (S.ui.cupView==='punkte' && (!cup || cup.kind!=='land')) S.ui.cupView='spiele';
+    if (cup && cup.rounds && cup.rounds.length){
+      let ri=S.ui.cupRound;
+      if (ri==null || ri<0 || ri>=cup.rounds.length){
+        const open=cup.rounds.findIndex(r=>!roundComplete(r));
+        ri=open<0?cup.rounds.length-1:open;
+      }
+      S.ui.cupRound=ri;
+    }
+  }
+  if (S.ui.tab==='info'){
+    if (['historie','bilanz','gegner','vergleich','termin','erfolge','ansehen'].indexOf(S.ui.infoSec)<0) S.ui.infoSec='historie';
+    if (S.ui.infoSec==='historie' && ['liga','dfb','land'].indexOf(S.ui.infoHist)<0) S.ui.infoHist='liga';
+  }
+  const lid=S.ui.league;
+  if (S.ui.tab==='tabelle' && L[lid]){
+    const s=cur();
+    const lg=s.leagues && s.leagues[lid];
+    if (lg && lg.md){
+      if (!S.ui.md) S.ui.md={};
+      const key=S.view+':'+lid;
+      if (S.ui.md[key]==null) S.ui.md[key]=currentMd(s, lid);
+    }
+  }
 }
 function navApply(snap){
   const o=JSON.parse(snap);
   if (o.view!=null && S.seasons[o.view]) S.view=o.view;
-  NAV_KEYS.forEach(k=>{ if (o[k]!=null) S.ui[k]=o[k]; });
-  S.ui.cupRound=o.cupRound===''?null:o.cupRound;
-  if (o.ansehenKind) S.ui.ansehenKind=o.ansehenKind;
+  NAV_KEYS.forEach(k=>{ if (k in o) S.ui[k]=o[k]; });
   if (!S.ui.md) S.ui.md={};
-  if (o.md!=='') S.ui.md[S.view+':'+S.ui.league]=o.md;
+  const mdKey=S.view+':'+(S.ui.league||'');
+  if (o.md==null) delete S.ui.md[mdKey];
+  else S.ui.md[mdKey]=o.md;
+  S.ui.cupRound=o.cupRound;
+  if (!S.ui.termBlock) S.ui.termBlock={};
+  const tbKey=S.view+':'+(S.ui.league||'');
+  if (o.termBlock==null) delete S.ui.termBlock[tbKey];
+  else S.ui.termBlock[tbKey]=o.termBlock;
+}
+function navRemember(){
+  if (!navReady || !S || !S.ui) return;
+  const snap=navState();
+  const cur=history.state;
+  if (navMute){
+    if (cur && typeof cur.fr==='string' && cur.fr!==snap && cur.i===navIndex) history.replaceState({fr:snap, i:navIndex, y:cur.y||0}, '', location.href);
+    return;
+  }
+  if (cur && cur.fr===snap) return;
+  if (cur && cur.fr && cur.i===navIndex) history.replaceState({fr:cur.fr, i:cur.i, y:window.scrollY||0}, '', location.href);
+  navIndex++;
+  navMax=navIndex;
+  history.pushState({fr:snap, i:navIndex, y:window.scrollY||0}, '', location.href);
+  navPaint();
+}
+function navInstall(){
+  if (!S || !S.ui) return;
+  const snap=navState();
+  const prev=history.state;
+  const i=prev && typeof prev.i==='number' ? prev.i : 0;
+  navIndex=i;
+  navMax=i;
+  try{ history.scrollRestoration='manual'; }catch(e){}
+  history.replaceState({fr:snap, i, y:0}, '', location.href);
+  navReady=true;
+  navPaint();
 }
 function navGo(dir){
-  const next=navAt+dir;
-  if (next<0 || next>=navStack.length) return;
-  navScroll[navAt]=window.scrollY||0;
-  navAt=next;
-  navMute++;
-  navApply(navStack[navAt]);
-  render();
-  navMute--;
-  window.scrollTo(0, navScroll[navAt]||0);
-  navPaint();
+  if (dir<0 && navIndex<=0) return;
+  if (dir>0 && navIndex>=navMax) return;
+  const cur=history.state;
+  if (cur && cur.fr && cur.i===navIndex) history.replaceState({fr:cur.fr, i:cur.i, y:window.scrollY||0}, '', location.href);
+  if (dir<0) history.back();
+  else history.forward();
 }
 function navPaint(){
   const back=document.getElementById('navBack');
   const fwd=document.getElementById('navFwd');
-  if (back){ back.disabled=navAt<=0; back.title=navAt<=0?'Kein Schritt zurück':'Zurück'; }
-  if (fwd){ fwd.disabled=navAt<0 || navAt>=navStack.length-1; fwd.title=(fwd.disabled)?'Kein Schritt vor':'Vorwärts'; }
+  if (back){ back.disabled=navIndex<=0; back.title=navIndex<=0?'Kein Schritt zurück':'Zurück'; }
+  if (fwd){ fwd.disabled=navIndex>=navMax; fwd.title=fwd.disabled?'Kein Schritt vor':'Vorwärts'; }
 }
+window.addEventListener('popstate', ev=>{
+  const st=ev.state;
+  if (!st || typeof st.i!=='number' || typeof st.fr!=='string') return;
+  navIndex=st.i;
+  if (st.i>navMax) navMax=st.i;
+  navMute++;
+  try{
+    navApply(st.fr);
+    render();
+    window.scrollTo(0, st.y||0);
+  }finally{
+    navMute--;
+  }
+  navPaint();
+});
+let navScrollTick=0;
+window.addEventListener('scroll', ()=>{
+  if (navScrollTick || !navReady || navMute) return;
+  navScrollTick=1;
+  requestAnimationFrame(()=>{
+    navScrollTick=0;
+    const cur=history.state;
+    if (!cur || cur.fr==null || cur.i!==navIndex) return;
+    const y=window.scrollY||0;
+    if (cur.y===y) return;
+    history.replaceState({fr:cur.fr, i:cur.i, y}, '', location.href);
+  });
+}, {passive:true});
 function render(){
   try{ if (S && isEditable()) repairOpenReturns(cur()); }catch(e){}
-  navRemember();
+  navNormalize();
+  try{ renderMain(); }
+  finally{ navRemember(); }
+}
+function renderMain(){
   if (S.ui.tab==='abschluss') S.ui.tab='aufab';
   if (S.ui.tab==='derbys') S.ui.tab='tabelle';
   renderMigrate();
@@ -7239,7 +7333,7 @@ document.addEventListener('input', ev=>{
 document.addEventListener('keydown', ev=>{
   if (ev.key==='Escape'){ $('#modal').classList.add('hidden'); document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open')); }
   const typing=ev.target && ev.target.closest && ev.target.closest('input,textarea,select');
-  if (!typing && ev.altKey && (ev.key==='ArrowLeft' || ev.key==='ArrowRight')){
+  if (!typing && ev.altKey && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && (ev.key==='ArrowLeft' || ev.key==='ArrowRight')){
     ev.preventDefault();
     navGo(ev.key==='ArrowLeft'?-1:1);
   }
@@ -7281,6 +7375,7 @@ function adopt(data, empty){
   migrateArchive();
   recomputePokalPoints();
   save(); render();
+  navInstall();
 }
 function readBright(){
   let n=100;
@@ -7504,8 +7599,12 @@ function simulateIsolated(n, seed, hold){
   return report;
 }
 function uiSelfTest(){
-  const navMuteWas=navMute; navMute=1;
+  const navMuteWas=navMute; navMute++;
   const fails=[];
+  try{ return uiSelfTestBody(fails); }
+  finally{ navMute=navMuteWas; try{ navPaint(); }catch(e){} }
+}
+function uiSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   const matches=[
     {md:0,h:'t001',a:'t002',hg:1,ag:0},
@@ -7884,38 +7983,152 @@ function uiSelfTest(){
   check('1950 behält den Listennamen und Stahl Thale', !!(thale && thale.original==='BSG EHW Thale' && thale.id==='t552'));
   check('1990 trennt SG und 1. FC Dynamo Dresden', !!(dresdenLiga && dresdenLiga.original==='SG Dynamo Dresden' && dresdenPokal && dresdenPokal.original==='1. FC Dynamo Dresden' && dresdenLiga.id==='t037' && dresdenPokal.id==='t037'));
   check('1954 bleibt BSG Turbine Erfurt und ZSK Vorwärts', !!(erfurt && erfurt.original==='BSG Turbine Erfurt' && erfurt.id==='t053' && vorwaerts && vorwaerts.original==='ZSK Vorwärts Berlin' && vorwaerts.id==='t492'));
-  const scoreSnap=JSON.stringify(sea.leagues.BL && sea.leagues.BL.md && sea.leagues.BL.md[0] ? sea.leagues.BL.md[0][0] : null);
-  const stackWas=navStack.slice(), atWas=navAt, scrollWas=navScroll.slice();
   const uiWas=JSON.parse(JSON.stringify(S.ui)), viewWas=S.view;
-  navStack=[]; navAt=-1; navScroll=[]; navMute=0;
-  S.ui.tab='tabelle'; S.ui.league='BL';
+  const len0=history.length, i0=navIndex;
+  const match=cur().leagues.BL && cur().leagues.BL.md && cur().leagues.BL.md[0] && cur().leagues.BL.md[0][0];
+  const scoreSnap=match?match.slice():null;
+  S.ui.tab='abschluss';
+  S.ui.cup='kein-pokal';
+  S.ui.cupView='punkte';
   render();
-  S.ui.tab='historie';
+  check('alte Reiter werden vor dem Verlauf normalisiert', S.ui.tab==='aufab' && history.length===len0 && navIndex===i0);
   render();
-  S.ui.tab='ansehen'; S.ui.ansehenSec='liste'; S.ui.ansehenId='';
+  check('ein zweiter Render nach der Normalisierung bleibt stehen', history.length===len0 && navIndex===i0);
+  S.ui.tab='derbys';
   render();
-  check('Ansichten landen nacheinander in der Historie', navAt===2 && navStack.length===3);
-  navGo(-1);
-  check('Zurück öffnet die vorige Ansicht', S.ui.tab==='historie');
-  navGo(-1);
-  check('am Anfang bleibt die App stehen', navAt===0 && S.ui.tab==='tabelle' && document.getElementById('navBack').disabled);
-  navGo(-1);
-  check('ein weiterer Rückschritt verlässt die App nicht', navAt===0 && S.ui.tab==='tabelle');
-  navGo(1);
-  check('Vorwärts kehrt zur Historie zurück', navAt===1 && S.ui.tab==='historie' && !document.getElementById('navFwd').disabled);
-  S.ui.infoId='t001'; S.ui.tab='info';
+  check('Derbys landen auf der Tabelle', S.ui.tab==='tabelle' && history.length===len0);
+  S.ui.tab='pokal';
   render();
-  check('eine neue Ansicht schneidet den Vorwärtsstapel ab', navStack.length===3 && navAt===2 && document.getElementById('navFwd').disabled);
-  navGo(1);
-  check('am Ende passiert nichts', navAt===2 && S.ui.tab==='info');
-  check('die Navigation verändert kein Ergebnis', JSON.stringify(cur().leagues.BL && cur().leagues.BL.md && cur().leagues.BL.md[0] ? cur().leagues.BL.md[0][0] : null)===scoreSnap);
-  navStack=stackWas; navAt=atWas; navScroll=scrollWas; navMute=1;
+  check('ungültige Wertung wird Spielplan, ohne neuen Verlauf', S.ui.cup==='dfb' && S.ui.cupView==='spiele' && history.length===len0 && navIndex===i0);
+  const pokalSnap=navState();
+  render();
+  check('der normalisierte Pokal bleibt beim nächsten Render gleich', navState()===pokalSnap && history.length===len0);
+  if (match){ match[2]=match[2]==null?1:match[2]+1; render(); }
+  check('ein Tor erzeugt keinen Verlaufseintrag', history.length===len0 && navIndex===i0);
+  if (match && scoreSnap){ match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; render(); }
+  check('null bleibt null', JSON.parse(navState()).ansehenId===null || S.ui.ansehenId!=null);
+  const idKeep=S.ui.ansehenId;
+  S.ui.ansehenId=null;
+  const nullSnap=navState();
+  S.ui.ansehenId='t001';
+  navApply(nullSnap);
+  check('eine leere Vereinswahl wird nicht zum Text', S.ui.ansehenId===null && JSON.parse(nullSnap).ansehenId===null);
+  S.ui.ansehenLiga='BL2'; S.ui.ansehenBl='Bayern'; S.ui.allPools=true; S.ui.infoOpp='t002';
+  const filterSnap=navState();
+  S.ui.ansehenLiga=null; S.ui.ansehenBl=null; S.ui.allPools=false; S.ui.infoOpp=null;
+  navApply(filterSnap);
+  check('Ligafilter, Landesfilter und Vergleich bleiben erhalten', S.ui.ansehenLiga==='BL2' && S.ui.ansehenBl==='Bayern' && S.ui.allPools===true && S.ui.infoOpp==='t002');
+  S.ui.ansehenId=idKeep;
+  let probe=navMute, thrown=false;
+  try{ navMute++; throw new Error('nav'); }
+  catch(e){ thrown=true; }
+  finally{ navMute--; }
+  check('eine Testausnahme gibt die Aufzeichnung zurück', thrown && navMute===probe);
   Object.keys(S.ui).forEach(k=>{ if (!(k in uiWas)) delete S.ui[k]; });
   Object.assign(S.ui, uiWas);
   S.view=viewWas;
+  if (match && scoreSnap){ match[0]=scoreSnap[0]; match[1]=scoreSnap[1]; match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; }
   render();
-  navMute=navMuteWas;
   return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name), sizes, regionBad};
+}
+function navWaitPop(){
+  return new Promise(resolve=>{
+    const timer=setTimeout(()=>resolve('timeout'), 1200);
+    const fn=()=>{ clearTimeout(timer); window.removeEventListener('popstate', fn); resolve('pop'); };
+    window.addEventListener('popstate', fn);
+  });
+}
+async function navEventSelfTest(){
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  const savedState=history.state;
+  const savedUI=JSON.parse(JSON.stringify(S.ui));
+  const savedView=S.view;
+  const savedIndex=navIndex, savedMax=navMax;
+  const match=cur().leagues.BL && cur().leagues.BL.md && cur().leagues.BL.md[0] && cur().leagues.BL.md[0][0];
+  const score=match?match.slice():null;
+  const baseIndex=navIndex;
+  let guard=null;
+  try{
+    navMute=0;
+    S.ui.league='BL';
+    S.ui.tab='tabelle';
+    S.ui.ansehenId=null;
+    render();
+    S.ui.tab='historie';
+    render();
+    S.ui.tab='ansehen';
+    S.ui.ansehenSec='liste';
+    S.ui.ansehenLiga='BL';
+    S.ui.ansehenBl='Bayern';
+    S.ui.ansehenId=null;
+    render();
+    const atList=navIndex;
+    check('drei Ansichten liegen im Browserverlauf', atList>=baseIndex+2 && history.state && history.state.fr && JSON.parse(history.state.fr).tab==='ansehen' && JSON.parse(history.state.fr).ansehenLiga==='BL');
+    let pop=navWaitPop();
+    document.getElementById('navBack').click();
+    check('der App-Pfeil löst genau einen Browser-Zurück aus', await pop==='pop' && S.ui.tab==='historie' && navIndex===atList-1);
+    pop=navWaitPop();
+    history.back();
+    check('natives Zurück geht eine Ansicht zurück', await pop==='pop' && S.ui.tab==='tabelle' && navIndex===atList-2);
+    const lenAtTable=history.length;
+    const iAtTable=navIndex;
+    check('Vorwärts ist nach dem Zurück offen', !document.getElementById('navFwd').disabled);
+    if (match) match[2]=match[2]==null?1:match[2]+1;
+    render();
+    check('ein Tor löscht den Vorwärtspfad nicht', navIndex===iAtTable && history.length===lenAtTable && !document.getElementById('navFwd').disabled);
+    if (match && score) check('das Tor bleibt der Spielstand und kein Verlauf', match[2]===(score[2]==null?1:score[2]+1));
+    pop=navWaitPop();
+    document.getElementById('navFwd').click();
+    check('Vorwärts nach dem Tor öffnet die Historie', await pop==='pop' && S.ui.tab==='historie' && navIndex===iAtTable+1);
+    const beforeKey=navIndex;
+    pop=navWaitPop();
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft', altKey:true, bubbles:true}));
+    await pop;
+    await new Promise(r=>setTimeout(r,80));
+    check('Alt+Links geht genau einen Schritt', navIndex===beforeKey-1 && S.ui.tab==='tabelle');
+    pop=navWaitPop();
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight', altKey:true, bubbles:true}));
+    check('Alt+Rechts geht genau einen Schritt', await pop==='pop' && navIndex===beforeKey && S.ui.tab==='historie');
+    pop=navWaitPop();
+    history.forward();
+    check('natives Vorwärts öffnet Ansehen mit dem Filter', await pop==='pop' && S.ui.tab==='ansehen' && S.ui.ansehenLiga==='BL' && S.ui.ansehenBl==='Bayern' && S.ui.ansehenId===null);
+    S.ui.infoId='t001';
+    S.ui.tab='info';
+    render();
+    check('eine neue Ansicht schneidet Vorwärts ab', document.getElementById('navFwd').disabled && navIndex===navMax && S.ui.tab==='info' && S.ui.infoId==='t001');
+    const realBack=history.back;
+    let calls=0;
+    history.back=()=>{ calls++; };
+    const held=navIndex;
+    navIndex=0;
+    navPaint();
+    document.getElementById('navBack').click();
+    check('der App-Pfeil am Anfang verlässt die App nicht', calls===0 && document.getElementById('navBack').disabled);
+    history.back=realBack;
+    navIndex=held;
+    navPaint();
+    guard={calls};
+  }finally{
+    if (match && score){ match[0]=score[0]; match[1]=score[1]; match[2]=score[2]; match[3]=score[3]; }
+    const backBy=Math.max(0, navIndex-baseIndex);
+    if (backBy){
+      const pop=navWaitPop();
+      history.go(-backBy);
+      await pop;
+    }
+    navMute++;
+    S.view=savedView;
+    Object.keys(S.ui).forEach(k=>{ if (!(k in savedUI)) delete S.ui[k]; });
+    Object.assign(S.ui, savedUI);
+    render();
+    navMute--;
+    navIndex=savedIndex;
+    navMax=savedMax;
+    if (savedState) history.replaceState(savedState, '', location.href);
+    navPaint();
+  }
+  return {ok:!fails.length, fails, guard};
 }
 applyBright(readBright(), false);
 const brightEl=document.getElementById('brightRange');
@@ -7936,5 +8149,5 @@ function boot(){
 boot();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
