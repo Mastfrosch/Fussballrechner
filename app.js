@@ -2657,12 +2657,6 @@ function formSpan(letter, game){
   const tip='<span class="ov-tip form-pop"><span class="ft-day">'+(game.md+1)+'. Spieltag</span><span class="ft-pair"><span class="ft-name">'+esc(TEAMS[game.h].name)+'</span><img src="'+esc(TEAMS[game.h].crest)+'" alt=""><span class="ft-score">'+game.hg+':'+game.ag+'</span><img src="'+esc(TEAMS[game.a].crest)+'" alt=""><span class="ft-name">'+esc(TEAMS[game.a].name)+'</span></span></span>';
   return '<span class="form-wrap"><span class="form-bit f-'+letter+'">'+letter+'</span>'+tip+'</span>';
 }
-function zoneCut(lg, pl, n, down){
-  if (!lg || !pl) return false;
-  if (lg.id==='BL') return pl===1 || pl===4 || pl===6 || pl===7;
-  if (lg.up && pl===lg.up) return true;
-  return !!(down && pl===n-down);
-}
 function tableHTML(rows, lg, opts={}){
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
@@ -2678,7 +2672,6 @@ function tableHTML(rows, lg, opts={}){
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
     if (flag==='up') z='sure-up';
     else if (flag==='down') z='sure-down';
-    const cut=opts.zones!==false && zoneCut(lg, r.pl, n, down);
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
     let marks=opts.markers===false||!(season.markers&&season.markers[r.id])?[]:[].concat(season.markers[r.id]).filter(Boolean);
     if (pokalId && r.id===pokalId && marks.indexOf('P')<0) marks.push('P');
@@ -2688,7 +2681,7 @@ function tableHTML(rows, lg, opts={}){
     const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
     let an=null;
     if (opts.ansehen){ try{ const v=ansehenValue(r.id); if (v!=null && isFinite(+v)) an=+v; }catch(e){ an=null; } }
-    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+(cut?' zone-cut':'')+'">'+nf(r.pl, r.pl, 'w-pl')+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
+    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+nf(r.pl, r.pl, 'w-pl')+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
       (opts.form===false?'':'<td class="formc"><span class="form">'+form.map((f,i)=>formSpan(f, (r.formGames||[])[i])).join('')+'</span></td>')+
       (opts.ansehen?nf(an, an==null?'–':deNum(an,2), 'w-an'):'')+'</tr>';
   });
@@ -7157,9 +7150,9 @@ function uiSelfTest(){
   const openMap=certaintyMap(openDown, 'BL');
   check('Einholbarer Abstieg bleibt ohne sicheres Rot', openMap.t002!=='down', JSON.stringify(openMap));
   const html=tableHTML(leagueTable(safe, 'BL'), L.BL, {season:safe, form:false, ansehen:false, zones:true});
-  check('Graue Linie unter den Bundesliga-Schnitten', [1,4,6,7].every(pl=>html.indexOf('data-tid="t00'+(pl===1?'1':''))>=0) && (html.match(/zone-cut/g)||[]).length>=1);
-  const blCut=tableHTML(leagueTable(cur(), 'BL'), L.BL, {form:false, ansehen:false});
-  check('Bundesliga markiert Platz 1, 4, 6 und 7', (blCut.match(/zone-cut/g)||[]).length===4, String((blCut.match(/zone-cut/g)||[]).length));
+  const blPlain=tableHTML(leagueTable(cur(), 'BL'), L.BL, {form:false, ansehen:false});
+  const l3Plain=tableHTML(leagueTable(cur(), 'L3'), L.L3, {form:false, ansehen:false});
+  check('Keine dicken Zonenlinien', html.indexOf('zone-cut')<0 && blPlain.indexOf('zone-cut')<0 && l3Plain.indexOf('zone-cut')<0);
   check('Hinspiel aus Sicht des Rückspiels', firstLegLine({teams:['t010','t011'], md:[[[0,1,3,1]],[[1,0,null,null]]]}, 1, 1, 0)==='1:3');
   check('Hinspiel zeigt keine erfundene Zahl', firstLegLine({teams:['t010','t011'], md:[[[0,1,null,null]],[[1,0,null,null]]]}, 1, 1, 0)===null && firstLegLine({teams:['t010','t011'], md:[[[0,1,3,1]]]}, 0, 0, 1)===null);
   const played=computeTable(['t010','t011'], [{md:0,h:'t010',a:'t011',hg:3,ag:1}], 'all');

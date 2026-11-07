@@ -122,7 +122,6 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .tbl tr.z-sure-up td:first-child{box-shadow:inset 3px 0 #2f9a45}
 .tbl tr.z-sure-down td{background:#f0b2ad}
 .tbl tr.z-sure-down td:first-child{box-shadow:inset 3px 0 #a32018}
-#tableCard > table.tbl.stand tr.zone-cut td{border-bottom:3px solid #6d7780}
 .tbl tr.z-meister td:first-child{box-shadow:inset 3px 0 var(--z-bar-m)}
 .tbl tr.z-cl td:first-child{box-shadow:inset 3px 0 var(--z-bar-cl)}
 .tbl tr.z-el td:first-child{box-shadow:inset 3px 0 var(--z-bar-el)}
@@ -160,7 +159,6 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .form-pop .ft-pair img{width:22px;height:22px;flex:0 0 22px}
 .form-pop .ft-name{color:#1c1f23;font-size:13px;font-weight:650;line-height:1.2;width:auto;height:auto;white-space:nowrap}
 .form-pop .ft-score{color:#1c1f23;font-size:14px;font-weight:750;line-height:1;width:auto;height:auto;background:none}
-#tableCard > table.tbl.stand tr.zone-cut td{border-bottom:3px solid #5c6770;background-image:linear-gradient(#5c6770,#5c6770);background-size:100% 3px;background-repeat:no-repeat;background-position:left bottom}
 .hin-score{position:absolute;left:50%;bottom:calc(100% + 1px);transform:translateX(-50%);font-size:10px;line-height:1;color:#6b7280;font-weight:650;white-space:nowrap;pointer-events:none}
 .match.has-hin .scorecol{position:relative}
 tr.band-full td:first-child{box-shadow:inset 3px 0 #1d6b45}
