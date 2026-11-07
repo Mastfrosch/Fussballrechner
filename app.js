@@ -1592,7 +1592,11 @@ function canonicalFirstHalf(n){
     const next=firstHalfStreaks(first);
     if (next<=bad) bad=next; else first[r][i]=p;
   }
-  CANON_SCHEDULE[n]={rounds:first, bad};
+  if (bad){
+    CANON_SCHEDULE[n]={rounds:null, bad, unsolved:true};
+    return CANON_SCHEDULE[n];
+  }
+  CANON_SCHEDULE[n]={rounds:first, bad:0, unsolved:false};
   return CANON_SCHEDULE[n];
 }
 function makeSchedule(n){
@@ -1604,6 +1608,15 @@ function makeSchedule(n){
     return hin.concat(rueck);
   }
   const canon=canonicalFirstHalf(n);
+  if (!canon.rounds || canon.unsolved || canon.bad){
+    const err=new Error(n<6
+      ? 'Vier Vereine: Spiegelung und höchstens zwei gleiche Platzseiten sind zugleich unlösbar.'
+      : 'Spielplan für '+n+' Vereine hält die Serie 2 nicht (Rest '+(canon.bad||0)+').');
+    err.scheduleUnsolved=true;
+    err.size=n;
+    err.bad=canon.bad||0;
+    throw err;
+  }
   const perm=shuffle(Array.from({length:n},(_,i)=>i));
   const hin=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[h],perm[a],null,null]));
   const rueck=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[a],perm[h],null,null]));
@@ -5983,13 +5996,14 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
     const row=bag[mi];
     row.forEach((slot,i)=>{
       if (slot.kind!=='top' || slot.kracher || legalAt(mi,i)) return;
-      let alt=null, altV=-1;
+      const cands=[];
       row.forEach((other,j)=>{
-        if (j===i || other.kind==='top' || other.kind==='konferenz' || !legalAt(mi,j)) return;
-        const v=valueAt(mi,j);
-        if (alt==null || v>altV){ alt=j; altV=v; }
+        if (j===i || !other || other.kind==='top' || other.kind==='konferenz' || !legalAt(mi,j)) return;
+        cands.push({j, v:valueAt(mi,j)});
       });
-      if (alt!=null && swapKeepsTimes(season, lid, mi, to, i, alt)){ const t=row[i]; row[i]=row[alt]; row[alt]=t; }
+      cands.sort((a,b)=>b.v-a.v);
+      const alt=cands.find(c=>swapKeepsTimes(season, lid, mi, to, i, c.j));
+      if (alt){ const t=row[i]; row[i]=row[alt.j]; row[alt.j]=t; }
     });
   };
   const trySolve=mi=>{
@@ -6199,14 +6213,16 @@ function raiseTops(season, lid, from, to, snap){
         const slot=row[i];
         if (!slot || slot.kind!=='top') continue;
         const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
-        let alt=-1, altV=here;
+        const cands=[];
         for (let j=0; j<row.length; j++){
           const other=row[j];
           if (j===i || !other || other.kind==='top' || other.kind==='konferenz') continue;
           const v=matchValue(lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]], snap, mi).total;
-          if (v>altV+0.05){ alt=j; altV=v; }
+          if (v>here+0.05) cands.push({j, v});
         }
-        if (alt>=0 && swapKeepsTimes(season, lid, mi, to, i, alt)){ const t=row[i]; row[i]=row[alt]; row[alt]=t; moved=true; }
+        cands.sort((a,b)=>b.v-a.v);
+        const alt=cands.find(c=>swapKeepsTimes(season, lid, mi, to, i, c.j));
+        if (alt){ const t=row[i]; row[i]=row[alt.j]; row[alt.j]=t; moved=true; }
       }
       if (!moved) break;
     }
@@ -6340,11 +6356,10 @@ function balanceFrSaBlock(season, lid, from, to, snap){
       ids.slice(0,2).forEach(id=>{ next[id].fr--; next[id].sa++; });
       ids.slice(2).forEach(id=>{ next[id].sa--; next[id].fr++; });
       const after=absSum(next, uniq);
-      if (after<before && (!best || before-after>best.gain)) best={mi, fr, sa, gain:before-after};
+      if (after<before && swapKeepsTimes(season, lid, mi, to, fr, sa) && (!best || before-after>best.gain)) best={mi, fr, sa, gain:before-after};
     }
     if (!best) return true;
     const row=bag[best.mi];
-    if (!swapKeepsTimes(season, lid, best.mi, to, best.fr, best.sa)) return true;
     const tmp=row[best.fr]; row[best.fr]=row[best.sa]; row[best.sa]=tmp;
   }
   return false;
@@ -6448,6 +6463,63 @@ function forceOpenTimes(row, md, teams, counts, mi, total, lid){
     }
   });
 }
+function sharedConferenceOk(season, lid, to, conf){
+  const lg=season.leagues[lid], total=lg.md.length;
+  const need=Math.ceil(total/2);
+  const konfPer=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
+  const regular=[]; let closing=0;
+  for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closing++; else regular.push(d); }
+  if (!regular.length) return true;
+  const must=lg.teams.filter(id=> (need-(conf[id]||0)-closing)>0 && (need-(conf[id]||0)-closing)>=regular.length);
+  const set=new Set(must);
+  for (const d of regular){
+    let matches=0;
+    lg.md[d].forEach(m=>{ if (set.has(lg.teams[m[0]]) || set.has(lg.teams[m[1]])) matches++; });
+    if (matches>konfPer) return false;
+  }
+  return true;
+}
+function blockObligations(season, lid, to){
+  const lg=season.leagues[lid], total=lg.md.length, bag=season.kickoffs&&season.kickoffs[lid]||{};
+  const need=Math.ceil(total/2);
+  const conf={}, times={};
+  lg.teams.forEach(id=>{ conf[id]=0; times[id]={}; });
+  for (let d=0; d<=to; d++){
+    const row=bag[d]; if (!row) continue;
+    lg.md[d].forEach((m,i)=>{
+      if (!row[i]) return;
+      const key=slotTimeKey(row[i]);
+      [lg.teams[m[0]], lg.teams[m[1]]].forEach(id=>{
+        times[id][key]=(times[id][key]||0)+1;
+        if (row[i].kind==='konferenz') conf[id]++;
+      });
+    });
+  }
+  const future=total-to-1;
+  for (const id of lg.teams){
+    if ((conf[id]||0)+future<need) return {ok:false, reason:'quote'};
+  }
+  if (!sharedConferenceOk(season, lid, to, conf)) return {ok:false, reason:'kapazitaet'};
+  const closingKey=slotTimeKey(finalSaturdaySlot(lid));
+  let closingLeft=0, regularAfter=0;
+  for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closingLeft++; else regularAfter++; }
+  let timeGap='';
+  templateTimes(lid).forEach(spec=>{
+    if (timeGap || (spec.key===closingKey && closingLeft>0)) return;
+    let z=0;
+    lg.teams.forEach(id=>{ if (!(times[id][spec.key]>0)) z++; });
+    if (z>regularAfter*spec.n*2) timeGap=spec.key;
+  });
+  if (timeGap) return {ok:false, reason:'zeit '+timeGap};
+  return {ok:true};
+}
+function releaseIfImpossible(season, lid, from, to){
+  const held=blockObligations(season, lid, to);
+  if (held.ok) return true;
+  const bag=season.kickoffs&&season.kickoffs[lid];
+  if (bag) for (let mi=from; mi<=to; mi++) delete bag[mi];
+  return false;
+}
 function coverSlotGaps(season, lid, from, to){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
   const times=templateTimes(lid);
@@ -6496,6 +6568,14 @@ function coverSlotGaps(season, lid, from, to){
             if (!donorOk) continue;
             if (row[j].kind==='konferenz' && donors.some(id=>got.conf[id]-1+future<need)) continue;
             if (row[i].kind==='konferenz' && ids.some(id=>got.conf[id]-1+future<need)) continue;
+            const nextConf=Object.assign({}, got.conf);
+            const shift=(clubIds, fromSlot, toSlot)=>{
+              if (fromSlot&&fromSlot.kind==='konferenz') clubIds.forEach(id=>{ nextConf[id]=(nextConf[id]||0)-1; });
+              if (toSlot&&toSlot.kind==='konferenz') clubIds.forEach(id=>{ nextConf[id]=(nextConf[id]||0)+1; });
+            };
+            shift(ids, row[i], row[j]);
+            shift(donors, row[j], row[i]);
+            if (!sharedConferenceOk(season, lid, to, nextConf)) continue;
             best={mi, i, j}; break;
           }
         }
@@ -6505,16 +6585,17 @@ function coverSlotGaps(season, lid, from, to){
       const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
       moved=true; break;
     }
-    if (!moved) return zerosLeft(got, times, regularAfter);
+    if (!moved) break;
   }
-  return zerosLeft(counts(), times, regularAfter);
-  function zerosLeft(got, specs, after){
-    let left=0;
-    specs.forEach(spec=>{
-      lg.teams.forEach(id=>{ if (!(got.c[id][spec.key]>0) && 1>after) left++; });
-    });
-    return left;
+  const got=counts();
+  if (!sharedConferenceOk(season, lid, to, got.conf)) return false;
+  const closingLeft=(total-(to+1))-regularAfter;
+  for (const spec of times){
+    if (spec.key===closingKey && closingLeft>0) continue;
+    const z=lg.teams.filter(id=>!(got.c[id][spec.key]>0)).length;
+    if (z>regularAfter*spec.n*2) return false;
   }
+  return true;
 }
 function scheduleNextBlock(season, lid){
   const tr=window.FR_TIMING; const t0=tr?performance.now():0;
@@ -6530,14 +6611,29 @@ function scheduleNextBlock(season, lid){
   const half=n-1, total=lg.md.length, konfPer=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
   const exact=false;
   let repairOk=true;
+  let dropBlock=false;
   if (exact && range[0]>=half) settleExactBlock(season, lid, range[0], range[1]);
   else if (konfPer && !exact){
     nudgeNonExactBlock(season, lid, range[0], range[1], snap);
-    repairOk=repairBlockConference(season, lid, range[0], range[1], snap) && reserveTightClubs(season, lid, range[0], range[1], snap);
-    coverSlotGaps(season, lid, range[0], range[1]);
+    const confOk=repairBlockConference(season, lid, range[0], range[1], snap) && reserveTightClubs(season, lid, range[0], range[1], snap);
+    const pre={};
+    for (let mi=range[0]; mi<=range[1]; mi++) pre[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
+    const covered=coverSlotGaps(season, lid, range[0], range[1])!==false;
     raiseTops(season, lid, range[0], range[1], snap);
     liftConferenceTops(season, lid, range[0], range[1], snap);
     balanceFrSaBlock(season, lid, range[0], range[1], snap);
+    let held=blockObligations(season, lid, range[1]);
+    let restored=false;
+    if (!held.ok){
+      for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=pre[mi].map(s=>Object.assign({}, s));
+      held=blockObligations(season, lid, range[1]);
+      restored=true;
+      if (!held.ok) dropBlock=true;
+    }
+    repairOk=confOk && held.ok && !dropBlock && (restored || covered);
+  }
+  if (dropBlock){
+    for (let mi=range[0]; mi<=range[1]; mi++) delete bag[mi];
   }
   if (!season.termRepair) season.termRepair={};
   if (!season.termRepair[lid]) season.termRepair[lid]=[];
@@ -6548,6 +6644,7 @@ function scheduleNextBlock(season, lid){
     const prev=season.termNotes[lid]||[];
     if (prev.indexOf(note)<0) season.termNotes[lid]=prev.concat([note]);
   }
+  if (!dropBlock){
   for (let mi=range[0]; mi<=range[1]; mi++){
     const row=bag[mi]; if (!row) continue;
     lg.md[mi].forEach((m,i)=>{
@@ -6560,7 +6657,8 @@ function scheduleNextBlock(season, lid){
   if (!season.termSnap) season.termSnap={};
   if (!season.termSnap[lid]) season.termSnap[lid]={};
   season.termSnap[lid][range[0]]={at:snap.at, zones:JSON.parse(JSON.stringify(snap.zones)), ansehen:Object.assign({}, snap.ansehen), raw:Object.assign({}, snap.raw||{}), ansehenEnd:snap.ansehenEnd, form:JSON.parse(JSON.stringify(snap.form||{})), table:(snap.table||[]).map(r=>({id:r.id, pl:r.pl, pkt:r.pkt, sp:r.sp, form:(r.form||[]).slice()}))};
-  if (range[1]>=lg.md.length-1){
+  }
+  if (!dropBlock && range[1]>=lg.md.length-1){
     const tall=slotTally(season, lid), need=lg.md.length/2, short=[];
     lg.teams.forEach(id=>{ if ((tall[id].konferenz||0)<need) short.push((TEAMS[id]?TEAMS[id].name:id)+' '+tall[id].konferenz+'/'+need); });
     season.termNotes=season.termNotes||{};
@@ -6570,7 +6668,7 @@ function scheduleNextBlock(season, lid){
     }
   }
   if (tr) tr.schedMs=(tr.schedMs||0)+performance.now()-t0;
-  return range;
+  return dropBlock ? null : range;
 }
 function maybeAdvance(season, lid){
   const last=lastScheduled(season, lid);
@@ -9238,7 +9336,8 @@ function uiSelfTestBody(fails){
     }
     check('Rückrunde spiegelt '+n, scheduleMirrorHolds(md) && md.length===half*2 && !self && twice && once && swapped, 'len '+md.length);
   });
-  const base=makeSchedule(4);
+  const rawRounds=bergerRounds(4);
+  const base=rawRounds.map(ps=>ps.map(([h,a])=>[h,a,null,null])).concat(rawRounds.map(ps=>ps.map(([h,a])=>[a,h,null,null])));
   const broken=base.map(round=>round.map(m=>m.slice()));
   broken[3]=broken[0].map(m=>[m[0], m[1], null, null]);
   broken[0][0][2]=2; broken[0][0][3]=1;
@@ -10590,12 +10689,17 @@ function terminSelfTest(){
   check('2. Liga ohne Freitagstop', countKind(slots.BL2,'top')===1 && countKind(slots.BL2,'regional')===2 && slots.BL2[0].kind==='regional');
   check('3. und 4. Liga zwei gleichartige Topspiele', countKind(slots.L3,'top')===2 && countKind(slots.L4,'top')===2 && slots.L3[0].kind==='top' && slots.L3[6].kind==='top');
   check('3. und 4. Liga Sonntag 13:30 ist regional', slots.L3.some(s=>s.dow==='So'&&s.time==='13:30'&&s.kind==='regional') && slots.L4.some(s=>s.dow==='So'&&s.time==='13:30'&&s.kind==='regional') && countKind(slots.L3,'regional')===3 && countKind(slots.L4,'regional')===3);
-  [18,20,22].forEach(n=>{
-    const md=makeSchedule(n);
-    const v=validateFixtures(md);
-    check('Spielplan '+n+' spiegelt und hat keine Serie 3', scheduleMirrorHolds(md) && v.ok, (v.issues||[]).slice(0,2).join(' · '));
-  });
-  check('vier Vereine können Spiegelung und Serie 2 nicht zugleich', scheduleMirrorHolds(makeSchedule(4)) && !validateFixtures(makeSchedule(4)).ok);
+  const sizeFail=[];
+  for (let n=6; n<=38; n+=2){
+    let md=null, err=null;
+    try{ md=makeSchedule(n); }catch(e){ err=e; }
+    const v=md?validateFixtures(md):null;
+    if (err || !md || !scheduleMirrorHolds(md) || !v.ok) sizeFail.push(n+(err?':'+err.message:':'+(v&&v.issues||[]).slice(0,1).join('')));
+  }
+  check('gerade Felder 6 bis 38 spiegeln ohne Serie 3', sizeFail.length===0, sizeFail.slice(0,4).join(' | '));
+  let four=null;
+  try{ makeSchedule(4); }catch(e){ four=e; }
+  check('vier Vereine sind unlösbar und werden nicht als Plan ausgegeben', !!(four && four.scheduleUnsolved && four.size===4), four?four.message:'Plan statt Fehler');
   check('Regionalliga und Oberliga ein Topspiel', countKind(slots.RLN,'top')===1 && countKind(slots.OLBY,'top')===1 && countKind(slots.RLN,'konferenz')===8);
   const squad=buildInitialSquads();
   const prevRandom=Math.random;
@@ -10860,7 +10964,7 @@ function terminSelfTest(){
     check('neuer und alter Scheduler sehen denselben Roh-Ansehenwert', rawSame, JSON.stringify(report.ansehen));
     types.forEach(([type, lids], ti)=>{
       const list=Array.isArray(lids)?lids:[lids];
-      const acc={seasons:0, below:0, oldBelow:0, oldClubs:0, clubs:0, top:0, topN:0, frSa:[], cross:0, newAvg:0, oldAvg:0, newKm:0, oldKm:0, maxFrSa:0, holes:0, openFr:0, repairFail:0, sameN:0, sameO:0, sameC:0, slotMiss:0, streak:0, regionalFar:0};
+      const acc={seasons:0, below:0, oldBelow:0, oldClubs:0, clubs:0, top:0, topN:0, frSa:[], cross:0, newAvg:0, oldAvg:0, newKm:0, oldKm:0, maxFrSa:0, holes:0, openFr:0, repairFail:0, sameN:0, sameO:0, sameC:0, slotMiss:0, streak:0, regionalFar:0, so13:0, so13N:0, plain:0, plainN:0, so13Kind:0};
       for (let s=0;s<50;s++){
         const lid=list[s%list.length];
         const seed=1000+ti*1000+s;
@@ -10930,8 +11034,11 @@ function terminSelfTest(){
             const row=neu.season.kickoffs[lid][mi]||[];
             row.forEach(slot=>{
               const km=slot&&slot.wert&&slot.wert.km;
+              if (slot && slot.dow==='So' && slot.time==='13:30' && slot.kind!=='regional') acc.so13Kind++;
               if (km==null) return;
               if (slot.dow==='So'){ sun+=km; sunN++; } else { other+=km; otherN++; }
+              if (slot.dow==='So' && slot.time==='13:30'){ acc.so13+=km; acc.so13N++; }
+              else if (slot.kind!=='regional'){ acc.plain+=km; acc.plainN++; }
             });
           });
           if (!(sunN&&otherN&&sun/sunN<other/otherN)) acc.regionalFar++;
@@ -10943,8 +11050,10 @@ function terminSelfTest(){
       acc.frSa.sort((a,b)=>a-b);
       const mid=acc.frSa[Math.floor(acc.frSa.length/2)]||0;
       const round1=v=>Math.round(v*10)/10;
-      report[type]={seasons:acc.seasons, below:acc.below, oldBelow:acc.oldBelow, clubs:acc.clubs, quota:acc.clubs?Math.round((1-acc.below/acc.clubs)*1000)/10:0, oldQuota:acc.oldClubs?Math.round((1-acc.oldBelow/acc.oldClubs)*1000)/10:0, avgTop:acc.topN?round1(acc.top/acc.topN):0, topKindNeu:round1(acc.newAvg/acc.seasons), topKindAlt:round1(acc.oldAvg/acc.seasons), topKindHinweis:type==='BL'?'neu Fr 20:30 und Sa 18:30, alt nur Sa 18:30':'gleiche Top-Anstöße', sameClockNeu:acc.sameC?round1(acc.sameN/acc.sameC):null, sameClockAlt:acc.sameC?round1(acc.sameO/acc.sameC):null, newKm:Math.round(acc.newKm/acc.seasons), oldKm:Math.round(acc.oldKm/acc.seasons), frSaMedian:mid, frSaMax:acc.maxFrSa, cross:acc.cross, holes:acc.holes, openFr:acc.openFr, repairFail:acc.repairFail, slotMiss:acc.slotMiss, streak:acc.streak, regionalFar:acc.regionalFar};
-      check(type+' jede der 50 Saisons hält Quote, Zeiten und Serie 2', acc.seasons===50 && acc.below===0 && acc.cross===0 && acc.holes===0 && acc.openFr===0 && acc.repairFail===0 && acc.slotMiss===0 && acc.streak===0 && acc.regionalFar===0, JSON.stringify(report[type]));
+      const so13km=acc.so13N?Math.round(acc.so13/acc.so13N):null, plainKm=acc.plainN?Math.round(acc.plain/acc.plainN):null;
+      const so13ok=!(type==='L3'||type==='L4') || (acc.so13N>0 && acc.plainN>0 && acc.so13/acc.so13N<acc.plain/acc.plainN && acc.so13Kind===0);
+      report[type]={seasons:acc.seasons, below:acc.below, oldBelow:acc.oldBelow, clubs:acc.clubs, quota:acc.clubs?Math.round((1-acc.below/acc.clubs)*1000)/10:0, oldQuota:acc.oldClubs?Math.round((1-acc.oldBelow/acc.oldClubs)*1000)/10:0, avgTop:acc.topN?round1(acc.top/acc.topN):0, topKindNeu:round1(acc.newAvg/acc.seasons), topKindAlt:round1(acc.oldAvg/acc.seasons), topKindHinweis:type==='BL'?'neu Fr 20:30 und Sa 18:30, alt nur Sa 18:30':'gleiche Top-Anstöße', sameClockNeu:acc.sameC?round1(acc.sameN/acc.sameC):null, sameClockAlt:acc.sameC?round1(acc.sameO/acc.sameC):null, newKm:Math.round(acc.newKm/acc.seasons), oldKm:Math.round(acc.oldKm/acc.seasons), frSaMedian:mid, frSaMax:acc.maxFrSa, cross:acc.cross, holes:acc.holes, openFr:acc.openFr, repairFail:acc.repairFail, slotMiss:acc.slotMiss, streak:acc.streak, regionalFar:acc.regionalFar, so13km, plainKm, so13Kind:acc.so13Kind};
+      check(type+' jede der 50 Saisons hält Quote, Zeiten und Serie 2', acc.seasons===50 && acc.below===0 && acc.cross===0 && acc.holes===0 && acc.openFr===0 && acc.repairFail===0 && acc.slotMiss===0 && acc.streak===0 && acc.regionalFar===0 && so13ok, JSON.stringify(report[type]));
     });
   }finally{
     Math.random=prevRandom;
@@ -11041,6 +11150,188 @@ function terminSelfTest(){
     return Object.keys(before).every(k=>JSON.stringify(before[k])===JSON.stringify(again.kickoffs.BL[k]));
   })();
   check('nach dem Laden bleibt der Block stehen und der nächste kommt dazu', booted);
+  report.targeted={};
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const pairs=[]; for (let i=0;i<10;i++) pairs.push([i*2, i*2+1]);
+    const md=[]; for (let d=0;d<38;d++) md.push(pairs.map(p=>[p[0], p[1], null, null]));
+    const bag={};
+    const rowOf=(d)=>{
+      return pairs.map((_,i)=>{
+        if (i===6){
+          if (d<16 || d===34) return {dow:'Sa', time:'15:30', kind:'konferenz'};
+          if (d===16) return {dow:'So', time:'15:30', kind:'regional'};
+          if (d===17) return {dow:'Sa', time:'18:30', kind:'top'};
+          return {dow:'Fr', time:'20:30', kind:'top'};
+        }
+        if (i===7){
+          if (d===0 || d===1 || d===34) return {dow:'So', time:'17:30', kind:'regional'};
+          if (d===30) return {dow:'So', time:'15:30', kind:'regional'};
+          if (d===31) return {dow:'Sa', time:'18:30', kind:'top'};
+          if (d<30) return {dow:'Sa', time:'15:30', kind:'konferenz'};
+          return {dow:'Fr', time:'20:30', kind:'top'};
+        }
+        if (i<6){
+          if (d<16) return {dow:'Sa', time:'15:30', kind:'konferenz'};
+          if (d===16) return {dow:'So', time:'17:30', kind:'regional'};
+          if (d===17) return {dow:'So', time:'15:30', kind:'regional'};
+          if (d===18) return {dow:'Sa', time:'18:30', kind:'top'};
+          if (d===34) return {dow:'Fr', time:'20:30', kind:'top'};
+          return {dow:'Fr', time:'20:30', kind:'top'};
+        }
+        if (d<20) return {dow:'Sa', time:'15:30', kind:'konferenz'};
+        if (d===20) return {dow:'So', time:'17:30', kind:'regional'};
+        if (d===21) return {dow:'So', time:'15:30', kind:'regional'};
+        if (d===22) return {dow:'Sa', time:'18:30', kind:'top'};
+        return {dow:'Fr', time:'20:30', kind:'top'};
+      });
+    };
+    for (let d=0; d<=34; d++) bag[d]=rowOf(d);
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    const mustOn=()=>{
+      const conf={}; teams.forEach((_,ix)=>{ conf[ix]=0; });
+      for (let d=0; d<=34; d++) bag[d].forEach((slot,i)=>{ if (slot.kind==='konferenz'){ conf[pairs[i][0]]++; conf[pairs[i][1]]++; } });
+      let n=0;
+      md[35].forEach(m=>{ if ((19-(conf[m[0]]||0)-2)>0 && (19-(conf[m[0]]||0)-2)>=1 || (19-(conf[m[1]]||0)-2)>0 && (19-(conf[m[1]]||0)-2)>=1) n++; });
+      return {n, d:conf[12], donor:conf[14]};
+    };
+    const before=mustOn();
+    const heldBefore=blockObligations(season, 'BL', 34);
+    const covered=coverSlotGaps(season, 'BL', 34, 34);
+    const after=mustOn();
+    const stillConf=bag[34][6].kind==='konferenz' && bag[34][7].time==='17:30';
+    check('Zeitreparatur lässt die gemeinsame Konferenzkapazität stehen', before.n===6 && before.d===17 && covered===true && after.n===6 && after.d===17 && stillConf && heldBefore.ok, JSON.stringify({before, after, covered, held:heldBefore}));
+    const broken=bag[34][6]; bag[34][6]=bag[34][7]; bag[34][7]=broken;
+    const heldBroken=blockObligations(season, 'BL', 34);
+    check('Sieben Pflichtspiele auf sechs Konferenzplätze sind unzulässig', heldBroken.ok===false && heldBroken.reason==='kapazitaet', JSON.stringify(heldBroken));
+    const kept33=JSON.stringify(bag[33]);
+    const released=releaseIfImpossible(season, 'BL', 34, 34);
+    check('Unmöglicher Block wird nicht festgeschrieben', released===false && !bag[34] && JSON.stringify(bag[33])===kept33);
+    report.targeted.kapazitaet={before, after, covered, heldBroken};
+  })();
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const snap={info:{}, total:38, table:[], zones:{n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7}, at:1, ansehen:{}, rank:{}, form:{}};
+    const put=(i, an)=>{ const id=teams[i]; snap.info[id]={id, ansehen:an, sp:0, sport:null, form:[], pkt:0}; };
+    put(0, 16.7); put(1, 16.7); put(2, 50); put(3, 50); put(4, 33.4); put(5, 33.4);
+    for (let i=6;i<20;i++) put(i, 4);
+    const vT=matchValue(teams[0], teams[1], snap, 1).total;
+    const vB=matchValue(teams[2], teams[3], snap, 1).total;
+    const vC=matchValue(teams[4], teams[5], snap, 1).total;
+    const pairs=[[0,1],[2,3],[4,5]];
+    for (let i=6;i<20;i+=2) pairs.push([i, i+1]);
+    const md=[]; for (let d=0;d<38;d++) md.push(pairs.map(p=>[p[0], p[1], null, null]));
+    const bag={};
+    bag[0]=pairs.map((_,i)=>{
+      if (i===0) return {dow:'Fr', time:'20:30', kind:'konferenz'};
+      if (i===2) return {dow:'So', time:'17:30', kind:'konferenz'};
+      return {dow:'Sa', time:'15:30', kind:'konferenz'};
+    });
+    bag[1]=pairs.map((_,i)=>{
+      if (i===0) return {dow:'Fr', time:'20:30', kind:'top'};
+      if (i===1) return {dow:'So', time:'15:30', kind:'regional'};
+      if (i===2) return {dow:'So', time:'17:30', kind:'regional'};
+      return {dow:'Sa', time:'15:30', kind:'konferenz'};
+    });
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    raiseTops(season, 'BL', 1, 1, snap);
+    const topAt=bag[1].findIndex(s=>s.kind==='top');
+    const holes=qualityHoles({season, lid:'BL', teams, md});
+    check('Top sucht den nächsten zulässigen Kandidaten', vB>vC && vC>vT && topAt===2 && bag[1][1].time==='15:30' && holes===0, [vT, vB, vC, topAt, holes].join('/'));
+    report.targeted.top={vT, vB, vC, topAt, holes};
+  })();
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const snap={info:{}, total:38, table:[], zones:{n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7}, at:20, ansehen:{}, rank:{}, form:{}};
+    const put=(i, an)=>{ const id=teams[i]; snap.info[id]={id, ansehen:an, sp:0, sport:null, form:[], pkt:0}; };
+    put(0, 16.7); put(1, 16.7); put(2, 50); put(3, 50); put(4, 33.4); put(5, 33.4);
+    for (let i=6;i<20;i++) put(i, 4);
+    const pairs=[[0,1],[2,3],[4,5]];
+    for (let i=6;i<20;i+=2) pairs.push([i, i+1]);
+    const md=[]; for (let d=0;d<38;d++) md.push(pairs.map(p=>[p[0], p[1], null, null]));
+    const bag={};
+    for (let d=0; d<=18; d++) bag[d]=pairs.map(()=>({dow:'Sa', time:'15:30', kind:'konferenz'}));
+    bag[19]=pairs.map((_,i)=>{
+      if (i===0) return {dow:'Fr', time:'20:30', kind:'konferenz'};
+      if (i===2) return {dow:'So', time:'17:30', kind:'konferenz'};
+      return {dow:'Sa', time:'15:30', kind:'konferenz'};
+    });
+    bag[20]=pairs.map((_,i)=>{
+      if (i===0) return {dow:'Fr', time:'20:30', kind:'top'};
+      if (i===1) return {dow:'So', time:'15:30', kind:'regional'};
+      if (i===2) return {dow:'So', time:'17:30', kind:'regional'};
+      if (i===3) return {dow:'Fr', time:'20:30', kind:'regional'};
+      return {dow:'Sa', time:'15:30', kind:'konferenz'};
+    });
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    nudgeNonExactBlock(season, 'BL', 20, 20, snap);
+    check('placeTops übergeht den unzulässigen besten Tausch', bag[20][2].kind==='top' && bag[20][1].time==='15:30' && bag[20][0].kind!=='top', bag[20].slice(0,3).map(s=>s.kind+' '+s.time).join(','));
+    report.targeted.place=bag[20].slice(0,3).map(s=>s.kind+' '+s.time);
+  })();
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const snap={info:{}, total:38, table:[], zones:{n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7}, at:32, ansehen:{}, rank:{}, form:{}};
+    teams.forEach(id=>{ snap.info[id]={id, ansehen:40, sp:0, sport:null, form:[], pkt:0}; });
+    const md=[]; const bag={};
+    const pushDay=(specials)=>{
+      const used={}, matches=[], row=[];
+      specials.forEach(s=>{ matches.push([s.a, s.b, null, null]); row.push(s.slot); used[s.a]=used[s.b]=1; });
+      const rest=[]; for (let i=0;i<20;i++) if (!used[i]) rest.push(i);
+      while (rest.length){ matches.push([rest.shift(), rest.shift(), null, null]); row.push({dow:'Sa', time:'15:30', kind:'konferenz'}); }
+      md.push(matches); bag[md.length-1]=row;
+    };
+    const top=(dow)=>({dow, time:dow==='Fr'?'20:30':'18:30', kind:'top'});
+    for (let k=0;k<9;k++) pushDay([{a:0, b:8, slot:top('Fr')}]);
+    for (let k=0;k<9;k++) pushDay([{a:2, b:9, slot:top('Sa')}]);
+    for (let k=0;k<4;k++) pushDay([{a:4, b:10, slot:top('Fr')}]);
+    pushDay([{a:5, b:12, slot:top('Fr')}]);
+    pushDay([{a:5, b:13, slot:top('Sa')}]);
+    for (let k=0;k<2;k++) pushDay([{a:6, b:14, slot:top('Fr')}]);
+    pushDay([{a:6, b:15, slot:top('Sa')}]);
+    pushDay([{a:7, b:16, slot:top('Fr')}]);
+    for (let k=0;k<3;k++) pushDay([{a:7, b:17, slot:top('Sa')}]);
+    const illegal=md.length;
+    pushDay([{a:0, b:1, slot:top('Fr')},{a:2, b:3, slot:top('Sa')}]);
+    const legal=md.length;
+    pushDay([{a:4, b:5, slot:top('Fr')},{a:6, b:7, slot:top('Sa')}]);
+    while (md.length<38) pushDay([]);
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    const frBefore=bag[illegal][0].dow, saBefore=bag[illegal][1].dow;
+    balanceFrSaBlock(season, 'BL', illegal, legal, snap);
+    const illegalKept=bag[illegal][0].dow===frBefore && bag[illegal][1].dow===saBefore;
+    const legalMoved=bag[legal][0].dow==='Sa' && bag[legal][1].dow==='Fr';
+    const open=openFrSa({season, lid:'BL', teams, md});
+    check('Freitag-Samstag sucht den nächsten zulässigen Tausch', illegalKept && legalMoved && open===0, JSON.stringify({illegalKept, legalMoved, open, illegal, legal}));
+    report.targeted.frSa={illegalKept, legalMoved, open};
+  })();
+  ['L3','L4'].forEach(lid=>{
+    seedRandom(4100+(lid==='L3'?0:17));
+    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length);
+    Math.random=prevRandom;
+    const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
+    let g=0; while(g++<24){ const range=scheduleNextBlock(season, lid); if(!range) break; for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } }); }
+    let so=0, soN=0, plain=0, plainN=0, kindBad=0;
+    md.forEach((round,mi)=>{
+      (season.kickoffs[lid][mi]||[]).forEach(slot=>{
+        if (!slot) return;
+        const km=slot.wert&&slot.wert.km;
+        if (slot.dow==='So' && slot.time==='13:30'){
+          if (slot.kind!=='regional') kindBad++;
+          if (km!=null){ so+=km; soN++; }
+        } else if (slot.kind!=='regional' && km!=null){ plain+=km; plainN++; }
+      });
+    });
+    const html=viewTerminierung(season, lid);
+    const kmSo=soN?Math.round(so/soN):null, kmPlain=plainN?Math.round(plain/plainN):null;
+    check(lid+' Sonntag 13:30 ist einzeln kürzer und regional', soN>0 && plainN>0 && so/soN<plain/plainN && kindBad===0 && html.indexOf('So 13:30')>=0 && html.indexOf('auch 13:30')>=0, kmSo+'/'+kmPlain+' kind '+kindBad);
+    report.targeted[lid]={so13:kmSo, andere:kmPlain, kindBad};
+  });
+  const uiRes=uiSelfTest();
+  const anRes=ansehenSelfTest();
+  report.ui={ok:!!uiRes.ok, fails:uiRes.fails||[]};
+  report.ansehenSelf={ok:!!anRes.ok, fails:anRes.fails||[]};
+  check('UI-Test', !!uiRes.ok, (uiRes.fails||[]).slice(0,3).join(' | '));
+  check('Ansehen-Test', !!anRes.ok, (anRes.fails||[]).slice(0,3).join(' | '));
   return {ok:!fails.length, fails, report};
 
 }
