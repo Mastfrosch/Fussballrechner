@@ -14,6 +14,6 @@ Alterung: Ausgabejahr 1964 ist die Saison 1963/64 und altert wie jeder importier
 
 Belegte Tradition zählt, auch wenn der heutige Verein nicht die juristische Fortsetzung ist. Das gilt für den Dresdner SC, die BSG Chemie Leipzig und Blau-Weiß 90 als Tradition von Union 92. Kein Titel geht an einen Stadtnachbarn.
 
-Offen und ohne Ansehen: der FDGB-Sieg 1957 von SC Lokomotive Leipzig. Lok und Chemie beanspruchen ihn beide. Die Zeile bleibt im Register, bis das entschieden ist.
+Der FDGB-Sieg 1957 von SC Lokomotive Leipzig geht nur an den heutigen 1. FC Lokomotive Leipzig. Chemie bekommt ihn nicht. Damit hat Lok fünf FDGB-Siege und Chemie einen. Der historische Siegername bleibt SC Lokomotive Leipzig.
 
 Ohne heutigen Verein im Spiel, deshalb ohne Ansehen und ohne Umleitung: Freiburger FC 1907, Karlsruher FV 1910, SK Rapid Wien 1938 und 1941, First Vienna 1943, RB Leipzig 2022 und 2023.

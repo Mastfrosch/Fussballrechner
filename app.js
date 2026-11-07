@@ -750,7 +750,8 @@ function ansehenSelfTest(){
   check('1904, 1922 und 1945 haben keinen Meister', !reg.some(r=>r.comp==='de' && (r.year===1904||r.year===1922||r.year===1945)));
   check('keine historischen Titel ab 2027', !reg.some(r=>r.year>=2027));
   check('kein Landespokal im Register', !reg.some(r=>r.comp==='land'));
-  check('FDGB 1957 bleibt ohne Verein', reg.filter(r=>r.comp==='fdgb'&&r.year===1957).length===1 && !reg.find(r=>r.comp==='fdgb'&&r.year===1957).id);
+  const fdgb1957=reg.filter(r=>r.comp==='fdgb'&&r.year===1957);
+  check('FDGB 1957 steht einmal als SC Lokomotive Leipzig', fdgb1957.length===1 && fdgb1957[0].original==='SC Lokomotive Leipzig' && fdgb1957[0].id==='t084');
   check('Wismut liegt bei Aue, Karl-Marx-Stadt bei Chemnitz', reg.filter(r=>r.original.indexOf('Wismut')>=0).every(r=>r.id==='t033') && reg.find(r=>r.comp==='ddr'&&r.year===1967).id==='t056');
   const blLines=ansehenLedger('t001').lines.filter(l=>l.kind==='titel' && l.label==='Meistertitel Bundesliga');
   const seenBl={}; let blDup=0;
@@ -758,7 +759,9 @@ function ansehenSelfTest(){
   const de1932=ansehenLedger('t001').lines.find(l=>l.histKey==='de|1932');
   check('Bayern-Bundesligatitel nicht doppelt', blDup===0 && blLines.length>=34);
   check('Bayern 1932 ist ein großer Titel', !!de1932 && de1932.durable===true && de1932.original===180 && de1932.factor===titleFactor(de1932.age, true));
-  check('Lok und Chemie bekommen 1957 nicht', !ansehenLedger('t084').lines.some(l=>l.histKey==='fdgb|1957') && !ansehenLedger('t139').lines.some(l=>l.histKey==='fdgb|1957'));
+  const lok1957=ansehenLedger('t084').lines.filter(l=>l.histKey==='fdgb|1957');
+  const chem1957=ansehenLedger('t139').lines.filter(l=>l.histKey==='fdgb|1957');
+  check('FDGB 1957 zählt einmal nur bei Lok', lok1957.length===1 && chem1957.length===0 && lok1957[0].original===55 && lok1957[0].label==='FDGB-Pokal-Titel', lok1957.length+'/'+chem1957.length);
   check('unterer Meistertitel bleibt ohne Boden', titleFactor(99, false)===0.01 && titleFactor(100, false)===0 && titleFactor(60, true)===0.4);
   return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
