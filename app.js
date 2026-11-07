@@ -1623,12 +1623,16 @@ function unpackRows(rows){
 function packMatch(m){
   if (!m || Array.isArray(m)) return m;
   const slot=m.slot? [m.slot.dow||'', m.slot.time||'', m.slot.kind||'', m.slot.kracher?1:0] : null;
-  return [m.h, m.a, m.hg, m.ag, m.et?1:0, m.peh==null?null:m.peh, m.pea==null?null:m.pea, m.neutral?1:0, slot];
+  const row=[m.h, m.a, m.hg, m.ag, m.et?1:0, m.peh==null?null:m.peh, m.pea==null?null:m.pea, m.neutral?1:0, slot];
+  if (m.at!=null) row.push(m.at);
+  return row;
 }
 function unpackMatch(m){
   if (!m || !Array.isArray(m)) return m;
   const slot=m[8];
-  return {h:m[0], a:m[1], hg:m[2], ag:m[3], et:!!m[4], peh:m[5], pea:m[6], neutral:!!m[7], slot:slot?{dow:slot[0], time:slot[1], kind:slot[2]||'', kracher:!!slot[3]}:null};
+  const out={h:m[0], a:m[1], hg:m[2], ag:m[3], et:!!m[4], peh:m[5], pea:m[6], neutral:!!m[7], slot:slot?{dow:slot[0], time:slot[1], kind:slot[2]||'', kracher:!!slot[3]}:null};
+  if (m.length>9 && m[9]!=null && m[9]!=='') out.at=m[9]|0;
+  return out;
 }
 function packCup(cup){
   if (!cup) return cup;
@@ -2750,6 +2754,17 @@ const DFB_ROUNDS = [
 const CUP_DOW={Fr:0,Sa:1,So:2,Mi:3,Do:4};
 const VIA_TEXT={sieger:'Landespokalsieger', finalist:'Finalist, der Sieger ist schon über die Liga qualifiziert', staat:'bester noch nicht qualifizierter Verein des Landes', liga:'nächster freier Platz der 3. Liga'};
 function cupMatch(h,a,neutral){ return {h,a,hg:null,ag:null,et:false,peh:null,pea:null,slot:null,neutral:!!neutral}; }
+function cupKnownAt(season){
+  if (!season || !season.leagues || !season.leagues.BL || !season.leagues.BL.md) return null;
+  return lastScheduled(season, 'BL');
+}
+function stampCupDecision(season, m){
+  if (!m) return;
+  if (!cupWinner(m)){ m.at=null; return; }
+  const at=cupKnownAt(season);
+  if (at==null) return;
+  if (m.at==null || at>m.at) m.at=at;
+}
 function cupWinner(m){
   if (!m || m.hg==null || m.ag==null) return null;
   if (m.hg>m.ag) return m.h;
@@ -3110,6 +3125,7 @@ function simCup(season, cup){
       if (cupWinner(m)) return;
       const res=simCupScore(m.h, m.a);
       m.hg=res.hg; m.ag=res.ag; m.et=res.et; m.peh=res.peh; m.pea=res.pea;
+      stampCupDecision(season, m);
       c++;
     });
   }
@@ -4074,6 +4090,7 @@ function mutateCup(cupKey, ri, mi, fn){
   fn(m);
   if (m.hg!=null && m.ag!=null && m.hg!==m.ag){ m.peh=null; m.pea=null; }
   if (m.hg!=null && m.ag!=null && m.hg===m.ag) m.et=false;
+  stampCupDecision(s, m);
   clearLaterRounds(cup, ri);
   maybeAutoFinal(s, cup);
   save(); render();
@@ -4756,8 +4773,8 @@ const SLOT_CACHE={};
 function slotTemplate(lid){
   if (SLOT_CACHE[lid]) return SLOT_CACHE[lid].map(s=>({dow:s.dow,time:s.time,kind:s.kind}));
   let src;
-  if(lid==='BL') src=expandSlots([{dow:'Fr',time:'20:30'},{dow:'Sa',time:'15:30',kind:'konferenz',n:6},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}]);
-  else if(lid==='BL2') src=expandSlots([{dow:'Fr',time:'18:30',n:2},{dow:'Sa',time:'13:30',kind:'konferenz',n:4},{dow:'Sa',time:'20:30',kind:'top'},{dow:'So',time:'13:30',kind:'konferenz',n:3}]);
+  if(lid==='BL') src=expandSlots([{dow:'Fr',time:'20:30',kind:'top'},{dow:'Sa',time:'15:30',kind:'konferenz',n:6},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}]);
+  else if(lid==='BL2') src=expandSlots([{dow:'Fr',time:'18:30',kind:'regional',n:2},{dow:'Sa',time:'13:30',kind:'konferenz',n:4},{dow:'Sa',time:'20:30',kind:'top'},{dow:'So',time:'13:30',kind:'konferenz',n:3}]);
   else if(lid==='L3') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:5},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
   else if(lid==='L4') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:6},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
   else src=expandSlots([{dow:'Fr',time:'18:30',kind:'top'},{dow:'Sa',time:'14:30',kind:'konferenz',n:8}]);
@@ -4825,7 +4842,25 @@ function appealOf(season, lid, teamId, mi){
   }
   return 10000+(TEAMS[teamId].rang||99999);
 }
-function emptySlotCount(){ return {fr:0,so:0,konferenz:0,top:0,regional:0,total:0}; }
+function emptySlotCount(){ return {fr:0,so:0,konferenz:0,top:0,frTop:0,saTop:0,regional:0,einzel:0,total:0,topSum:0,topN:0,regSum:0,regN:0}; }
+function bumpSlot(c, slot){
+  if (!c || !slot) return;
+  c.total++;
+  if (slot.dow==='Fr') c.fr++;
+  if (slot.dow==='So') c.so++;
+  if (slot.kind==='konferenz') c.konferenz++;
+  if (slot.kind==='top'){
+    c.top++;
+    if (slot.dow==='Fr') c.frTop++;
+    if (slot.dow==='Sa') c.saTop++;
+    if (slot.wert && slot.wert.total!=null){ c.topSum+=slot.wert.total; c.topN++; }
+  }
+  if (slot.kind==='regional'){
+    c.regional++;
+    if (slot.wert && slot.wert.km!=null){ c.regSum+=slot.wert.km; c.regN++; }
+  }
+  if (!slot.kind) c.einzel++;
+}
 function slotTally(season, lid){
   const ids=season.leagues[lid].teams, map={};
   ids.forEach(id=>map[id]=emptySlotCount());
@@ -4834,14 +4869,7 @@ function slotTally(season, lid){
     const slots=bag[mi]; if(!slots) return;
     md.forEach((m,k)=>{
       const slot=slots[k]; if(!slot) return;
-      [season.leagues[lid].teams[m[0]], season.leagues[lid].teams[m[1]]].forEach(id=>{
-        const c=map[id]; c.total++;
-        if(slot.dow==='Fr') c.fr++;
-        if(slot.dow==='So') c.so++;
-        if(slot.kind==='konferenz') c.konferenz++;
-        if(slot.kind==='top') c.top++;
-        if(slot.kind==='regional') c.regional++;
-      });
+      [season.leagues[lid].teams[m[0]], season.leagues[lid].teams[m[1]]].forEach(id=>bumpSlot(map[id], slot));
     });
   });
   return map;
@@ -4859,10 +4887,8 @@ function topKind(rh, ra, needH, needA, n){
   if (hi<=upper && lowerNeeds) return 'rescue';
   return 'no';
 }
-// Topspiel: aktuelle Tabelle zählt mehr als Ansehen.
-// Ansehen wird nur als Rang in der Staffel auf 0–1 gezogen, nie als Rohpunktzahl.
-// Ohne gespielte Partie gibt es keine Tabelle; die Poolreihenfolge ist dann keine Leistung.
-// Ab dem dritten Spiel gilt ein Verein als Tabellenspitze, wenn sein Platz dort liegt.
+// Topspiel 0–100: Gesamtansehen der Staffel und der sportliche Zielkampf, gewichtet nach Saisonphase.
+// Ohne gespielte Partie gibt es keinen Tabellenbonus. Die Ansehen-Skala ist das vorhandene Gesamtansehen.
 function sportSignal(pkt, sp){
   if (!(sp>0)) return null;
   const ppg=Math.max(0, Math.min(3, pkt/sp))/3;
@@ -4873,28 +4899,122 @@ function teamAppeal(sport, ansehen){
   if (sport==null) return ansehen;
   return 0.65*sport+0.35*ansehen;
 }
-function ansehenUnit(ids){
-  const vals=(ids||[]).map(id=>({id, v:ansehenValue(id)||0}));
+function ansehenUnit(ids, endYear){
+  const vals=(ids||[]).map(id=>({id, v:(endYear!=null?ansehenInfo(id, endYear).value:ansehenValue(id))||0}));
+  const lo=vals.reduce((m,s)=>Math.min(m,s.v), Infinity);
+  const hi=vals.reduce((m,s)=>Math.max(m,s.v), -Infinity);
+  const span=hi-lo;
   vals.sort((a,b)=>b.v-a.v || String(a.id).localeCompare(String(b.id)));
-  const n=vals.length, unit={}, rank={};
+  const unit={}, rank={};
   vals.forEach((s,i)=>{
     rank[s.id]=i+1;
-    unit[s.id]=n<=1?1:1-(i)/(n-1);
+    unit[s.id]=vals.length<=1 || span<=0 ? 50 : (s.v-lo)/span*100;
   });
   return {unit, rank};
+}
+function phaseWeights(total, mi){
+  const md=Math.max(1, (mi|0)+1), n=Math.max(1, total|0);
+  let cuts;
+  if (n===38) cuts=[[4,0.60,0.40],[8,0.40,0.60],[12,0.30,0.70],[38,0.25,0.75]];
+  else if (n===42) cuts=[[4,0.60,0.40],[9,0.40,0.60],[13,0.30,0.70],[42,0.25,0.75]];
+  else if (n===34) cuts=[[4,0.60,0.40],[7,0.40,0.60],[11,0.30,0.70],[34,0.25,0.75]];
+  else {
+    const marks=[[4/38,0.60,0.40],[8/38,0.40,0.60],[12/38,0.30,0.70],[1,0.25,0.75]];
+    cuts=[];
+    let prev=0;
+    marks.forEach(([k,h,s])=>{
+      let end=Math.max(prev+1, Math.round(k*n));
+      if (k===1) end=n;
+      cuts.push([end,h,s]);
+      prev=end;
+    });
+  }
+  let prev=0;
+  for (let i=0;i<cuts.length;i++){
+    const end=cuts[i][0], h=cuts[i][1], s=cuts[i][2];
+    if (md<=end) return {h, s, from:prev+1, to:end, label:(prev+1)+'–'+end};
+    prev=end;
+  }
+  const last=cuts[cuts.length-1];
+  return {h:last[1], s:last[2], from:prev, to:n, label:prev+'–'+n};
+}
+function downFromKnown(season, lid, mi){
+  const spec=L[lid];
+  if (!spec) return 0;
+  if (spec.level<=4) return spec.down||0;
+  const parent=spec.level===5?'L4':spec.upTo;
+  const parentSpec=L[parent];
+  const parentDown=parentSpec?downFromKnown(season, parent, mi):0;
+  const lg=season.leagues&&season.leagues[parent];
+  if (!lg || !lg.md) return spec.level===5?2:0;
+  const cut=Math.max(0, Math.min(mi|0, lg.md.length));
+  let table=[];
+  try{ table=tableBefore(season, parent, cut); }catch(e){ table=[]; }
+  const incoming=table.slice(-parentDown).map(r=>r.id).filter(id=>homeLeague(id, spec.level)===lid);
+  if (spec.level===5) return 2+incoming.length+1;
+  return incoming.length;
+}
+function eighthKnown(season, mi){
+  if (!season||!season.leagues||!season.leagues.BL) return false;
+  let rows=[];
+  try{ rows=mi>0?tableBefore(season,'BL',mi):[]; }catch(e){ rows=[]; }
+  const top={};
+  rows.forEach(r=>{ if (r.pl<=7) top[r.id]=1; });
+  const cup=season.cups&&season.cups.dfb;
+  if (!cup||!cup.rounds) return false;
+  // at ist der letzte schon terminierte Bundesliga-Spieltag zum Zeitpunkt der Entscheidung.
+  // Gespeicherte Pokalspiele ohne at bleiben undatiert und gelten nicht als bekannt.
+  const known=m=>!!(m && m.at!=null && (m.at|0)<(mi|0));
+  const alive=new Set();
+  (cup.entrants||[]).forEach(id=>alive.add(id));
+  let saw=false;
+  cup.rounds.forEach(r=>{
+    (r.matches||[]).forEach(m=>{
+      if (!known(m)) return;
+      const w=cupWinner(m);
+      if (!w) return;
+      saw=true;
+      if (m.h!==w) alive.delete(m.h);
+      if (m.a!==w) alive.delete(m.a);
+    });
+  });
+  if (!saw || !alive.size) return false;
+  let ok=true;
+  alive.forEach(id=>{ if (!top[id]) ok=false; });
+  return ok;
+}
+function schedulingAnsehenEnd(season){
+  const y=seasonYear(season&&season.name);
+  // Pokal und Chronik der laufenden Saison haben keinen Spieltag. Der Termin-Snapshot
+  // nimmt das Gesamtansehen zum Ende der Vorsaison. Die Ansehen-Formel bleibt gleich.
+  return y>0?y-1:0;
+}
+function zoneProfile(season, lid, mi){
+  const spec=L[lid]||{};
+  const lg=season.leagues[lid];
+  const n=lg&&lg.teams?lg.teams.length:(spec.size||18);
+  const down=downFromKnown(season, lid, mi|0);
+  const zones={n, up:spec.up||0, down:down|0, meister:1, cl:0, el:0, uecl:0};
+  if (lid==='BL'){
+    zones.cl=4; zones.el=6; zones.uecl=eighthKnown(season, mi)?8:7;
+  }
+  return zones;
 }
 function powerSnapshot(season, lid, mi){
   const lg=season.leagues[lid];
   const rows=mi>0 ? tableBefore(season, lid, mi) : [];
   const by={}; rows.forEach(r=>by[r.id]=r);
-  const an=ansehenUnit(lg.teams);
+  const anEnd=schedulingAnsehenEnd(season);
+  const an=ansehenUnit(lg.teams, anEnd);
+  const raw={};
+  lg.teams.forEach(id=>{ raw[id]=ansehenInfo(id, anEnd).value; });
   const list=lg.teams.map(id=>{
     const r=by[id]||{};
     const pkt=r.pkt||0, sp=r.sp||0;
     const sport=sportSignal(pkt, sp);
     const ansehen=an.unit[id]==null?0:an.unit[id];
-    const appeal=teamAppeal(sport, ansehen);
-    return {id, pkt, sp, diff:r.diff||0, tg:r.tg||0, sport, ansehen, anRank:an.rank[id]||lg.teams.length, appeal, power:appeal};
+    const appeal=sport==null?ansehen:(0.65*(sport*100)+0.35*ansehen);
+    return {id, pkt, sp, diff:r.diff||0, tg:r.tg||0, form:r.form||[], sport, ansehen, anRank:an.rank[id]||lg.teams.length, appeal, power:appeal};
   });
   const played=list.filter(s=>s.sp>0).sort((a,b)=>b.pkt-a.pkt || b.diff-a.diff || b.tg-a.tg || String(a.id).localeCompare(String(b.id)));
   let place=1;
@@ -4908,15 +5028,101 @@ function powerSnapshot(season, lid, mi){
   list.sort((a,b)=>b.appeal-a.appeal || b.ansehen-a.ansehen || String(a.id).localeCompare(String(b.id)));
   const rank={}, info={};
   list.forEach((s,i)=>{ rank[s.id]=i+1; info[s.id]=s; });
-  return {rank, info, total:lg.md.length};
+  const table=played.map(s=>({id:s.id, pl:s.sportPlace, pkt:s.pkt, sp:s.sp, form:(s.form||[]).slice()}));
+  const ansehen={};
+  lg.teams.forEach(id=>{ ansehen[id]=an.unit[id]==null?0:an.unit[id]; });
+  const form={};
+  list.forEach(s=>{ form[s.id]=(s.form||[]).slice(); });
+  return {rank, info, total:lg.md.length, table, zones:zoneProfile(season, lid, mi), at:mi, ansehen, raw, ansehenEnd:anEnd, form};
 }
-function pairScore(h, a, snap){
+function formEdge(row){
+  const f=row&&row.form;
+  if (!f || !f.length) return 0;
+  const pts=f.map(x=>x==='S'?1:x==='U'?0.5:0);
+  return pts.reduce((s,v)=>s+v,0)/pts.length;
+}
+function pktByPlace(table, pl){
+  const row=(table||[]).find(r=>r.pl===pl);
+  return row?row.pkt:null;
+}
+function zoneHeat(row, snap){
+  if (!row || row.sportPlace==null || !(row.sp>0)) return {heat:0, why:''};
+  const z=snap.zones||{};
+  const table=snap.table||[];
+  const swing=3*Math.max(1, snap.rem||1);
+  const gapTo=otherPl=>{
+    if (otherPl<1 || otherPl>z.n || otherPl===row.sportPlace) return null;
+    const pkt=pktByPlace(table, otherPl);
+    if (pkt==null) return null;
+    return Math.abs(row.pkt-pkt);
+  };
+  let best=0, why='';
+  const lines=[];
+  if (z.down) lines.push(['Abstieg', z.n-z.down]);
+  if (z.up) lines.push(['Aufstieg', z.up]);
+  if (z.meister) lines.push(['Meisterschaft', 1]);
+  if (z.cl) lines.push(['Champions League', z.cl]);
+  if (z.el) lines.push(['Europa League', z.el]);
+  if (z.uecl) lines.push(['Conference League', z.uecl]);
+  lines.forEach(([label, linePl])=>{
+    if (linePl<1 || linePl>z.n) return;
+    const dist=Math.abs(row.sportPlace-linePl);
+    if (dist>2) return;
+    const other=row.sportPlace<=linePl?linePl+1:linePl;
+    const gap=gapTo(other);
+    if (gap==null) return;
+    const alive=Math.max(0, 1-gap/swing);
+    const near=1-dist/3;
+    const trust=Math.min(1, row.sp/4);
+    const heat=alive*near*trust;
+    if (heat>best){ best=heat; why=label; }
+  });
+  return {heat:best, why};
+}
+function sportPair(h, a, snap){
+  const H=snap.info[h], A=snap.info[a];
+  if (!H || !A || !(H.sp>0) || !(A.sp>0)) return {score:0, note:'noch keine Tabelle'};
+  const zh=zoneHeat(H, snap), za=zoneHeat(A, snap);
+  const both=Math.min(zh.heat, za.heat);
+  const same=zh.why && zh.why===za.why && both>0.12;
+  const gap=Math.abs((H.pkt||0)-(A.pkt||0));
+  const swing=3*Math.max(1, snap.rem||1);
+  const duel=Math.max(0, 1-gap/swing);
+  const progress=snap.total>1 ? (snap.mdIndex||0)/Math.max(1, snap.total-1) : 0;
+  const sample=Math.min(1, Math.min(H.sp, A.sp)/5);
+  const sig=s=>s.sport==null?0:s.sport;
+  const ppgTerm=Math.min(sig(H), sig(A));
+  let fight=same?both*(0.45+0.55*duel):0;
+  let score=100*fight*(0.3+0.7*progress);
+  if (same) score+=ppgTerm*12*progress;
+  const form=(formEdge(H)+formEdge(A)-1)*5;
+  if (same) score+=form;
+  score=Math.max(0, Math.min(100, score));
+  const note=same?(zh.why+(duel>0.55?' · eng':'')+(sample<1?' · ungleiche Spiele':'')):'kein gemeinsamer Zielkampf';
+  return {score, note, zone:same?zh.why:''};
+}
+function matchValue(h, a, snap, mi){
+  const phase=phaseWeights(snap.total||1, mi);
+  const H=snap.info&&snap.info[h], A=snap.info&&snap.info[a];
+  const hv=H&&H.ansehen!=null?H.ansehen:0, av=A&&A.ansehen!=null?A.ansehen:0;
+  const hist=0.4*((hv+av)/2)+0.6*Math.min(hv, av);
+  const ctx=Object.assign({}, snap, {rem:Math.max(1,(snap.total||1)-mi), mdIndex:mi});
+  const sport=sportPair(h, a, ctx);
+  const total=phase.h*hist+phase.s*sport.score;
+  return {total:Math.round(total*10)/10, hist:Math.round(hist*10)/10, sport:Math.round(sport.score*10)/10, wh:phase.h, ws:phase.s, label:phase.label, note:sport.note};
+}
+function pairScore(h, a, snap, mi){
+  const at=mi!=null?mi:(snap&&snap.at!=null?snap.at:0);
+  return matchValue(h, a, snap, at).total;
+}
+function pairScoreLegacy(h, a, snap){
   const H=snap.info[h], A=snap.info[a];
   if (!H || !A) return 0;
   const s1=H.sport==null?0.5:H.sport, s2=A.sport==null?0.5:A.sport;
   const sportTerm=(H.sport==null||A.sport==null)?0:Math.min(s1,s2);
-  const anDuel=Math.min(H.ansehen||0, A.ansehen||0);
-  const cross=Math.max(Math.min(s1, A.ansehen||0), Math.min(s2, H.ansehen||0));
+  const ah=(H.ansehen||0)/100, aa=(A.ansehen||0)/100;
+  const anDuel=Math.min(ah, aa);
+  const cross=Math.max(Math.min(s1, aa), Math.min(s2, ah));
   return 0.62*sportTerm+0.18*anDuel+0.20*cross;
 }
 function topCategory(h, a, snap){
@@ -5078,14 +5284,7 @@ function tallyExcept(season, lid, skip){
     const slots=bag[mi]; if (!slots) return;
     md.forEach((m,k)=>{
       const slot=slots[k]; if (!slot) return;
-      [ids[m[0]], ids[m[1]]].forEach(id=>{
-        const c=map[id]; c.total++;
-        if (slot.dow==='Fr') c.fr++;
-        if (slot.dow==='So') c.so++;
-        if (slot.kind==='konferenz') c.konferenz++;
-        if (slot.kind==='top') c.top++;
-        if (slot.kind==='regional') c.regional++;
-      });
+      [ids[m[0]], ids[m[1]]].forEach(id=>bumpSlot(map[id], slot));
     });
   });
   return map;
@@ -5094,14 +5293,7 @@ function noteKick(md, row, lg, counts){
   row.forEach((slot,i)=>{
     if (!slot) return;
     const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
-    for (const id of [h,a]){
-      const cnt=counts[id]; cnt.total++;
-      if (slot.dow==='Fr') cnt.fr++;
-      if (slot.dow==='So') cnt.so++;
-      if (slot.kind==='konferenz') cnt.konferenz++;
-      if (slot.kind==='top') cnt.top++;
-      if (slot.kind==='regional') cnt.regional++;
-    }
+    for (const id of [h,a]) bumpSlot(counts[id], slot);
   });
 }
 function assignMatchday(season, lid, mi, snap, counts){
@@ -5109,7 +5301,11 @@ function assignMatchday(season, lid, mi, snap, counts){
   const total=md.length? lg.md.length : 0;
   if (total && isClosingDay(total, mi)){
     const slot=finalSaturdaySlot(lid);
-    const row=md.map(()=>slot);
+    const row=md.map((m,i)=>{
+      const h=lg.teams[m[0]], a=lg.teams[m[1]];
+      const v=matchValue(h, a, snap, mi);
+      return Object.assign({}, slot, {wert:{total:v.total, hist:v.hist, sport:v.sport, wh:v.wh, ws:v.ws, phase:v.label, note:v.note, km:kmBetween(h,a)}});
+    });
     noteKick(md, row, lg, counts);
     return row;
   }
@@ -5150,88 +5346,53 @@ function assignMatchday(season, lid, mi, snap, counts){
     konfMax=-1; konfMin=1e9;
     lg.teams.forEach(id=>{ const v=counts[id].konferenz; if (v>konfMax) konfMax=v; if (v<konfMin) konfMin=v; });
   }
+  const distRank=new Map();
+  const known=[];
+  md.forEach(m=>{
+    const h=lg.teams[m[0]], a=lg.teams[m[1]], km=kmBetween(h,a);
+    if (km!=null) known.push({key:h+'|'+a, km});
+  });
+  known.sort((a,b)=>a.km-b.km);
+  known.forEach((row,i)=>distRank.set(row.key, known.length<=1?0:i/(known.length-1)));
   const cost=md.map(m=>{
     const h=lg.teams[m[0]], a=lg.teams[m[1]];
-    const dist=kmBetween(h,a);
-    const distKm=dist==null?400:dist;
     return tmpl.map(slot=>{
-      let c=0;
-      const needH=counts[h].top===0, needA=counts[a].top===0;
-      if (slot.kind==='top'){
-        const kind=topKind(rankOf(h), rankOf(a), needH, needA, n);
-        const q=pairScore(h, a, snap);
-        const cat=topCategory(h, a, snap);
-        const bothHalf=Math.max(rankOf(h), rankOf(a))<=Math.ceil(n/2);
-        const bothHot=Math.max(rankOf(h), rankOf(a))<=hotCut(lid, n);
-        const mustSave=!uncovered && needsLeft<=usefulZero && bothCount>=topSlots;
-        const urgeOf=id=>rescueUrge(id, mi, total, lg.teams);
-        if (cat==='sport' || cat==='cross' || cat==='ansehen'){
-          c += -topDesire(cat, q) - (cat==='sport' && bothHot ? 80000 : 0);
-        } else if (kind==='both'){
-          c += -q*520 - (bothHot?160000:40000);
-          if (needH) c -= urgeOf(h)*0.35;
-          if (needA) c -= urgeOf(a)*0.35;
-        } else if (kind==='rescue' && !mustSave){
-          const urge=Math.max(needH?urgeOf(h):0, needA?urgeOf(a):0);
-          c += 14000 - urge - q*20 - (bothHalf?6000:0);
-        } else if (kind==='rescue') c += 95000;
-        else if (Math.min(rankOf(h), rankOf(a))<=upper && (needH||needA)){
-          const urge=Math.max(needH?urgeOf(h):0, needA?urgeOf(a):0);
-          c += 12000 - urge - q*25 - (bothHalf?8000:0);
-        } else if (Math.min(rankOf(h), rankOf(a))<=upper) c += 420000 - (bothHalf?50000:0);
-        else c += 900000;
-        if ((needH||needA) && flexLeft>0 && flexLeft<=6 && Math.min(rankOf(h), rankOf(a))<=upper) c -= 2000000;
-        if (slot.dow==='Fr'){
-          c += (counts[h].fr*counts[h].fr + counts[a].fr*counts[a].fr)*700;
-          if (counts[h].fr>=7 || counts[a].fr>=7) c += 40000;
-        }
-      }
-      if (slot.kind==='regional'){
-        c += distKm*4 - 9000 + (counts[h].so*counts[h].so + counts[a].so*counts[a].so)*8;
-      }
-      const targetMin=total/2;
-      const exactKonf=konfPer>0 && Math.abs(konfPer*2*total - n*targetMin)<1e-6;
+      let hard=0, quality=0, soft=0;
+      const confNeed=Math.ceil(total/2);
       for (const id of [h,a]){
         const cnt=counts[id];
-        const urge=missing=>missing ? (rem<=6?350000: rem<=14?90000:6000) : 0;
-        const frUrge=missing=>missing ? (rem<=6?60000: rem<=12?9000:2500) : 0;
         if (konfPer){
-          let pull=0;
-          if (exactKonf){
-            if (cnt.konferenz>=konfMax && konfMin<konfMax) pull -= 8000000;
-            else pull += (konfMax-cnt.konferenz+1)*1000000;
-          }
-          if (lid==='L3'){
-            const need=18;
-            if (cnt.konferenz+(flexLeft-1) < need) pull += 6000000;
-            else if (cnt.konferenz>=need) pull -= 6000000;
-          } else if (cnt.konferenz+(flexLeft-1)+2 < targetMin) pull += 5000000;
-          else if (!exactKonf && rem<=16 && cnt.konferenz < targetMin-2) pull += 2000000;
-          else if (!exactKonf && rem<=12 && cnt.top>0 && cnt.konferenz < targetMin-1) pull += 1500000;
-          else if (!exactKonf && cnt.top>=1 && cnt.konferenz+(rem-1) < targetMin+2) pull += 280000;
-          else if (!exactKonf && rem<=14 && cnt.konferenz+(rem-1) < targetMin+1) pull += 350000;
-          else if (!exactKonf && cnt.konferenz+(rem-1)<targetMin+6) pull += 90000;
-          if (slot.kind==='konferenz') c -= pull; else c += pull;
-        }
-        if (slot.dow==='Fr'){
-          if (lid==='L3'){
-            const fairFr=(2/n)*mi;
-            if (cnt.fr>=5 || (mi<n-1 && cnt.fr>=3)) c += 8000000;
-            else c -= (fairFr-cnt.fr)*50000 + (cnt.fr<2 && rem<16 ? 220000 : 0);
+          const slack=cnt.konferenz+rem-confNeed;
+          const pull=slack<1?8000000:slack<2?6000000:slack<3?4000000:slack<4?2000000:0;
+          if (pull){
+            if (slot.kind==='konferenz') hard -= pull; else hard += pull;
           } else {
-            c-=frUrge(cnt.fr===0); c+=cnt.fr*cnt.fr*120;
-            if (cnt.fr>=7) c += 40000;
-            if (lid==='L4' && cnt.fr===0 && rem<=8) c -= 350000;
+            const fair=confNeed*(mi+1)/total;
+            const behind=fair-cnt.konferenz;
+            if (behind>0.5) soft += slot.kind==='konferenz' ? -behind*40 : behind*40;
           }
         }
-        if (slot.dow==='So' && hasSo) c -= urge(cnt.so===0);
-        if (slot.kind==='regional') c -= urge(cnt.regional===0);
-        if (slot.kind==='top') c -= (flexLeft>0 && flexLeft<=6 && cnt.top===0) ? 2500000 : 0;
-        if (slot.dow==='Fr' && cnt.fr===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
-        if (slot.dow==='So' && cnt.so===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
-        if (slot.kind==='regional' && cnt.regional===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
+        if (slot.kind==='top') continue;
+        const urge=missing=>missing ? (rem<=6?80: rem<=14?30:8) : 0;
+        if (slot.dow==='Fr'){
+          soft -= urge(cnt.fr===0);
+          soft += Math.min(40, cnt.fr*cnt.fr);
+        }
+        if (slot.dow==='So' && hasSo) soft -= urge(cnt.so===0);
+        if (slot.kind==='regional') soft -= urge(cnt.regional===0);
       }
-      return c;
+      if (slot.kind==='top'){
+        const v=matchValue(h, a, snap, mi);
+        quality -= v.total*1000;
+        const skew=(id,dow)=>dow==='Fr' ? ((counts[id].frTop||0)-(counts[id].saTop||0)) : ((counts[id].saTop||0)-(counts[id].frTop||0));
+        if (slot.dow==='Fr' || slot.dow==='Sa') soft += (skew(h, slot.dow)+skew(a, slot.dow))*40;
+      }
+      if (slot.kind==='regional'){
+        const dKey=h+'|'+a;
+        soft += (distRank.has(dKey)?distRank.get(dKey):0.5)*40;
+      }
+      soft=Math.max(-2000, Math.min(2000, soft));
+      return hard+quality+soft;
     });
   });
   const asg=hungarian(cost);
@@ -5240,16 +5401,13 @@ function assignMatchday(season, lid, mi, snap, counts){
   const halfN=n-1;
   // Die letzten zwei Spieltage sind komplett Konferenz, deshalb trägt die Spiegel-Konstruktion nicht mehr exakt 19.
   const exactMirror=false;
+  const worth=md.map(m=>matchValue(lg.teams[m[0]], lg.teams[m[1]], snap, mi));
+  const rankedWorth=worth.map(w=>w.total).sort((a,b)=>b-a);
+  const worthCut=rankedWorth[Math.min(rankedWorth.length-1, Math.max(0, topSlots-1))]||0;
   const topClass=i=>{
-    const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
-    const cat=topCategory(h, a, snap);
-    if (cat==='sport') return 0;
-    if (cat==='cross') return 1;
-    if (cat==='ansehen') return 2;
-    const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
-    if (lo<=upper) return 0;
-    if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
-    if (hi<=upper) return 2;
+    const t=worth[i].total;
+    if (t>=worthCut-0.05) return 0;
+    if (t>=worthCut-2) return 2;
     return 3;
   };
   if (exactMirror && mi>=halfN && season.kickoffs[lid] && season.kickoffs[lid][mi-halfN]){
@@ -5303,7 +5461,7 @@ function assignMatchday(season, lid, mi, snap, counts){
       if (j===i || !other || other.kind==='top' || other.kind==='konferenz') return;
       const cls=topClass(j);
       if (cls>=3) return;
-      const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+      const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap, mi);
       if (!swap || cls<swap.cls || (cls===swap.cls && q>swap.q)) swap={j,cls,q};
     });
     if (!swap && (!exactMirror || mi<halfN)){
@@ -5314,7 +5472,7 @@ function assignMatchday(season, lid, mi, snap, counts){
         if (cls>=3) return;
         const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
         if (!exactMirror && ids.some(id=>counts[id].konferenz+(rem-1)<halfTarget)) return;
-        const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+        const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap, mi);
         if (!swap || cls<swap.cls || (cls===swap.cls && q>swap.q)) swap={j,cls,q};
       });
     }
@@ -5335,7 +5493,7 @@ function assignMatchday(season, lid, mi, snap, counts){
       if (urge<=0) return;
       if (!best || urge>best.urge) best={j, urge};
     });
-    if (best && (best.urge>threshold || (!glam && cls!==0 && rem<=6))){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
+    if (best && worth[i].total<=worth[best.j].total+2){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
   });
   if (konfPer && !exactMirror){
     const share=(konfPer*2)/n, fair=share*mi, targetMin=total/2;
@@ -5370,7 +5528,7 @@ function assignMatchday(season, lid, mi, snap, counts){
           if (j===i || !other || other.kind==='top' || other.kind==='konferenz') return;
           const cls=topClass(j);
           if (cls>=3) return;
-          const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+          const q=pairScore(lg.teams[md[j][0]], lg.teams[md[j][1]], snap, mi);
           if (!alt || cls<alt.cls || (cls===alt.cls && q>alt.q)) alt={j,cls,q};
         });
         if (alt){ const tmp=row[i]; row[i]=row[alt.j]; row[alt.j]=tmp; }
@@ -5381,32 +5539,17 @@ function assignMatchday(season, lid, mi, snap, counts){
       if (!slot || slot.kind==='top' || topClass(i)>=3) return;
       const ids=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
       if (!ids.some(id=>counts[id].top===0)) return;
-      if (ids.some(id=>counts[id].konferenz+(rem-1)<total/2)) return;
-      const urge=Math.max(...ids.map(id=>counts[id].top===0?rescueUrge(id, mi, total, lg.teams):0));
-      let chances=0;
-      ids.forEach(id=>{
-        if (counts[id].top!==0) return;
-        for (let j=mi+1;j<total-2;j++){
-          const g=lg.md[j].find(m=>lg.teams[m[0]]===id||lg.teams[m[1]]===id);
-          if (!g) continue;
-          const opp=lg.teams[g[0]]===id ? lg.teams[g[1]] : lg.teams[g[0]];
-          if (rankOf(opp)<=upper) chances++;
-        }
-      });
-      let alt=null, altRank=99;
+      if (ids.some(id=>counts[id].konferenz+(rem-1)<Math.ceil(total/2))) return;
+      let alt=null;
       row.forEach((other,j)=>{
         if (!other || other.kind!=='top') return;
         const t2=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
         if (t2.some(id=>counts[id].top===0)) return;
-        if (slot.kind==='konferenz' && t2.some(id=>counts[id].konferenz+(rem-1)<total/2)) return;
-        const cls=topClass(j);
-        const hot=cls===0 && Math.max(rankOf(t2[0]), rankOf(t2[1]))<=hotCut(lid, n);
-        const rank=hot?2:cls===0?1:0;
-        if (rank<altRank){ alt=j; altRank=rank; }
+        if (slot.kind==='konferenz' && t2.some(id=>counts[id].konferenz+(rem-1)<Math.ceil(total/2))) return;
+        if (worth[j].total>worth[i].total+2) return;
+        if (alt==null || worth[j].total<worth[alt].total) alt=j;
       });
       if (alt==null) return;
-      if (altRank===2 && urge<90000 && rem>4 && chances>1) return;
-      if (altRank===1 && urge<50000 && rem>8 && chances>1) return;
       const tmp=row[i]; row[i]=row[alt]; row[alt]=tmp;
     });
     const must=new Set();
@@ -5458,7 +5601,7 @@ function assignMatchday(season, lid, mi, snap, counts){
         const sc=frScore(j);
         if (!alt || sc<alt.sc) alt={j,sc};
       });
-      if (alt && alt.j!==fri && alt.sc<frScore(fri)){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
+      if (alt && alt.j!==fri && alt.sc<frScore(fri) && worth[fri].total<=worth[alt.j].total+2){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
     }
   }
   if (flexLeft>0 && flexLeft<=8){
@@ -5478,7 +5621,11 @@ function assignMatchday(season, lid, mi, snap, counts){
         let donor=null;
         for (let j=0;j<row.length;j++){
           if (j===needy || !row[j] || !want(row[j])) continue;
-          if (row[j].kind==='top' && twoLower(needy)) continue;
+          if (row[j].kind==='top' && worth[j].total>worth[needy].total+2) continue;
+          if (row[needy].kind==='konferenz'){
+            const keep=[lg.teams[md[needy][0]], lg.teams[md[needy][1]]];
+            if (keep.some(id=>(counts[id].konferenz+(rem-1))<Math.ceil(total/2))) continue;
+          }
           const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
           if (ids.every(hasIt)) { donor=j; break; }
         }
@@ -5491,41 +5638,50 @@ function assignMatchday(season, lid, mi, snap, counts){
     if (hasSo) steal(s=>s.dow==='So', id=>counts[id].so>0);
     if (tmpl.some(s=>s.kind==='regional')) steal(s=>s.kind==='regional', id=>counts[id].regional>0);
   }
-  if (lateSeason(total, mi)){
-    const battle=relegationBattle(season, lid, mi);
-    const info=i=>{
-      const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
-      const H=battle[h], A=battle[a];
-      const gap=H&&A?Math.abs(H.pkt-A.pkt):99;
-      const upperHit=Math.min(rankOf(h), rankOf(a))<=upper;
-      const both=Math.max(rankOf(h), rankOf(a))<=upper;
-      return {h, a, gap, upperHit, both, score:pairScore(h, a, snap), kracher:!!(H&&A&&H.battle&&A.battle&&gap<=6)};
-    };
-    let bestU=null, bestK=null;
-    for (let i=0;i<md.length;i++){
-      const x=info(i);
-      if (x.upperHit && (!bestU || x.score>bestU.score)) bestU={i, ...x};
-      if (x.kracher && (!bestK || x.score>bestK.score)) bestK={i, ...x};
-    }
-    const kScore=bestK ? bestK.score + Math.max(0, 36-bestK.gap*6) : 0;
-    const good=bestU && ((bestU.both && bestU.gap<=8) || bestU.score>=80);
-    const clear=bestU && bestK && kScore>=bestU.score+12;
-    if (bestK && (!good || clear) && row[bestK.i] && row[bestK.i].kind!=='top'){
-      let weak=null;
-      row.forEach((slot,j)=>{
-        if (!slot || slot.kind!=='top' || j===bestK.i) return;
-        const x=info(j);
-        const hosts=lg.teams[md[j][0]], guest=lg.teams[md[j][1]];
-        if (flexLeft<=2 && (counts[hosts].top===0 || counts[guest].top===0)) return;
-        if (!weak || x.score<weak.score) weak={j, score:x.score};
-      });
-      if (weak){
-        const tmp=row[bestK.i];
-        row[bestK.i]=Object.assign({}, row[weak.j], {kracher:true});
-        row[weak.j]=tmp;
-      }
-    }
+  const confTarget=Math.ceil(total/2);
+  for (let guard=0; guard<md.length; guard++){
+    let crit=null, critScore=1e9;
+    row.forEach((slot,i)=>{
+      if (!slot || slot.kind==='konferenz') return;
+      const ids=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
+      if (!ids.some(id=>(counts[id].konferenz||0)+(rem-1)<confTarget)) return;
+      if (worth[i].total<critScore){ crit=i; critScore=worth[i].total; }
+    });
+    if (crit==null) break;
+    let donor=null;
+    row.forEach((slot,j)=>{
+      if (j===crit || !slot || slot.kind!=='konferenz') return;
+      const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+      if (ids.some(id=>(counts[id].konferenz||0)+(rem-1)<confTarget)) return;
+      if (donor==null || worth[j].total>worth[donor].total) donor=j;
+    });
+    if (donor==null) break;
+    const tmp=row[crit]; row[crit]=row[donor]; row[donor]=tmp;
   }
+  const topIdx=row.map((s,i)=>s&&s.kind==='top'?i:-1).filter(i=>i>=0);
+  const frTop=topIdx.find(i=>row[i].dow==='Fr'), saTop=topIdx.find(i=>row[i].dow==='Sa');
+  if (frTop!=null && saTop!=null && Math.abs(worth[frTop].total-worth[saTop].total)<=2){
+    const idsOf=idx=>[lg.teams[md[idx][0]], lg.teams[md[idx][1]]];
+    const score=swapped=>{
+      const map={};
+      const add=(id, fr, sa)=>{
+        if (!map[id]) map[id]={fr:counts[id].frTop||0, sa:counts[id].saTop||0};
+        map[id].fr+=fr; map[id].sa+=sa;
+      };
+      idsOf(frTop).forEach(id=>add(id, swapped?0:1, swapped?1:0));
+      idsOf(saTop).forEach(id=>add(id, swapped?1:0, swapped?0:1));
+      let s=0;
+      Object.keys(map).forEach(id=>{ s+=Math.abs(map[id].fr-map[id].sa); });
+      return s;
+    };
+    if (score(true)<score(false)){ const tmp=row[frTop]; row[frTop]=row[saTop]; row[saTop]=tmp; }
+  }
+  row.forEach((slot,i)=>{
+    if (!slot) return;
+    const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+    const v=worth[i];
+    row[i]=Object.assign({}, slot, {wert:{total:v.total, hist:v.hist, sport:v.sport, wh:v.wh, ws:v.ws, phase:v.label, note:v.note, km:kmBetween(h,a)}});
+  });
   noteKick(md, row, lg, counts);
   return row;
 }
@@ -5680,10 +5836,16 @@ function settleExactBlock(season, lid, from, to){
 }
 function nudgeNonExactBlock(season, lid, from, to, snap){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length;
-  const upper=n>=20?8:6, konfN=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
+  const konfN=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
   const topNeed=Math.max(1, slotTemplate(lid).filter(s=>s.kind==='top').length);
-  const rankOf=id=>snap.rank[id]||n;
-  const legalAt=(mi,i)=>Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))<=upper;
+  const valueAt=(mi,i)=>matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+  const cutAt=mi=>{
+    const vals=[];
+    lg.md[mi].forEach((_,j)=>vals.push(valueAt(mi,j)));
+    vals.sort((a,b)=>b-a);
+    return vals[Math.min(vals.length-1, Math.max(0, topNeed-1))]||0;
+  };
+  const legalAt=(mi,i)=>valueAt(mi,i)>=cutAt(mi)-2;
   const hasBad=mi=>bag[mi]&&bag[mi].some((slot,i)=>slot.kind==='top'&&!slot.kracher&&!legalAt(mi,i));
   const countBefore=mi=>{
     const c={}; lg.teams.forEach(id=>c[id]=0);
@@ -5697,10 +5859,11 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
     const row=bag[mi];
     row.forEach((slot,i)=>{
       if (slot.kind!=='top' || slot.kracher || legalAt(mi,i)) return;
-      let alt=null;
+      let alt=null, altV=-1;
       row.forEach((other,j)=>{
         if (j===i || other.kind==='top' || other.kind==='konferenz' || !legalAt(mi,j)) return;
-        alt=j;
+        const v=valueAt(mi,j);
+        if (alt==null || v>altV){ alt=j; altV=v; }
       });
       if (alt!=null){ const t=row[i]; row[i]=row[alt]; row[alt]=t; }
     });
@@ -5777,9 +5940,13 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
 function prepareFinalDay(season, lid, from, to, snap){
   const lg=season.leagues[lid], total=lg.md.length, last=total-1;
   if (to!==last-1) return;
-  const bag=season.kickoffs[lid], n=lg.teams.length, upper=n>=20?8:6, target=total/2;
-  const rankOf=id=>snap.rank[id]||n;
-  const legal=(mi,i)=>Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))<=upper;
+  const bag=season.kickoffs[lid], n=lg.teams.length, target=total/2;
+  const valueAt=(mi,i)=>matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+  const legal=(mi,i)=>{
+    let best=0;
+    lg.md[mi].forEach((_,j)=>{ best=Math.max(best, valueAt(mi,j)); });
+    return valueAt(mi,i)>=best-12;
+  };
   const tally=()=>{
     const c={}; lg.teams.forEach(id=>c[id]=0);
     for (let d=0; d<=to; d++) if (bag[d]) bag[d].forEach((slot,i)=>{
@@ -5840,6 +6007,218 @@ function prepareFinalDay(season, lid, from, to, snap){
     if (!did) return;
   }
 }
+function reserveTightClubs(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  const need=Math.ceil(total/2);
+  const konfPer=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
+  const confOf=()=>{
+    const c={}; lg.teams.forEach(id=>c[id]=0);
+    for (let d=0; d<=to; d++){
+      const row=bag[d]; if (!row) continue;
+      lg.md[d].forEach((m,i)=>{ if (row[i] && row[i].kind==='konferenz'){ c[lg.teams[m[0]]]++; c[lg.teams[m[1]]]++; } });
+    }
+    return c;
+  };
+  const val=(mi,i)=>matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+  for (let guard=0; guard<lg.teams.length*4; guard++){
+    const c=confOf();
+    const regular=[]; let closing=0;
+    for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closing++; else regular.push(d); }
+    const must=lg.teams.filter(id=> (need-c[id]-closing) > 0 && (need-c[id]-closing) >= regular.length);
+    if (!must.length || !regular.length) return true;
+    const mustSet=new Set(must);
+    let overcrowded=false;
+    for (const d of regular){
+      let matches=0;
+      lg.md[d].forEach(m=>{ if (mustSet.has(lg.teams[m[0]]) || mustSet.has(lg.teams[m[1]])) matches++; });
+      if (matches>konfPer){ overcrowded=true; break; }
+    }
+    if (!overcrowded) return true;
+    let best=null;
+    for (let mi=from; mi<=to; mi++){
+      if (isClosingDay(total, mi)) continue;
+      const row=bag[mi]; if (!row) continue;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind==='konferenz') return;
+        const ids=[lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]]];
+        if (!ids.some(id=>mustSet.has(id))) return;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind!=='konferenz') return;
+          const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+          if (donors.some(id=> (need-(c[id]-1)-closing) > regular.length)) return;
+          const score=val(mi,j)-val(mi,i);
+          if (!best || score>best.score) best={mi,i,j,score};
+        });
+      });
+    }
+    if (!best) return false;
+    const row=bag[best.mi];
+    const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+  }
+  return false;
+}
+function raiseTops(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  for (let mi=from; mi<=to; mi++){
+    if (isClosingDay(total, mi)) continue;
+    const row=bag[mi]; if (!row) continue;
+    for (let guard=0; guard<row.length; guard++){
+      let moved=false;
+      for (let i=0; i<row.length && !moved; i++){
+        const slot=row[i];
+        if (!slot || slot.kind!=='top') continue;
+        const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+        let alt=-1, altV=here;
+        for (let j=0; j<row.length; j++){
+          const other=row[j];
+          if (j===i || !other || other.kind==='top' || other.kind==='konferenz') continue;
+          const v=matchValue(lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]], snap, mi).total;
+          if (v>altV+0.05){ alt=j; altV=v; }
+        }
+        if (alt>=0){ const t=row[i]; row[i]=row[alt]; row[alt]=t; moved=true; }
+      }
+      if (!moved) break;
+    }
+  }
+}
+function topCanTakeConference(season, lid, to, donorIds){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  const need=Math.ceil(total/2);
+  const konf=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
+  const c={}; lg.teams.forEach(id=>c[id]=0);
+  for (let d=0; d<=to; d++){
+    const row=bag[d]; if (!row) continue;
+    lg.md[d].forEach((m,i)=>{ if (row[i] && row[i].kind==='konferenz'){ c[lg.teams[m[0]]]++; c[lg.teams[m[1]]]++; } });
+  }
+  donorIds.forEach(id=>{ c[id]--; });
+  const future=Math.max(0, total-(to+1));
+  if (donorIds.some(id=>c[id]+future<need+4)) return false;
+  const regular=[]; let closing=0;
+  for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closing++; else regular.push(d); }
+  const must=lg.teams.filter(id=> (need-c[id]-closing)>0 && (need-c[id]-closing)>=regular.length);
+  const set=new Set(must);
+  for (const d of regular){
+    let matches=0;
+    lg.md[d].forEach(m=>{ if (set.has(lg.teams[m[0]]) || set.has(lg.teams[m[1]])) matches++; });
+    if (matches>konf) return false;
+  }
+  return true;
+}
+function liftConferenceTops(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  for (let guard=0; guard<lg.teams.length; guard++){
+    let best=null;
+    for (let mi=from; mi<=to; mi++){
+      if (isClosingDay(total, mi)) continue;
+      const row=bag[mi]; if (!row) continue;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top') return;
+        const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind!=='konferenz') return;
+          const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+          const v=matchValue(donors[0], donors[1], snap, mi).total;
+          if (v<=here+0.05) return;
+          if (!topCanTakeConference(season, lid, to, donors)) return;
+          if (!best || v-here>best.gain) best={mi, i, j, gain:v-here};
+        });
+      });
+    }
+    if (!best) return;
+    const row=bag[best.mi];
+    const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+  }
+}
+function balanceFrSaBlock(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  const tally=()=>{
+    const c={}; lg.teams.forEach(id=>c[id]={fr:0, sa:0});
+    for (let d=0; d<=to; d++){
+      const row=bag[d]; if (!row) continue;
+      lg.md[d].forEach((m,i)=>{
+        const slot=row[i];
+        if (!slot || slot.kind!=='top') return;
+        const key=slot.dow==='Fr'?'fr':slot.dow==='Sa'?'sa':'';
+        if (!key) return;
+        c[lg.teams[m[0]]][key]++; c[lg.teams[m[1]]][key]++;
+      });
+    }
+    return c;
+  };
+  const absSum=(map, ids)=>{ let s=0; ids.forEach(id=>{ const x=map[id]||{fr:0,sa:0}; s+=Math.abs(x.fr-x.sa); }); return s; };
+  for (let guard=0; guard<lg.teams.length*2; guard++){
+    const c=tally();
+    let best=null;
+    for (let mi=from; mi<=to; mi++){
+      if (isClosingDay(total, mi)) continue;
+      const row=bag[mi]; if (!row) continue;
+      let fr=-1, sa=-1;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top') return;
+        if (slot.dow==='Fr') fr=i;
+        if (slot.dow==='Sa') sa=i;
+      });
+      if (fr<0 || sa<0) continue;
+      const vf=matchValue(lg.teams[lg.md[mi][fr][0]], lg.teams[lg.md[mi][fr][1]], snap, mi).total;
+      const vs=matchValue(lg.teams[lg.md[mi][sa][0]], lg.teams[lg.md[mi][sa][1]], snap, mi).total;
+      if (Math.abs(vf-vs)>2) continue;
+      const ids=[lg.teams[lg.md[mi][fr][0]], lg.teams[lg.md[mi][fr][1]], lg.teams[lg.md[mi][sa][0]], lg.teams[lg.md[mi][sa][1]]];
+      const uniq=[]; ids.forEach(id=>{ if (uniq.indexOf(id)<0) uniq.push(id); });
+      const before=absSum(c, uniq);
+      const next={};
+      uniq.forEach(id=>{ next[id]={fr:c[id].fr, sa:c[id].sa}; });
+      ids.slice(0,2).forEach(id=>{ next[id].fr--; next[id].sa++; });
+      ids.slice(2).forEach(id=>{ next[id].sa--; next[id].fr++; });
+      const after=absSum(next, uniq);
+      if (after<before && (!best || before-after>best.gain)) best={mi, fr, sa, gain:before-after};
+    }
+    if (!best) return true;
+    const row=bag[best.mi];
+    const tmp=row[best.fr]; row[best.fr]=row[best.sa]; row[best.sa]=tmp;
+  }
+  return false;
+}
+function repairBlockConference(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  const need=Math.ceil(total/2), future=Math.max(0, total-(to+1));
+  const confOf=()=>{
+    const c={}; lg.teams.forEach(id=>c[id]=0);
+    for (let d=0; d<=to; d++){
+      const row=bag[d]; if (!row) continue;
+      lg.md[d].forEach((m,i)=>{
+        if (row[i] && row[i].kind==='konferenz'){ c[lg.teams[m[0]]]++; c[lg.teams[m[1]]]++; }
+      });
+    }
+    return c;
+  };
+  const val=(mi,i)=>matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+  for (let guard=0; guard<lg.teams.length*6; guard++){
+    const c=confOf();
+    const short=new Set(lg.teams.filter(id=>c[id]+future<need));
+    if (!short.size) return true;
+    let best=null;
+    for (let mi=from; mi<=to; mi++){
+      if (isClosingDay(total, mi)) continue;
+      const row=bag[mi]; if (!row) continue;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind==='konferenz') return;
+        const ids=[lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]]];
+        if (!ids.some(id=>short.has(id))) return;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind!=='konferenz') return;
+          const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+          if (donors.some(id=>c[id]-1+future<need)) return;
+          const score=val(mi,j)-val(mi,i);
+          if (!best || score>best.score) best={mi,i,j,score};
+        });
+      });
+    }
+    if (!best) return false;
+    const row=bag[best.mi];
+    const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+  }
+  return false;
+}
 function scheduleNextBlock(season, lid){
   const tr=window.FR_TIMING; const t0=tr?performance.now():0;
   const lg=season.leagues[lid], n=lg.teams.length;
@@ -5853,20 +6232,43 @@ function scheduleNextBlock(season, lid){
   for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=assignMatchday(season, lid, mi, snap, counts);
   const half=n-1, total=lg.md.length, konfPer=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
   const exact=false;
+  let repairOk=true;
   if (exact && range[0]>=half) settleExactBlock(season, lid, range[0], range[1]);
   else if (konfPer && !exact){
     nudgeNonExactBlock(season, lid, range[0], range[1], snap);
-    if (range[0]===total-1){
-      let prevFrom=0, b=0;
-      while (b<total-1){
-        const halfEnd=b<half?half-1:total-1;
-        const end=Math.min(b+3, halfEnd);
-        if (end>=total-2){ prevFrom=b; break; }
-        b=end+1;
-      }
-      prepareFinalDay(season, lid, prevFrom, total-2, snap);
-      delete bag[total-1];
-      bag[total-1]=assignMatchday(season, lid, total-1, snap, slotTally(season, lid));
+    repairOk=repairBlockConference(season, lid, range[0], range[1], snap) && reserveTightClubs(season, lid, range[0], range[1], snap);
+    raiseTops(season, lid, range[0], range[1], snap);
+    liftConferenceTops(season, lid, range[0], range[1], snap);
+    balanceFrSaBlock(season, lid, range[0], range[1], snap);
+  }
+  if (!season.termRepair) season.termRepair={};
+  if (!season.termRepair[lid]) season.termRepair[lid]=[];
+  season.termRepair[lid].push({at:range[0], ok:repairOk!==false});
+  if (repairOk===false){
+    season.termNotes=season.termNotes||{};
+    const note='Block '+(range[0]+1)+'–'+(range[1]+1)+': Konferenz im offenen Block nicht herstellbar';
+    const prev=season.termNotes[lid]||[];
+    if (prev.indexOf(note)<0) season.termNotes[lid]=prev.concat([note]);
+  }
+  for (let mi=range[0]; mi<=range[1]; mi++){
+    const row=bag[mi]; if (!row) continue;
+    lg.md[mi].forEach((m,i)=>{
+      if (!row[i]) return;
+      const h=lg.teams[m[0]], a=lg.teams[m[1]];
+      const v=matchValue(h, a, snap, mi);
+      row[i]=Object.assign({}, row[i], {wert:{total:v.total, hist:v.hist, sport:v.sport, wh:v.wh, ws:v.ws, phase:v.label, note:v.note, km:kmBetween(h,a), zone:snap.zones}});
+    });
+  }
+  if (!season.termSnap) season.termSnap={};
+  if (!season.termSnap[lid]) season.termSnap[lid]={};
+  season.termSnap[lid][range[0]]={at:snap.at, zones:JSON.parse(JSON.stringify(snap.zones)), ansehen:Object.assign({}, snap.ansehen), raw:Object.assign({}, snap.raw||{}), ansehenEnd:snap.ansehenEnd, form:JSON.parse(JSON.stringify(snap.form||{})), table:(snap.table||[]).map(r=>({id:r.id, pl:r.pl, pkt:r.pkt, sp:r.sp, form:(r.form||[]).slice()}))};
+  if (range[1]>=lg.md.length-1){
+    const tall=slotTally(season, lid), need=lg.md.length/2, short=[];
+    lg.teams.forEach(id=>{ if ((tall[id].konferenz||0)<need) short.push((TEAMS[id]?TEAMS[id].name:id)+' '+tall[id].konferenz+'/'+need); });
+    season.termNotes=season.termNotes||{};
+    if (short.length){
+      const prev=season.termNotes[lid]||[];
+      season.termNotes[lid]=prev.concat(short.filter(x=>prev.indexOf(x)<0));
     }
   }
   if (tr) tr.schedMs=(tr.schedMs||0)+performance.now()-t0;
@@ -5898,9 +6300,9 @@ function viewTerminierung(s, lid){
   const cols=[];
   if (has.fr) cols.push(['fr','Fr']);
   if (has.konferenz) cols.push(['konferenz','Konferenz']);
-  if (has.top) cols.push(['top','Topspiel']);
+  if (has.top) cols.push(['top','Top'], ['frTop','Fr-Top'], ['saTop','Sa-Top'], ['topAvg','Ø Top']);
   if (has.so) cols.push(['so','Sonntag']);
-  if (has.regional) cols.push(['regional','regional']);
+  if (has.regional) cols.push(['regional','regional'], ['regAvg','Ø km']);
   h+='<div class="box"><h3>Je Verein</h3><p class="muted">Sortiert nach dem aktuellen Tabellenplatz. Spiele ist die Zahl der terminierten Partien. Breaks zählen zweimal dieselbe Platzseite in Folge, den Übergang von Hin- zu Rückrunde eingeschlossen.</p><div style="overflow:auto"><table class="tbl"><thead><tr>'+sortHead('Pl.','pl')+sortHead('Verein','','l')+sortHead('Spiele','spiele')+cols.map(c=>sortHead(c[1], c[0])).join('')+sortHead('Breaks','breaks')+sortHead('Regeln','','l')+'</tr></thead><tbody>';
   const placeOf={}; leagueTable(s,lid).forEach(r=>placeOf[r.id]=r.pl);
   lg.teams.slice().sort((x,y)=>(placeOf[x]||999)-(placeOf[y]||999)).forEach(id=>{
@@ -5910,10 +6312,7 @@ function viewTerminierung(s, lid){
     const run=maxRun(full), br=breakCount(full), kinds=breakKinds(full);
     const open=last<total-1;
     const problems=[];
-    if (!open) cols.forEach(([key,label])=>{
-      if (key==='konferenz'){ if (c.konferenz<total/2) problems.push('Konferenz '+c.konferenz+'/'+(total/2)); }
-      else if (!c[key]) problems.push(label+' fehlt');
-    });
+    if (!open && c.konferenz<total/2) problems.push('Konferenz '+c.konferenz+'/'+(total/2));
     if (run>2) problems.push('Serie '+run);
     if (br>2) problems.push(br+' Breaks');
     if (kinds.hh>1 || kinds.aa>1) problems.push('zweimal '+ (kinds.hh>1?'Heim':'Auswärts'));
@@ -5921,13 +6320,29 @@ function viewTerminierung(s, lid){
     let marks=[].concat((s.markers&&s.markers[id])||[]).filter(Boolean);
     const pokal=prevDfbWinner(s);
     if (pokal===id && marks.indexOf('P')<0) marks.push('P');
+    const show=key=>key==='topAvg'?(c.topN?Math.round(c.topSum/c.topN*10)/10:0):key==='regAvg'?(c.regN?Math.round(c.regSum/c.regN):0):(c[key]||0);
     h+='<tr>'+placeCell(placeOf[id])+'<td class="l">'+clubHTML(id,{nobl:true, marker:marks.length?marks:null})+'</td>'+sortCell(c.total, c.total)+cols.map(([key])=>{
-      const v=c[key];
-      const warn=!open && (key==='konferenz'?v<total/2:v===0);
-      return sortCell(v, v, warn?'bad':'');
+      const v=show(key);
+      const warn=!open && key==='konferenz' && v<total/2;
+      return sortCell(v, key==='topAvg'?deNum(v,1):v, warn?'bad':'');
     }).join('')+sortCell(br, br, (run>2||br>2||kinds.hh>1||kinds.aa>1?'bad':'ok'))+'<td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz, jede Ansetzungsart mindestens einmal, keine drei Heim- oder Auswärtsspiele in Folge, höchstens zwei Breaks pro Verein und davon einer heim und einer auswärts. Die letzten zwei Spieltage laufen komplett gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz. Rot erst, wenn die Saison terminiert ist und eine Regel reißt. Topspiel: die punktstärkste enge Paarung, sonst ein unterer Verein, der sein Topspiel noch braucht, gegen einen Verein aus dem oberen Bereich. Zwei untere Vereine nur nach etwa 70 % der Saison, und nur als echtes Abstiegsduell, wenn es stärker ist als das beste Spiel mit einem oberen Verein.</p></div>';
+  h+='</tbody></table></div><p class="muted">Mindestens die Hälfte der Spiele in der Konferenz. Die letzten zwei Spieltage laufen gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz, ohne zusätzliches Topspiel. Der Topspielwert ist beim Ansetzen gespeichert: 40 Prozent Durchschnitt und 60 Prozent des niedrigeren Ansehens, plus der sportliche Zielkampf, gewichtet nach der Saisonphase. Rot erst, wenn die Saison terminiert ist und die Konferenzquote reißt.</p>';
+  const gaps=s.termNotes&&s.termNotes[lid];
+  if (gaps&&gaps.length) h+='<p class="bad">Konferenz nicht für jeden Verein erreichbar: '+esc(gaps.join(' · '))+'</p>';
+  h+='</div>';
+  let tops='';
+  const bag=s.kickoffs&&s.kickoffs[lid]||{};
+  lg.md.forEach((md,mi)=>{
+    const slots=bag[mi]; if (!slots) return;
+    md.forEach((m,k)=>{
+      const slot=slots[k];
+      if (!slot || slot.kind!=='top' || !slot.wert) return;
+      const w=slot.wert;
+      tops+='<tr><td>'+(mi+1)+'</td><td>'+esc(slot.dow+' '+slot.time)+'</td><td class="l">'+clubHTML(lg.teams[m[0]],{nobl:true})+' – '+clubHTML(lg.teams[m[1]],{nobl:true})+'</td><td>'+deNum(w.total,1)+'</td><td class="l">Historie '+deNum(w.hist,1)+' · Sport '+deNum(w.sport,1)+' · H '+Math.round(w.wh*100)+' / S '+Math.round(w.ws*100)+' · '+esc(w.phase||'')+' · '+esc(w.note||'')+'</td></tr>';
+    });
+  });
+  if (tops) h+='<div class="box"><h3>Topspiele</h3><p class="muted">Die Zahlen sind die beim Ansetzen festgehaltene Rechnung, nicht eine nachträgliche Neubewertung.</p><div style="overflow:auto"><table class="tbl"><thead><tr><th>ST</th><th>Anstoß</th><th class="l">Paarung</th><th>Wert</th><th class="l">Rechnung</th></tr></thead><tbody>'+tops+'</tbody></table></div></div>';
   return h;
 }
 function haString(md, idx, from, to){
@@ -8570,18 +8985,10 @@ function uiSelfTestBody(fails){
   const anOrder=blIds.slice().sort((a,b)=>(ansehenValue(b)||0)-(ansehenValue(a)||0) || String(a).localeCompare(String(b)));
   const snapOrder=blIds.slice().sort((a,b)=>startSnap.rank[a]-startSnap.rank[b]);
   check('Saisonstart sortiert nach Ansehen, nicht nach Poolreihenfolge', snapOrder.join()===anOrder.join() && startSnap.info[blIds[0]].sport==null);
-  const row=(id, sport, sp, sportPlace, ansehen, anRank)=>({id, sport, sp, sportPlace, ansehen, anRank, pkt:0, diff:0, tg:0, appeal:0, power:0});
-  const lateSnap={info:{
-    a:row('a',1,8,1,0.05,19), b:row('b',1,8,2,0.08,20),
-    c:row('c',0.02,8,19,1,1), d:row('d',0.04,8,18,0.95,2),
-    e:row('e',0.42,8,9,0.9,3)
-  }, rank:{a:1,b:2,c:19,d:18,e:9}};
-  const sportQ=pairScore('a','b',lateSnap), cellarQ=pairScore('c','d',lateSnap), crossQ=pairScore('a','c',lateSnap), tradQ=pairScore('d','e',lateSnap);
-  check('Tabellenspitze schlägt das Ansehen-Kellerduell', topCategory('a','b',lateSnap)==='sport' && topCategory('c','d',lateSnap)==='ansehen' && sportQ>cellarQ && topDesire('sport', sportQ)>topDesire('ansehen', cellarQ), sportQ+'/'+cellarQ);
-  check('hohes Ansehen gegen die Spitze ist ein Topspiel', topCategory('a','c',lateSnap)==='cross' && topDesire('sport', sportQ)>topDesire('cross', crossQ) && topDesire('cross', crossQ)>topDesire('ansehen', cellarQ));
-  check('zwei Traditionsvereine bleiben ein Ansehen-Duell', topCategory('d','e',lateSnap)==='ansehen' && tradQ>cellarQ*0.5);
-  const early={info:{p:row('p',null,0,null,1,1), q:row('q',null,0,null,0.9,2), r:row('r',null,0,null,0.1,18)}, rank:{p:1,q:2,r:18}};
-  check('frühe Saison ohne Ergebnisse bevorzugt zwei hohe Ansehen', topCategory('p','q',early)==='ansehen' && topCategory('p','r',early)==='none' && pairScore('p','q',early)>pairScore('p','r',early));
+  const row=(id, sport, sp, sportPlace, ansehen)=>({id, sport, sp, sportPlace, ansehen, pkt:0, diff:0, tg:0, form:[], appeal:0, power:0});
+  const early={info:{p:row('p',null,0,null,90), q:row('q',null,0,null,80), r:row('r',null,0,null,10)}, total:38, table:[], zones:{n:20,up:0,down:3,meister:1,cl:4,el:6,uecl:7}};
+  const bothHigh=matchValue('p','q',early,0), oneHigh=matchValue('p','r',early,0);
+  check('frühe Saison ohne Ergebnisse bevorzugt zwei hohe Ansehen', bothHigh.sport===0 && oneHigh.sport===0 && bothHigh.total>oneHigh.total, bothHigh.total+'/'+oneHigh.total);
   const simBase=(TEAMS.t001.schnitt??50), sim=simStrength('t001');
   check('Spielstärke bleibt unabhängig vom Erfolg-Ansehen', Math.abs(sim-(simBase*0.8+strengthBlend('t001')*0.2))<0.001 && Math.abs(sim-ansehenValue('t001'))>100);
   const relPts=[
@@ -8903,5 +9310,1402 @@ function boot(){
 boot();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+const SLOT_CACHE_PR66={};
+function slotTemplatePR66(lid){
+  if (SLOT_CACHE_PR66[lid]) return SLOT_CACHE_PR66[lid].map(s=>({dow:s.dow,time:s.time,kind:s.kind}));
+  let src;
+  if(lid==='BL') src=expandSlots([{dow:'Fr',time:'20:30'},{dow:'Sa',time:'15:30',kind:'konferenz',n:6},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}]);
+  else if(lid==='BL2') src=expandSlots([{dow:'Fr',time:'18:30',n:2},{dow:'Sa',time:'13:30',kind:'konferenz',n:4},{dow:'Sa',time:'20:30',kind:'top'},{dow:'So',time:'13:30',kind:'konferenz',n:3}]);
+  else if(lid==='L3') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:5},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
+  else if(lid==='L4') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:6},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
+  else src=expandSlots([{dow:'Fr',time:'18:30',kind:'top'},{dow:'Sa',time:'14:30',kind:'konferenz',n:8}]);
+  SLOT_CACHE_PR66[lid]=src;
+  return src.map(s=>({dow:s.dow,time:s.time,kind:s.kind}));
+}
+function ansehenUnitPR66(ids){
+  const vals=(ids||[]).map(id=>({id, v:ansehenValue(id)||0}));
+  vals.sort((a,b)=>b.v-a.v || String(a.id).localeCompare(String(b.id)));
+  const n=vals.length, unit={}, rank={};
+  vals.forEach((s,i)=>{
+    rank[s.id]=i+1;
+    unit[s.id]=n<=1?1:1-(i)/(n-1);
+  });
+  return {unit, rank};
+}
+function powerSnapshotPR66(season, lid, mi){
+  const lg=season.leagues[lid];
+  const rows=mi>0 ? tableBefore(season, lid, mi) : [];
+  const by={}; rows.forEach(r=>by[r.id]=r);
+  const an=ansehenUnitPR66(lg.teams);
+  const list=lg.teams.map(id=>{
+    const r=by[id]||{};
+    const pkt=r.pkt||0, sp=r.sp||0;
+    const sport=sportSignal(pkt, sp);
+    const ansehen=an.unit[id]==null?0:an.unit[id];
+    const appeal=teamAppeal(sport, ansehen);
+    return {id, pkt, sp, diff:r.diff||0, tg:r.tg||0, sport, ansehen, anRank:an.rank[id]||lg.teams.length, appeal, power:appeal};
+  });
+  const played=list.filter(s=>s.sp>0).sort((a,b)=>b.pkt-a.pkt || b.diff-a.diff || b.tg-a.tg || String(a.id).localeCompare(String(b.id)));
+  let place=1;
+  played.forEach((s,i)=>{
+    if (i>0){
+      const p=played[i-1];
+      if (s.pkt!==p.pkt || s.diff!==p.diff || s.tg!==p.tg) place=i+1;
+    }
+    s.sportPlace=place;
+  });
+  list.sort((a,b)=>b.appeal-a.appeal || b.ansehen-a.ansehen || String(a.id).localeCompare(String(b.id)));
+  const rank={}, info={};
+  list.forEach((s,i)=>{ rank[s.id]=i+1; info[s.id]=s; });
+  return {rank, info, total:lg.md.length};
+}
+function pairScorePR66(h, a, snap){
+  const H=snap.info[h], A=snap.info[a];
+  if (!H || !A) return 0;
+  const s1=H.sport==null?0.5:H.sport, s2=A.sport==null?0.5:A.sport;
+  const sportTerm=(H.sport==null||A.sport==null)?0:Math.min(s1,s2);
+  const anDuel=Math.min(H.ansehen||0, A.ansehen||0);
+  const cross=Math.max(Math.min(s1, A.ansehen||0), Math.min(s2, H.ansehen||0));
+  return 0.62*sportTerm+0.18*anDuel+0.20*cross;
+}
+function assignExactDayRowPR66(md, tmpl, conf, ctx){
+  const {teams, counts, rankOf, upper, mi, rem, n, total, ids, pairQ}=ctx;
+  const confSlots=tmpl.filter(s=>s.kind==='konferenz');
+  const freeSlots=tmpl.filter(s=>s.kind!=='konferenz');
+  const row=md.map(()=>null);
+  const freeArr=[];
+  let t=0;
+  for (let i=0;i<md.length;i++){
+    if (conf.has(i)) row[i]=confSlots[Math.min(t++, confSlots.length-1)];
+    else freeArr.push(i);
+  }
+  const topClass=i=>{
+    const h=teams[md[i][0]], a=teams[md[i][1]];
+    const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
+    if (lo<=upper) return 0;
+    if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
+    if (hi<=upper) return 2;
+    return 3;
+  };
+  if (freeArr.length===freeSlots.length && freeArr.length){
+    const costF=freeArr.map(i=>{
+      const h=teams[md[i][0]], a=teams[md[i][1]];
+      const dist=kmBetween(h,a);
+      const distKm=dist==null?400:dist;
+      return freeSlots.map(slot=>{
+        let c=0;
+        if (slot.kind==='top'){
+          const q=pairQ(h,a);
+          const kind=topKind(rankOf(h), rankOf(a), counts[h].top===0, counts[a].top===0, n);
+          if (topClass(i)>=3) c += 900000;
+          else if (kind==='both') c += -q*280;
+          else if (kind==='rescue') c += 20000;
+          else if (Math.min(rankOf(h), rankOf(a))<=upper) c += 80000;
+          else c += 900000;
+        }
+        if (slot.kind==='regional') c += distKm*4-9000;
+        for (const id of [h,a]){
+          const cnt=counts[id];
+          if (slot.dow==='Fr'){
+            const fairFr=(2/n)*mi;
+            if (cnt.fr>=5 || (mi<n-1 && cnt.fr>=3)) c += 8000000;
+            else c -= (fairFr-cnt.fr)*50000 + (cnt.fr<2 && rem<16 ? 220000 : 0);
+          }
+          if (slot.dow==='So' && cnt.so===0) c -= rem<=10?150000:5000;
+          if (slot.kind==='regional' && cnt.regional===0) c -= rem<=12?150000:5000;
+        }
+        return c;
+      });
+    });
+    hungarian(costF).forEach((col,i)=>{ row[freeArr[i]]=freeSlots[col]; });
+    const repairTops=()=>{
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top' || topClass(i)<3) return;
+        let alt=null;
+        freeArr.forEach(j=>{
+          if (j===i || row[j].kind==='top' || topClass(j)>=3) return;
+          const q=pairQ(teams[md[j][0]], teams[md[j][1]]);
+          const cls=topClass(j);
+          if (!alt || cls<alt.cls || (cls===alt.cls && q>alt.q)) alt={j,cls,q};
+        });
+        if (alt){ const tmp=row[i]; row[i]=row[alt.j]; row[alt.j]=tmp; }
+      });
+    };
+    repairTops();
+    row.forEach((slot,i)=>{
+      if (!slot || slot.kind!=='top') return;
+      const here=[teams[md[i][0]], teams[md[i][1]]];
+      if (here.some(id=>counts[id].top===0)) return;
+      let best=null;
+      freeArr.forEach(j=>{
+        if (j===i || row[j].kind==='top' || topClass(j)>2) return;
+        const tms=[teams[md[j][0]], teams[md[j][1]]];
+        const urge=Math.max(...tms.map(id=>counts[id].top===0 ? rescueUrge(id, mi, total, ids) : 0));
+        if (urge<=0) return;
+        if (!best || urge>best.urge) best={j,urge};
+      });
+      if (best && (best.urge>18000 || rem<=6)){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
+    });
+    repairTops();
+    const fri=freeArr.find(i=>row[i]&&row[i].dow==='Fr');
+    if (fri!=null){
+      const frScore=j=>{
+        const ids=[teams[md[j][0]], teams[md[j][1]]];
+        const mx=Math.max(counts[ids[0]].fr, counts[ids[1]].fr);
+        const zero=ids.some(id=>counts[id].fr===0);
+        if (mx>=6) return (zero?250:500)+mx;
+        return (zero?0:100)+mx;
+      };
+      let alt=null;
+      freeArr.forEach(j=>{
+        if (topClass(j)>=3) return;
+        const sc=frScore(j);
+        if (!alt || sc<alt.sc) alt={j,sc};
+      });
+      if (alt && alt.j!==fri && alt.sc<frScore(fri)){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
+    }
+    repairTops();
+  }
+  return row;
+}
+function assignMatchdayPR66(season, lid, mi, snap, counts){
+  const lg=season.leagues[lid], md=lg.md[mi], tmpl=slotTemplatePR66(lid), n=lg.teams.length;
+  const total=md.length? lg.md.length : 0;
+  if (total && isClosingDay(total, mi)){
+    const slot=finalSaturdaySlot(lid);
+    const row=md.map(()=>slot);
+    noteKick(md, row, lg, counts);
+    return row;
+  }
+  const rem=total-mi;
+  const flexLeft=Math.max(0, (total-2)-mi);
+  const konfPer=tmpl.filter(s=>s.kind==='konferenz').length;
+  const hasSo=tmpl.some(s=>s.dow==='So');
+  const topSlots=tmpl.filter(s=>s.kind==='top').length;
+  const upper=n>=20?8:6;
+  const rankOf=id=>snap.rank[id]||n;
+  const bothOn=round=>round.some(g=>Math.max(rankOf(lg.teams[g[0]]), rankOf(lg.teams[g[1]]))<=upper);
+  const bothCount=md.filter(m=>Math.max(rankOf(lg.teams[m[0]]), rankOf(lg.teams[m[1]]))<=upper).length;
+  const canRescue=round=>round.some(g=>{
+    const h=lg.teams[g[0]], a=lg.teams[g[1]];
+    const hi=Math.min(rankOf(h), rankOf(a)), lo=Math.max(rankOf(h), rankOf(a));
+    if (hi>upper || lo<=upper) return false;
+    const lower=rankOf(h)===lo?h:a;
+    return counts[lower].top===0;
+  });
+  let usefulZero=0;
+  for (let j=mi;j<total-2;j++) if (!bothOn(lg.md[j]) && canRescue(lg.md[j])) usefulZero++;
+  const needsLeft=lg.teams.filter(id=>counts[id].top===0).length;
+  const rescueChance=(id)=>{
+    let n=0;
+    for (let j=mi;j<total-2;j++){
+      if (bothOn(lg.md[j])) continue;
+      if (lg.md[j].some(g=>{
+        const h=lg.teams[g[0]], a=lg.teams[g[1]];
+        if (h!==id && a!==id) return false;
+        return rankOf(h===id?a:h)<=upper;
+      })) n++;
+    }
+    return n;
+  };
+  const uncovered=lg.teams.some(id=>counts[id].top===0 && rescueChance(id)===0);
+  let konfMax=0, konfMin=0;
+  if (konfPer){
+    konfMax=-1; konfMin=1e9;
+    lg.teams.forEach(id=>{ const v=counts[id].konferenz; if (v>konfMax) konfMax=v; if (v<konfMin) konfMin=v; });
+  }
+  const cost=md.map(m=>{
+    const h=lg.teams[m[0]], a=lg.teams[m[1]];
+    const dist=kmBetween(h,a);
+    const distKm=dist==null?400:dist;
+    return tmpl.map(slot=>{
+      let c=0;
+      const needH=counts[h].top===0, needA=counts[a].top===0;
+      if (slot.kind==='top'){
+        const kind=topKind(rankOf(h), rankOf(a), needH, needA, n);
+        const q=pairScorePR66(h, a, snap);
+        const cat=topCategory(h, a, snap);
+        const bothHalf=Math.max(rankOf(h), rankOf(a))<=Math.ceil(n/2);
+        const bothHot=Math.max(rankOf(h), rankOf(a))<=hotCut(lid, n);
+        const mustSave=!uncovered && needsLeft<=usefulZero && bothCount>=topSlots;
+        const urgeOf=id=>rescueUrge(id, mi, total, lg.teams);
+        if (cat==='sport' || cat==='cross' || cat==='ansehen'){
+          c += -topDesire(cat, q) - (cat==='sport' && bothHot ? 80000 : 0);
+        } else if (kind==='both'){
+          c += -q*520 - (bothHot?160000:40000);
+          if (needH) c -= urgeOf(h)*0.35;
+          if (needA) c -= urgeOf(a)*0.35;
+        } else if (kind==='rescue' && !mustSave){
+          const urge=Math.max(needH?urgeOf(h):0, needA?urgeOf(a):0);
+          c += 14000 - urge - q*20 - (bothHalf?6000:0);
+        } else if (kind==='rescue') c += 95000;
+        else if (Math.min(rankOf(h), rankOf(a))<=upper && (needH||needA)){
+          const urge=Math.max(needH?urgeOf(h):0, needA?urgeOf(a):0);
+          c += 12000 - urge - q*25 - (bothHalf?8000:0);
+        } else if (Math.min(rankOf(h), rankOf(a))<=upper) c += 420000 - (bothHalf?50000:0);
+        else c += 900000;
+        if ((needH||needA) && flexLeft>0 && flexLeft<=6 && Math.min(rankOf(h), rankOf(a))<=upper) c -= 2000000;
+        if (slot.dow==='Fr'){
+          c += (counts[h].fr*counts[h].fr + counts[a].fr*counts[a].fr)*700;
+          if (counts[h].fr>=7 || counts[a].fr>=7) c += 40000;
+        }
+      }
+      if (slot.kind==='regional'){
+        c += distKm*4 - 9000 + (counts[h].so*counts[h].so + counts[a].so*counts[a].so)*8;
+      }
+      const targetMin=total/2;
+      const exactKonf=konfPer>0 && Math.abs(konfPer*2*total - n*targetMin)<1e-6;
+      for (const id of [h,a]){
+        const cnt=counts[id];
+        const urge=missing=>missing ? (rem<=6?350000: rem<=14?90000:6000) : 0;
+        const frUrge=missing=>missing ? (rem<=6?60000: rem<=12?9000:2500) : 0;
+        if (konfPer){
+          let pull=0;
+          if (exactKonf){
+            if (cnt.konferenz>=konfMax && konfMin<konfMax) pull -= 8000000;
+            else pull += (konfMax-cnt.konferenz+1)*1000000;
+          }
+          if (lid==='L3'){
+            const need=18;
+            if (cnt.konferenz+(flexLeft-1) < need) pull += 6000000;
+            else if (cnt.konferenz>=need) pull -= 6000000;
+          } else if (cnt.konferenz+(flexLeft-1)+2 < targetMin) pull += 5000000;
+          else if (!exactKonf && rem<=16 && cnt.konferenz < targetMin-2) pull += 2000000;
+          else if (!exactKonf && rem<=12 && cnt.top>0 && cnt.konferenz < targetMin-1) pull += 1500000;
+          else if (!exactKonf && cnt.top>=1 && cnt.konferenz+(rem-1) < targetMin+2) pull += 280000;
+          else if (!exactKonf && rem<=14 && cnt.konferenz+(rem-1) < targetMin+1) pull += 350000;
+          else if (!exactKonf && cnt.konferenz+(rem-1)<targetMin+6) pull += 90000;
+          if (slot.kind==='konferenz') c -= pull; else c += pull;
+        }
+        if (slot.dow==='Fr'){
+          if (lid==='L3'){
+            const fairFr=(2/n)*mi;
+            if (cnt.fr>=5 || (mi<n-1 && cnt.fr>=3)) c += 8000000;
+            else c -= (fairFr-cnt.fr)*50000 + (cnt.fr<2 && rem<16 ? 220000 : 0);
+          } else {
+            c-=frUrge(cnt.fr===0); c+=cnt.fr*cnt.fr*120;
+            if (cnt.fr>=7) c += 40000;
+            if (lid==='L4' && cnt.fr===0 && rem<=8) c -= 350000;
+          }
+        }
+        if (slot.dow==='So' && hasSo) c -= urge(cnt.so===0);
+        if (slot.kind==='regional') c -= urge(cnt.regional===0);
+        if (slot.kind==='top') c -= (flexLeft>0 && flexLeft<=6 && cnt.top===0) ? 2500000 : 0;
+        if (slot.dow==='Fr' && cnt.fr===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
+        if (slot.dow==='So' && cnt.so===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
+        if (slot.kind==='regional' && cnt.regional===0 && flexLeft>0 && flexLeft<=6) c -= 1800000;
+      }
+      return c;
+    });
+  });
+  const asg=hungarian(cost);
+  const row=md.map(()=>null);
+  asg.forEach((col,i)=>{ row[i]=tmpl[col]; });
+  const halfN=n-1;
+  // Die letzten zwei Spieltage sind komplett Konferenz, deshalb trägt die Spiegel-Konstruktion nicht mehr exakt 19.
+  const exactMirror=false;
+  const topClass=i=>{
+    const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+    const cat=topCategory(h, a, snap);
+    if (cat==='sport') return 0;
+    if (cat==='cross') return 1;
+    if (cat==='ansehen') return 2;
+    const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
+    if (lo<=upper) return 0;
+    if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
+    if (hi<=upper) return 2;
+    return 3;
+  };
+  if (exactMirror && mi>=halfN && season.kickoffs[lid] && season.kickoffs[lid][mi-halfN]){
+    const src=season.kickoffs[lid][mi-halfN];
+    const baseConf=new Set();
+    src.forEach((slot,i)=>{ if (slot.kind!=='konferenz') baseConf.add(i); });
+    const filled=assignExactDayRowPR66(md, tmpl, baseConf, {
+      teams:lg.teams, counts, rankOf, upper, mi, rem, n, total, ids:lg.teams, pairQ:(h,a)=>pairScorePR66(h,a,snap)
+    });
+    for (let i=0;i<row.length;i++) row[i]=filled[i];
+  }
+  if (exactMirror && mi<halfN){
+    const ranked=lg.teams.slice().sort((a,b)=>strengthBlend(b)-strengthBlend(a)||byRang(a,b));
+    const must=ranked.slice(0,2);
+    const matchOf=id=>{ for (let i=0;i<md.length;i++) if (lg.teams[md[i][0]]===id||lg.teams[md[i][1]]===id) return i; return -1; };
+    const legalFree=()=>{ let c=0; row.forEach((slot,i)=>{ if (slot&&slot.kind!=='konferenz'&&topClass(i)<3) c++; }); return c; };
+    const pull=(idx, illegalOnly)=>{
+      if (idx<0 || !row[idx] || row[idx].kind==='konferenz') return false;
+      let donor=null, donorCls=-1;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='konferenz') return;
+        const ids=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
+        if (ids.some(id=>id===must[0]||id===must[1])) return;
+        const cls=topClass(i);
+        if (illegalOnly && cls<3) return;
+        if (donor==null || cls>donorCls){ donor=i; donorCls=cls; }
+      });
+      if (donor==null) return false;
+      const tmp=row[idx]; row[idx]=row[donor]; row[donor]=tmp;
+      if (legalFree()<topSlots){ const back=row[idx]; row[idx]=row[donor]; row[donor]=back; return false; }
+      return true;
+    };
+    must.forEach(id=>pull(matchOf(id), false));
+    if (matchOf(must[0])===matchOf(must[1])){
+      const third=ranked.slice(2).find(id=>{ const i=matchOf(id); return i>=0 && topClass(i)<3; });
+      if (third) pull(matchOf(third), false);
+    }
+    for (let guard=0; guard<4 && legalFree()>topSlots; guard++){
+      let idx=null;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind==='konferenz' || slot.kind==='top' || topClass(i)>=3) return;
+        idx=i;
+      });
+      if (idx==null || !pull(idx, true)) break;
+    }
+  }
+  row.forEach((slot,i)=>{
+    if (!slot || slot.kind!=='top' || topClass(i)<3) return;
+    let swap=null;
+    row.forEach((other,j)=>{
+      if (j===i || !other || other.kind==='top' || other.kind==='konferenz') return;
+      const cls=topClass(j);
+      if (cls>=3) return;
+      const q=pairScorePR66(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+      if (!swap || cls<swap.cls || (cls===swap.cls && q>swap.q)) swap={j,cls,q};
+    });
+    if (!swap && (!exactMirror || mi<halfN)){
+      const halfTarget=total/2;
+      row.forEach((other,j)=>{
+        if (j===i || !other || other.kind!=='konferenz') return;
+        const cls=topClass(j);
+        if (cls>=3) return;
+        const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+        if (!exactMirror && ids.some(id=>counts[id].konferenz+(rem-1)<halfTarget)) return;
+        const q=pairScorePR66(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+        if (!swap || cls<swap.cls || (cls===swap.cls && q>swap.q)) swap={j,cls,q};
+      });
+    }
+    if (swap){ const tmp=row[i]; row[i]=row[swap.j]; row[swap.j]=tmp; }
+  });
+  row.forEach((slot,i)=>{
+    if (!slot || slot.kind!=='top') return;
+    const here=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
+    if (here.some(id=>counts[id].top===0)) return;
+    const cls=topClass(i);
+    const glam=cls===0 && Math.max(rankOf(here[0]), rankOf(here[1]))<=hotCut(lid, n);
+    const threshold=glam?90000:cls===0?55000:18000;
+    let best=null;
+    row.forEach((other,j)=>{
+      if (j===i || !other || other.kind==='top' || other.kind==='konferenz' || topClass(j)>2) return;
+      const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+      const urge=Math.max(...ids.map(id=>counts[id].top===0 ? rescueUrge(id, mi, total, lg.teams) : 0));
+      if (urge<=0) return;
+      if (!best || urge>best.urge) best={j, urge};
+    });
+    if (best && (best.urge>threshold || (!glam && cls!==0 && rem<=6))){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
+  });
+  if (konfPer && !exactMirror){
+    const share=(konfPer*2)/n, fair=share*mi, targetMin=total/2;
+    const exactKonf=false;
+    for (let guard=0; guard<n; guard++){
+      let crit=null;
+      for (let i=0;i<row.length;i++){
+        if (row[i].kind==='konferenz') continue;
+        for (const id of [lg.teams[md[i][0]], lg.teams[md[i][1]]]){
+          if (counts[id].konferenz+(rem-1)<targetMin) crit=i;
+        }
+      }
+      if (crit==null) break;
+      let best=null;
+      row.forEach((slot,j)=>{
+        if (j===crit || slot.kind!=='konferenz') return;
+        const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+        if (ids.some(id=>counts[id].konferenz+(rem-1)<targetMin)) return;
+        if (exactKonf && ids.some(id=>counts[id].konferenz<fair-0.15)) return;
+        if (row[crit].dow==='Fr' && ids.some(id=>counts[id].fr>=5)) return;
+        const slack=Math.min(...ids.map(id=>counts[id].konferenz-fair));
+        if (!best || slack>best.slack) best={j, slack};
+      });
+      if (!best) break;
+      const tmp=row[crit]; row[crit]=row[best.j]; row[best.j]=tmp;
+    }
+    const fixTop=()=>{
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top' || topClass(i)<3) return;
+        let alt=null;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind==='top' || other.kind==='konferenz') return;
+          const cls=topClass(j);
+          if (cls>=3) return;
+          const q=pairScorePR66(lg.teams[md[j][0]], lg.teams[md[j][1]], snap);
+          if (!alt || cls<alt.cls || (cls===alt.cls && q>alt.q)) alt={j,cls,q};
+        });
+        if (alt){ const tmp=row[i]; row[i]=row[alt.j]; row[alt.j]=tmp; }
+      });
+    };
+    fixTop();
+    row.forEach((slot,i)=>{
+      if (!slot || slot.kind==='top' || topClass(i)>=3) return;
+      const ids=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
+      if (!ids.some(id=>counts[id].top===0)) return;
+      if (ids.some(id=>counts[id].konferenz+(rem-1)<total/2)) return;
+      const urge=Math.max(...ids.map(id=>counts[id].top===0?rescueUrge(id, mi, total, lg.teams):0));
+      let chances=0;
+      ids.forEach(id=>{
+        if (counts[id].top!==0) return;
+        for (let j=mi+1;j<total-2;j++){
+          const g=lg.md[j].find(m=>lg.teams[m[0]]===id||lg.teams[m[1]]===id);
+          if (!g) continue;
+          const opp=lg.teams[g[0]]===id ? lg.teams[g[1]] : lg.teams[g[0]];
+          if (rankOf(opp)<=upper) chances++;
+        }
+      });
+      let alt=null, altRank=99;
+      row.forEach((other,j)=>{
+        if (!other || other.kind!=='top') return;
+        const t2=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+        if (t2.some(id=>counts[id].top===0)) return;
+        if (slot.kind==='konferenz' && t2.some(id=>counts[id].konferenz+(rem-1)<total/2)) return;
+        const cls=topClass(j);
+        const hot=cls===0 && Math.max(rankOf(t2[0]), rankOf(t2[1]))<=hotCut(lid, n);
+        const rank=hot?2:cls===0?1:0;
+        if (rank<altRank){ alt=j; altRank=rank; }
+      });
+      if (alt==null) return;
+      if (altRank===2 && urge<90000 && rem>4 && chances>1) return;
+      if (altRank===1 && urge<50000 && rem>8 && chances>1) return;
+      const tmp=row[i]; row[i]=row[alt]; row[alt]=tmp;
+    });
+    const must=new Set();
+    lg.teams.forEach(id=>{
+      const cnt=counts[id].konferenz;
+      if (cnt+(rem-1) < total/2) must.add(id);
+    });
+    const mustOutside=md.some((m,i)=>row[i] && row[i].kind!=='konferenz' && (must.has(lg.teams[m[0]])||must.has(lg.teams[m[1]])));
+    if (mustOutside || row.some((slot,i)=>slot && slot.kind==='top' && topClass(i)>=3)){
+      const konfN=tmpl.filter(s=>s.kind==='konferenz').length;
+      const matchOf={};
+      md.forEach((m,i)=>{ matchOf[lg.teams[m[0]]]=i; matchOf[lg.teams[m[1]]]=i; });
+      let best=null;
+      combinations(md.length, konfN).forEach(combo=>{
+        const conf=new Set(combo);
+        for (const id of must) if (!conf.has(matchOf[id])) return;
+        let legalFree=0;
+        for (let i=0;i<md.length;i++) if (!conf.has(i) && topClass(i)<3) legalFree++;
+        if (legalFree<topSlots) return;
+        let flips=0;
+        for (let i=0;i<md.length;i++) if (conf.has(i)!==(row[i].kind==='konferenz')) flips++;
+        if (!best || flips<best.flips) best={conf,flips};
+      });
+      if (best && best.flips){
+        const out=[], inn=[];
+        for (let i=0;i<md.length;i++){
+          const was=row[i].kind==='konferenz', now=best.conf.has(i);
+          if (was&&!now) out.push(i);
+          if (!was&&now) inn.push(i);
+        }
+        for (let k=0;k<out.length;k++){ const tmp=row[out[k]]; row[out[k]]=row[inn[k]]; row[inn[k]]=tmp; }
+        fixTop();
+      }
+    }
+  }
+  if (lid==='L3'){
+    const fri=row.findIndex(s=>s&&s.dow==='Fr');
+    if (fri>=0){
+      const frScore=j=>{
+        const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+        const mx=Math.max(counts[ids[0]].fr, counts[ids[1]].fr);
+        const zero=ids.some(id=>counts[id].fr===0);
+        if (mx>=6) return (zero?250:500)+mx;
+        return (zero?0:100)+mx;
+      };
+      let alt=null;
+      row.forEach((slot,j)=>{
+        if (!slot || slot.kind==='konferenz' || topClass(j)>=3) return;
+        const sc=frScore(j);
+        if (!alt || sc<alt.sc) alt={j,sc};
+      });
+      if (alt && alt.j!==fri && alt.sc<frScore(fri)){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
+    }
+  }
+  if (flexLeft>0 && flexLeft<=8){
+    const twoLower=i=>{
+      const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+      return Math.min(rankOf(h), rankOf(a))>upper;
+    };
+    const steal=(want, hasIt)=>{
+      for (let guard=0; guard<n; guard++){
+        let needy=null;
+        for (let i=0;i<row.length;i++){
+          if (!row[i] || want(row[i])) continue;
+          const ids=[lg.teams[md[i][0]], lg.teams[md[i][1]]];
+          if (ids.some(id=>!hasIt(id))) { needy=i; break; }
+        }
+        if (needy==null) break;
+        let donor=null;
+        for (let j=0;j<row.length;j++){
+          if (j===needy || !row[j] || !want(row[j])) continue;
+          if (row[j].kind==='top' && twoLower(needy)) continue;
+          const ids=[lg.teams[md[j][0]], lg.teams[md[j][1]]];
+          if (ids.every(hasIt)) { donor=j; break; }
+        }
+        if (donor==null) break;
+        const tmp=row[needy]; row[needy]=row[donor]; row[donor]=tmp;
+      }
+    };
+    if (topSlots) steal(s=>s.kind==='top', id=>counts[id].top>0);
+    if (tmpl.some(s=>s.dow==='Fr')) steal(s=>s.dow==='Fr', id=>counts[id].fr>0);
+    if (hasSo) steal(s=>s.dow==='So', id=>counts[id].so>0);
+    if (tmpl.some(s=>s.kind==='regional')) steal(s=>s.kind==='regional', id=>counts[id].regional>0);
+  }
+  if (lateSeason(total, mi)){
+    const battle=relegationBattle(season, lid, mi);
+    const info=i=>{
+      const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+      const H=battle[h], A=battle[a];
+      const gap=H&&A?Math.abs(H.pkt-A.pkt):99;
+      const upperHit=Math.min(rankOf(h), rankOf(a))<=upper;
+      const both=Math.max(rankOf(h), rankOf(a))<=upper;
+      return {h, a, gap, upperHit, both, score:pairScorePR66(h, a, snap), kracher:!!(H&&A&&H.battle&&A.battle&&gap<=6)};
+    };
+    let bestU=null, bestK=null;
+    for (let i=0;i<md.length;i++){
+      const x=info(i);
+      if (x.upperHit && (!bestU || x.score>bestU.score)) bestU={i, ...x};
+      if (x.kracher && (!bestK || x.score>bestK.score)) bestK={i, ...x};
+    }
+    const kScore=bestK ? bestK.score + Math.max(0, 36-bestK.gap*6) : 0;
+    const good=bestU && ((bestU.both && bestU.gap<=8) || bestU.score>=80);
+    const clear=bestU && bestK && kScore>=bestU.score+12;
+    if (bestK && (!good || clear) && row[bestK.i] && row[bestK.i].kind!=='top'){
+      let weak=null;
+      row.forEach((slot,j)=>{
+        if (!slot || slot.kind!=='top' || j===bestK.i) return;
+        const x=info(j);
+        const hosts=lg.teams[md[j][0]], guest=lg.teams[md[j][1]];
+        if (flexLeft<=2 && (counts[hosts].top===0 || counts[guest].top===0)) return;
+        if (!weak || x.score<weak.score) weak={j, score:x.score};
+      });
+      if (weak){
+        const tmp=row[bestK.i];
+        row[bestK.i]=Object.assign({}, row[weak.j], {kracher:true});
+        row[weak.j]=tmp;
+      }
+    }
+  }
+  noteKick(md, row, lg, counts);
+  return row;
+}
+function settleExactBlockPR66(season, lid, from, to){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length, half=n-1;
+  const upper=n>=20?8:6, tmpl=slotTemplatePR66(lid);
+  const konfCount=tmpl.filter(s=>s.kind==='konferenz').length;
+  const topNeed=Math.max(1, tmpl.filter(s=>s.kind==='top').length);
+  const snap=powerSnapshotPR66(season, lid, from);
+  const rankOf=id=>snap.rank[id]||n;
+  const indexOf={}; lg.teams.forEach((id,i)=>indexOf[id]=i);
+  const days=[]; for (let mi=from; mi<=to; mi++) if (bag[mi] && bag[mi-half]) days.push(mi);
+  if (!days.length) return recomputeConfDebt(season, lid);
+  const optionCache={};
+  const optionsFor=mi=>{
+    if (optionCache[mi]) return optionCache[mi];
+    const md=lg.md[mi], src=bag[mi-half], opts=[];
+    const legal=i=>Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper;
+    combinations(md.length, konfCount).forEach(combo=>{
+      const conf=new Set(combo);
+      let legalFree=0, flips=0;
+      const delta=new Array(n).fill(0), add=new Array(n).fill(0);
+      for (let i=0;i<md.length;i++){
+        const now=conf.has(i), plan=src[i].kind!=='konferenz';
+        if (!now && legal(i)) legalFree++;
+        if (now){ add[indexOf[lg.teams[md[i][0]]]]=1; add[indexOf[lg.teams[md[i][1]]]]=1; }
+        if (plan===now) continue;
+        flips++;
+        const dlt=plan&&!now?1:-1;
+        delta[indexOf[lg.teams[md[i][0]]]]+=dlt;
+        delta[indexOf[lg.teams[md[i][1]]]]+=dlt;
+      }
+      if (legalFree>=topNeed) opts.push({conf, delta, add, flips});
+    });
+    optionCache[mi]=opts;
+    return opts;
+  };
+  const debtVector=skip=>{
+    const v=new Array(n).fill(0), skipSet=new Set(skip);
+    for (let mi=half; mi<total; mi++){
+      if (skipSet.has(mi) || !bag[mi] || !bag[mi-half]) continue;
+      const src=bag[mi-half], row=bag[mi];
+      for (let i=0;i<row.length;i++){
+        const plan=src[i].kind!=='konferenz', now=row[i].kind==='konferenz';
+        if (plan===now) continue;
+        const dlt=plan&&!now?1:-1;
+        v[indexOf[lg.teams[lg.md[mi][i][0]]]]+=dlt;
+        v[indexOf[lg.teams[lg.md[mi][i][1]]]]+=dlt;
+      }
+    }
+    return v;
+  };
+  const sumSq=v=>{ let s=0; for (let t=0;t<n;t++) s+=v[t]*v[t]; return s; };
+  const sig=d=>{ let s=''; for (let t=0;t<n;t++) s+=d[t]+','; return s; };
+  const fillDay=(mi, conf)=>{
+    const counts=tallyExcept(season, lid, mi);
+    bag[mi]=assignExactDayRowPR66(lg.md[mi], tmpl, conf, {
+      teams:lg.teams, counts, rankOf, upper, mi, rem:total-mi, n, total, ids:lg.teams, pairQ:(h,a)=>pairScorePR66(h,a,snap)
+    });
+  };
+  const currentLegal=mi=>{
+    const row=bag[mi], md=lg.md[mi];
+    let c=0;
+    for (let i=0;i<row.length;i++){
+      if (row[i].kind==='konferenz') continue;
+      if (Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper) c++;
+    }
+    return c>=topNeed;
+  };
+  const outside=debtVector(days);
+  const outsideSS=sumSq(outside);
+  const allLegal=days.every(currentLegal);
+  if (outsideSS===0 && allLegal){
+    days.forEach(mi=>{
+      const row=bag[mi];
+      const bad=row.some((slot,i)=>slot.kind==='top' && Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))>upper);
+      if (bad){
+        const conf=new Set();
+        row.forEach((slot,i)=>{ if (slot.kind==='konferenz') conf.add(i); });
+        fillDay(mi, conf);
+      }
+    });
+    return recomputeConfDebt(season, lid);
+  }
+  const optLists=days.map(optionsFor);
+  let solved=null;
+  const target=outside.map(x=>-x);
+  if (optLists.every(o=>o.length)){
+    const mid=Math.floor(days.length/2);
+    const enumerate=(lists)=>{
+      if (lists.length===1) return lists[0].map(o=>({delta:o.delta, flips:o.flips, picks:[o]}));
+      const A=lists[0], B=lists[1], out=[];
+      for (let i=0;i<A.length;i++) for (let j=0;j<B.length;j++){
+        const da=A[i].delta, db=B[j].delta, delta=new Array(n);
+        for (let t=0;t<n;t++) delta[t]=da[t]+db[t];
+        out.push({delta, flips:A[i].flips+B[j].flips, picks:[A[i], B[j]]});
+      }
+      return out;
+    };
+    const left=enumerate(optLists.slice(0, mid));
+    const right=enumerate(optLists.slice(mid));
+    const map=new Map();
+    right.forEach(r=>{
+      const k=sig(r.delta);
+      const prev=map.get(k);
+      if (!prev || r.flips<prev.flips) map.set(k, r);
+    });
+    const need=new Array(n);
+    left.forEach(L=>{
+      for (let t=0;t<n;t++) need[t]=target[t]-L.delta[t];
+      const R=map.get(sig(need));
+      if (!R) return;
+      const flips=L.flips+R.flips;
+      if (!solved || flips<solved.flips) solved={flips, picks:L.picks.concat(R.picks)};
+    });
+  }
+  if (solved){
+    days.forEach((mi,i)=>fillDay(mi, solved.picks[i].conf));
+  } else {
+    days.forEach(mi=>{
+      if (currentLegal(mi) && outsideSS===0) return;
+      const base=debtVector([mi]);
+      let best=null;
+      optionsFor(mi).forEach(opt=>{
+        let ssv=0;
+        for (let t=0;t<n;t++){ const dd=base[t]+opt.delta[t]; ssv+=dd*dd; }
+        if (!best || ssv<best.ss || (ssv===best.ss && opt.flips<best.flips)) best={opt, ss:ssv};
+      });
+      if (best) fillDay(mi, best.opt.conf);
+    });
+  }
+  return recomputeConfDebt(season, lid);
+}
+function nudgeNonExactBlockPR66(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length;
+  const upper=n>=20?8:6, konfN=slotTemplatePR66(lid).filter(s=>s.kind==='konferenz').length;
+  const topNeed=Math.max(1, slotTemplatePR66(lid).filter(s=>s.kind==='top').length);
+  const rankOf=id=>snap.rank[id]||n;
+  const legalAt=(mi,i)=>Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))<=upper;
+  const hasBad=mi=>bag[mi]&&bag[mi].some((slot,i)=>slot.kind==='top'&&!slot.kracher&&!legalAt(mi,i));
+  const countBefore=mi=>{
+    const c={}; lg.teams.forEach(id=>c[id]=0);
+    for (let d=0; d<mi; d++) if (bag[d]) bag[d].forEach((slot,i)=>{
+      if (slot.kind!=='konferenz') return;
+      c[lg.teams[lg.md[d][i][0]]]++; c[lg.teams[lg.md[d][i][1]]]++;
+    });
+    return c;
+  };
+  const placeTops=mi=>{
+    const row=bag[mi];
+    row.forEach((slot,i)=>{
+      if (slot.kind!=='top' || slot.kracher || legalAt(mi,i)) return;
+      let alt=null;
+      row.forEach((other,j)=>{
+        if (j===i || other.kind==='top' || other.kind==='konferenz' || !legalAt(mi,j)) return;
+        alt=j;
+      });
+      if (alt!=null){ const t=row[i]; row[i]=row[alt]; row[alt]=t; }
+    });
+  };
+  const trySolve=mi=>{
+    const cnt=countBefore(mi), rem=total-mi, target=total/2, row=bag[mi];
+    const must=new Set();
+    lg.teams.forEach(id=>{ if (cnt[id]+(rem-1)<target) must.add(id); });
+    const at={};
+    lg.md[mi].forEach((m,i)=>{ at[lg.teams[m[0]]]=i; at[lg.teams[m[1]]]=i; });
+    let best=null;
+    combinations(lg.md[mi].length, konfN).forEach(combo=>{
+      const conf=new Set(combo);
+      for (const id of must) if (!conf.has(at[id])) return;
+      let legalFree=0;
+      for (let i=0;i<lg.md[mi].length;i++) if (!conf.has(i) && legalAt(mi,i)) legalFree++;
+      if (legalFree<topNeed) return;
+      let flips=0;
+      for (let i=0;i<row.length;i++) if (conf.has(i)!==(row[i].kind==='konferenz')) flips++;
+      if (!best || flips<best.flips) best={conf,flips};
+    });
+    if (!best) return false;
+    if (best.flips){
+      const out=[], inn=[];
+      for (let i=0;i<row.length;i++){
+        const was=row[i].kind==='konferenz', now=best.conf.has(i);
+        if (was&&!now) out.push(i);
+        if (!was&&now) inn.push(i);
+      }
+      for (let k=0;k<out.length;k++){ const t=row[out[k]]; row[out[k]]=row[inn[k]]; row[inn[k]]=t; }
+    }
+    placeTops(mi);
+    return !hasBad(mi);
+  };
+  for (let guard=0; guard<8; guard++){
+    let stuck=null;
+    for (let mi=from; mi<=to; mi++) if (hasBad(mi)) stuck=mi;
+    if (stuck==null) return;
+    if (trySolve(stuck)) continue;
+    const cnt=countBefore(stuck), rem=total-stuck, target=total/2;
+    const must=[];
+    lg.teams.forEach(id=>{ if (cnt[id]+(rem-1)<target) must.push(id); });
+    let moved=false;
+    for (const id of must){
+      if (moved) break;
+      for (let d=from; d<stuck && !moved; d++){
+        const row=bag[d];
+        const idx=lg.md[d].findIndex(m=>lg.teams[m[0]]===id||lg.teams[m[1]]===id);
+        if (idx<0 || row[idx].kind==='konferenz') continue;
+        const before=countBefore(d);
+        let donor=null;
+        row.forEach((slot,j)=>{
+          if (slot.kind!=='konferenz' || j===idx) return;
+          const ids=[lg.teams[lg.md[d][j][0]], lg.teams[lg.md[d][j][1]]];
+          const remD=total-d;
+          if (ids.some(x=>before[x]+(remD-1)<target)) return;
+          donor=j;
+        });
+        if (donor==null) continue;
+        const backD=row.slice(), backS=bag[stuck].slice();
+        const tmp=row[idx]; row[idx]=row[donor]; row[donor]=tmp;
+        placeTops(d);
+        if (hasBad(d) || !trySolve(stuck)){
+          for (let i=0;i<row.length;i++) row[i]=backD[i];
+          for (let i=0;i<bag[stuck].length;i++) bag[stuck][i]=backS[i];
+          continue;
+        }
+        moved=true;
+      }
+    }
+    if (!moved) return;
+  }
+}
+function prepareFinalDayPR66(season, lid, from, to, snap){
+  const lg=season.leagues[lid], total=lg.md.length, last=total-1;
+  if (to!==last-1) return;
+  const bag=season.kickoffs[lid], n=lg.teams.length, upper=n>=20?8:6, target=total/2;
+  const rankOf=id=>snap.rank[id]||n;
+  const legal=(mi,i)=>Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))<=upper;
+  const tally=()=>{
+    const c={}; lg.teams.forEach(id=>c[id]=0);
+    for (let d=0; d<=to; d++) if (bag[d]) bag[d].forEach((slot,i)=>{
+      if (slot.kind!=='konferenz') return;
+      c[lg.teams[lg.md[d][i][0]]]++; c[lg.teams[lg.md[d][i][1]]]++;
+    });
+    return c;
+  };
+  const pressureOf=cnt=>lg.md[last].reduce((nPress,m,i)=>{
+    if (!legal(last,i)) return nPress;
+    const ids=[lg.teams[m[0]], lg.teams[m[1]]];
+    return nPress+ids.filter(id=>cnt[id]<target).length;
+  },0);
+  const cleanOf=cnt=>lg.md[last].reduce((nClean,m,i)=>{
+    if (!legal(last,i)) return nClean;
+    const ids=[lg.teams[m[0]], lg.teams[m[1]]];
+    return nClean+(ids.every(id=>cnt[id]>=target)?1:0);
+  },0);
+  const fixTops=mi=>{
+    const row=bag[mi];
+    row.forEach((slot,i)=>{
+      if (slot.kind!=='top' || slot.kracher || legal(mi,i)) return;
+      let alt=null;
+      row.forEach((other,j)=>{
+        if (j===i || other.kind==='top' || other.kind==='konferenz' || !legal(mi,j)) return;
+        alt=j;
+      });
+      if (alt!=null){ const t=row[i]; row[i]=row[alt]; row[alt]=t; }
+    });
+  };
+  for (let guard=0; guard<10; guard++){
+    const cnt=tally();
+    if (cleanOf(cnt)>=2) return;
+    const pressure=pressureOf(cnt);
+    const must=lg.teams.filter(id=>cnt[id]<target);
+    let did=false;
+    for (const id of must){
+      if (did) break;
+      const onLast=lg.md[last].findIndex(m=>lg.teams[m[0]]===id||lg.teams[m[1]]===id);
+      if (onLast<0 || !legal(last,onLast)) continue;
+      for (let d=from; d<=to && !did; d++){
+        const row=bag[d];
+        const idx=lg.md[d].findIndex(m=>lg.teams[m[0]]===id||lg.teams[m[1]]===id);
+        if (idx<0 || row[idx].kind==='konferenz') continue;
+        for (let donor=0; donor<row.length && !did; donor++){
+          if (row[donor].kind!=='konferenz' || donor===idx) continue;
+          const donors=[lg.teams[lg.md[d][donor][0]], lg.teams[lg.md[d][donor][1]]];
+          if (donors.some(x=>cnt[x]-1<target-1)) continue;
+          const back=row.slice();
+          const tmp=row[idx]; row[idx]=row[donor]; row[donor]=tmp;
+          fixTops(d);
+          const bad=bag[d].some((slot,i)=>slot.kind==='top'&&!legal(d,i));
+          if (bad || pressureOf(tally())>=pressure){ for (let i=0;i<row.length;i++) row[i]=back[i]; continue; }
+          did=true;
+        }
+      }
+    }
+    if (!did) return;
+  }
+}
+function scheduleNextBlockPR66(season, lid){
+  const tr=window.FR_TIMING; const t0=tr?performance.now():0;
+  const lg=season.leagues[lid], n=lg.teams.length;
+  const from=lastScheduled(season, lid)+1;
+  const range=nextBlockRange(n, from);
+  if (!range) return null;
+  season.kickoffs=season.kickoffs||{};
+  const bag=season.kickoffs[lid]||(season.kickoffs[lid]={});
+  const snap=powerSnapshotPR66(season, lid, range[0]);
+  const counts=slotTally(season, lid);
+  for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=assignMatchdayPR66(season, lid, mi, snap, counts);
+  const half=n-1, total=lg.md.length, konfPer=slotTemplatePR66(lid).filter(s=>s.kind==='konferenz').length;
+  const exact=false;
+  if (exact && range[0]>=half) settleExactBlockPR66(season, lid, range[0], range[1]);
+  else if (konfPer && !exact){
+    nudgeNonExactBlockPR66(season, lid, range[0], range[1], snap);
+    if (range[0]===total-1){
+      let prevFrom=0, b=0;
+      while (b<total-1){
+        const halfEnd=b<half?half-1:total-1;
+        const end=Math.min(b+3, halfEnd);
+        if (end>=total-2){ prevFrom=b; break; }
+        b=end+1;
+      }
+      prepareFinalDayPR66(season, lid, prevFrom, total-2, snap);
+      delete bag[total-1];
+      bag[total-1]=assignMatchdayPR66(season, lid, total-1, snap, slotTally(season, lid));
+    }
+  }
+  if (tr) tr.schedMs=(tr.schedMs||0)+performance.now()-t0;
+  return range;
+}
+
+function terminSelfTest(){
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  const phaseAt=(total, md)=>phaseWeights(total, md-1);
+  [[38,[[1,4,0.6,0.4],[5,8,0.4,0.6],[9,12,0.3,0.7],[13,38,0.25,0.75]]],[42,[[1,4,0.6,0.4],[5,9,0.4,0.6],[10,13,0.3,0.7],[14,42,0.25,0.75]]],[34,[[1,4,0.6,0.4],[5,7,0.4,0.6],[8,11,0.3,0.7],[12,34,0.25,0.75]]]].forEach(([total, bands])=>{
+    bands.forEach(([a,b,h,s])=>{
+      for (let md=a; md<=b; md++){
+        const p=phaseAt(total, md);
+        if (p.h!==h || p.s!==s) fails.push('Phase '+total+' Spieltag '+md+' ist '+p.h+'/'+p.s);
+      }
+    });
+  });
+  check('Phasen 34, 38 und 42', !fails.some(f=>f.indexOf('Phase ')===0));
+  const blZones={n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7};
+  const ladder=[];
+  for (let pl=1; pl<=20; pl++) ladder.push({pl, pkt:90-pl*3, sp:34, id:'p'+pl});
+  ladder[16].pkt=31; ladder[17].pkt=30;
+  const row=r=>({id:r.id, sportPlace:r.pl, pkt:r.pkt, sp:34, ansehen:50, form:[]});
+  const late={info:{}, total:38, table:ladder, zones:blZones};
+  ladder.forEach(r=>{ late.info[r.id]=row(r); });
+  const duel=matchValue('p17','p18', late, 35);
+  const champ=matchValue('p1','p12', late, 35);
+  const mid=matchValue('p9','p10', late, 35);
+  check('Abstiegsduell am vorletzten regulären Spieltag schlägt 1 gegen 12', duel.total>champ.total && duel.sport>champ.sport, duel.total+'/'+champ.total);
+  check('enges gesichertes Mittelfeld bleibt niedrig', mid.sport<duel.sport && mid.sport<25, String(mid.sport));
+  check('Abstiegsduell benennt dieselbe Zielzone', duel.note.indexOf('Abstieg')>=0 && champ.note.indexOf('kein gemeinsamer Zielkampf')>=0, duel.note+' | '+champ.note);
+  const earlyFight=matchValue('p17','p18', late, 3);
+  check('derselbe Kampf spät wiegt mehr als früh', duel.sport>earlyFight.sport, earlyFight.sport+'/'+duel.sport);
+  const decidedInfo={};
+  const decidedTable=ladder.map(r=>({pl:r.pl, pkt:r.pl===1?90:r.pl===2?40:r.pkt, sp:34, id:r.id}));
+  decidedTable.forEach(r=>{ decidedInfo[r.id]={id:r.id, sportPlace:r.pl, pkt:r.pkt, sp:34, ansehen:50, sport:sportSignal(r.pkt, 34), form:[]}; });
+  const decidedSnap={info:decidedInfo, total:38, table:decidedTable, zones:blZones};
+  const decided=matchValue('p1','p2', decidedSnap, 35);
+  check('entschiedene Meisterschaft erzeugt keinen Druck', decided.sport===0, String(decided.sport));
+  const downInfo={};
+  const downTable=ladder.map(r=>({pl:r.pl, pkt:r.pl>=18?10:60, sp:34, id:r.id}));
+  downTable.forEach(r=>{ downInfo[r.id]={id:r.id, sportPlace:r.pl, pkt:r.pkt, sp:34, ansehen:50, sport:sportSignal(r.pkt, 34), form:[]}; });
+  const downSnap={info:downInfo, total:38, table:downTable, zones:blZones};
+  const downGone=matchValue('p17','p18', downSnap, 35);
+  check('entschiedener Abstieg erzeugt keinen Druck', downGone.sport===0, String(downGone.sport));
+  const fightSnap=(sp, pktA, pktB)=>{
+    const table=[{pl:17, pkt:pktA, sp, id:'a'},{pl:18, pkt:pktB, sp, id:'b'}];
+    const info={a:{id:'a', sportPlace:17, pkt:pktA, sp, ansehen:50, sport:sportSignal(pktA, sp), form:[]}, b:{id:'b', sportPlace:18, pkt:pktB, sp, ansehen:50, sport:sportSignal(pktB, sp), form:[]}};
+    return {info, total:38, table, zones:{n:20, up:0, down:3, meister:1}};
+  };
+  const many=matchValue('a','b', fightSnap(10, 25, 24), 20);
+  const few=matchValue('a','b', fightSnap(2, 5, 4), 20);
+  const weak=matchValue('a','b', fightSnap(10, 8, 7), 20);
+  check('mehr gespielte Spiele wiegen im selben Abstiegskampf mehr', many.sport>few.sport, many.sport+'/'+few.sport);
+  check('höhere Punktequote wiegt bei gleicher Spielzahl mehr', many.sport>weak.sport, many.sport+'/'+weak.sport);
+  ['BL','BL2','L3','L4','RLN','OLBY'].forEach(lid=>{
+    const spec=L[lid];
+    const mini={name:'2099/00', leagues:{[lid]:{teams:[], md:[]}}};
+    if (spec.level>=5) mini.leagues.L4={teams:[], md:[]};
+    const z=zoneProfile(mini, lid, 0);
+    if (z.meister!==1) fails.push(lid+' Meisterzone fehlt');
+  });
+  check('Meisterzone in jeder Ligastufe', !fails.some(f=>f.indexOf('Meisterzone')>=0));
+  const open={info:{tA:{id:'tA', sp:0, ansehen:80, sport:null}, tB:{id:'tB', sp:0, ansehen:20, sport:null}}, total:38, table:[], zones:blZones};
+  const start=matchValue('tA','tB', open, 0);
+  check('Saisonstart ohne Tabelle hat keinen Sportbonus', start.sport===0 && start.wh===0.6 && start.ws===0.4, start.sport+'/'+start.wh);
+  const slots={BL:slotTemplate('BL'), BL2:slotTemplate('BL2'), L3:slotTemplate('L3'), L4:slotTemplate('L4'), RLN:slotTemplate('RLN'), OLBY:slotTemplate('OLBY')};
+  const countKind=(list, kind)=>list.filter(s=>s.kind===kind).length;
+  check('Bundesliga-Slots', slots.BL.length===10 && countKind(slots.BL,'top')===2 && slots.BL[0].dow==='Fr' && slots.BL[0].kind==='top' && slots.BL[7].kind==='top');
+  check('2. Liga ohne Freitagstop', countKind(slots.BL2,'top')===1 && countKind(slots.BL2,'regional')===2 && slots.BL2[0].kind==='regional');
+  check('3. und 4. Liga zwei gleichartige Topspiele', countKind(slots.L3,'top')===2 && countKind(slots.L4,'top')===2 && slots.L3[0].kind==='top' && slots.L3[6].kind==='top');
+  check('Regionalliga und Oberliga ein Topspiel', countKind(slots.RLN,'top')===1 && countKind(slots.OLBY,'top')===1 && countKind(slots.RLN,'konferenz')===8);
+  const squad=buildInitialSquads();
+  const prevRandom=Math.random;
+  const seedRandom=seed=>{ let a=seed>>>0; Math.random=function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
+  const tiedPen={h:'t001', a:'t002', hg:1, ag:1, peh:3, pea:3};
+  check('gleiches Elfmeterschießen hat keinen Sieger', cupWinner(tiedPen)===null && cupWinner({h:'t001', a:'t002', hg:1, ag:1, peh:4, pea:3})==='t001');
+  const stealTeams=squad.leagues.BL.slice();
+  const oneDay=[]; for (let i=0;i<10;i++) oneDay.push([i*2, i*2+1]);
+  const fullMd=[]; for (let d=0;d<38;d++) fullMd.push(oneDay.map(p=>p.slice()));
+  const info={};
+  stealTeams.forEach((id,i)=>{ info[id]={id, ansehen:i<4?95:8, sp:0, sport:null, form:[], pkt:0}; });
+  const snapSteal={info, total:38, table:[], zones:{n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7}, at:30, ansehen:{}, rank:{}, form:{}};
+  const baseCount=()=>{ const c={}; stealTeams.forEach(id=>{ c[id]={top:3, fr:2, sa:2, so:1, konferenz:16, frTop:1, saTop:1, regional:1, einzel:0, total:20, topSum:0, topN:0, regSum:0, regN:0}; }); return c; };
+  const stealSeason={name:'2099/00', status:'running', leagues:{BL:{teams:stealTeams, md:fullMd}}, pools:{}, kickoffs:{}};
+  const stealCounts=baseCount();
+  stealCounts[stealTeams[4]].top=0;
+  const stolen=assignMatchday(stealSeason, 'BL', 30, snapSteal, stealCounts);
+  const topIs=stolen.map((s,i)=>s&&s.kind==='top'?i:-1).filter(i=>i>=0);
+  check('ein schwaches Spiel ohne Topauftritt bekommt nicht das beste Topspiel', topIs.indexOf(0)>=0 && topIs.indexOf(1)>=0 && topIs.indexOf(2)<0, topIs.join(','));
+  const nudgeSeason={name:'2099/00', status:'running', leagues:{BL:{teams:stealTeams, md:fullMd}}, pools:{}, kickoffs:{BL:{}}};
+  for (let d=0; d<30; d++) nudgeSeason.kickoffs.BL[d]=slotTemplate('BL').map(s=>Object.assign({}, s, {kind:'konferenz'}));
+  const nudgeSlots=slotTemplate('BL').map(s=>Object.assign({}, s));
+  const regionalPos=nudgeSlots.findIndex(s=>s.kind==='regional');
+  const holdSlot=nudgeSlots[2]; nudgeSlots[2]=nudgeSlots[0]; nudgeSlots[0]=nudgeSlots[regionalPos]; nudgeSlots[regionalPos]=holdSlot;
+  nudgeSeason.kickoffs.BL[30]=nudgeSlots;
+  nudgeNonExactBlock(nudgeSeason, 'BL', 30, 30, snapSteal);
+  const nudgedTops=nudgeSeason.kickoffs.BL[30].map((s,i)=>s&&s.kind==='top'?i:-1).filter(i=>i>=0);
+  check('Nudge holt das schwache Topspiel auf das starke freie Spiel', nudgeSeason.kickoffs.BL[30][0].kind==='top' && nudgeSeason.kickoffs.BL[30][2].kind!=='top', nudgedTops.join(','));
+  const balCounts=baseCount();
+  stealTeams.forEach(id=>{ balCounts[id].frTop=2; balCounts[id].saTop=2; info[id].ansehen=50; });
+  balCounts[stealTeams[0]].frTop=6; balCounts[stealTeams[0]].saTop=0;
+  balCounts[stealTeams[1]].frTop=6; balCounts[stealTeams[1]].saTop=0;
+  balCounts[stealTeams[2]].frTop=0; balCounts[stealTeams[2]].saTop=6;
+  balCounts[stealTeams[3]].frTop=0; balCounts[stealTeams[3]].saTop=6;
+  const balBefore=JSON.parse(JSON.stringify(balCounts));
+  const balanced=assignMatchday(stealSeason, 'BL', 30, snapSteal, balCounts);
+  const frI=balanced.findIndex(s=>s&&s.kind==='top'&&s.dow==='Fr'), saI=balanced.findIndex(s=>s&&s.kind==='top'&&s.dow==='Sa');
+  const hypo=swap=>{
+    const map={};
+    const add=(idx, fr, sa)=>{ [stealTeams[oneDay[idx][0]], stealTeams[oneDay[idx][1]]].forEach(id=>{ if(!map[id]) map[id]={fr:balBefore[id].frTop, sa:balBefore[id].saTop}; map[id].fr+=fr; map[id].sa+=sa; }); };
+    add(frI, swap?0:1, swap?1:0); add(saI, swap?1:0, swap?0:1);
+    let s=0; Object.keys(map).forEach(id=>{ s+=Math.abs(map[id].fr-map[id].sa); }); return s;
+  };
+  check('qualitätsgleicher Freitag-Samstag-Tausch senkt die Vereinsdifferenz', frI>=0 && saI>=0 && hypo(false)<=hypo(true), hypo(false)+'/'+hypo(true));
+  const bad={name:'2099/00', leagues:{BL:{teams:stealTeams, md:fullMd}}, kickoffs:{BL:{}}};
+  for (let d=0; d<=30; d++) bad.kickoffs.BL[d]=slotTemplate('BL').map(s=>Object.assign({}, s, {kind:s.kind==='konferenz'&&d<30?'x':s.kind}));
+  const badBefore=JSON.stringify(bad.kickoffs.BL);
+  const repaired=repairBlockConference(bad, 'BL', 30, 30, snapSteal);
+  check('unlösbare Konferenz im offenen Block bleibt falsch und ändert nichts', repaired===false && JSON.stringify(bad.kickoffs.BL)===badBefore);
+  const cupSea=at=>{
+    const md=fullMd.map(d=>d.map(p=>[p[0], p[1], null, null]));
+    md[0][0]=[0, 1, 3, 0];
+    const match={h:stealTeams[0], a:stealTeams[19], hg:1, ag:0, peh:null, pea:null};
+    if (at!=null) match.at=at;
+    return {name:'2099/00', leagues:{BL:{teams:stealTeams, md}}, cups:{dfb:{entrants:[stealTeams[0], stealTeams[19]], rounds:[{name:'Finale', matches:[match]}]}}};
+  };
+  check('ein Pokal vor dem Block kann Platz 8 öffnen', eighthKnown(cupSea(0), 1)===true);
+  check('ein späteres Pokalergebnis öffnet Platz 8 nicht', eighthKnown(cupSea(5), 1)===false);
+  check('ein Pokal ohne Zeitpunkt zählt nicht als bekannt', eighthKnown(cupSea(null), 1)===false);
+  const penSea=cupSea(0);
+  penSea.cups.dfb.rounds[0].matches[0].hg=1; penSea.cups.dfb.rounds[0].matches[0].ag=1; penSea.cups.dfb.rounds[0].matches[0].peh=3; penSea.cups.dfb.rounds[0].matches[0].pea=3;
+  check('3:3 im Elfmeterschießen entfernt niemanden', eighthKnown(penSea, 1)===false);
+  const cupProd=(()=>{
+    const prevHold=saveHold; saveHold=1;
+    const keep={seasons:S.seasons, view:S.view, tab:S.ui.tab, league:S.ui.league};
+    try{
+      seedRandom(17);
+      const teams=squad.leagues.BL.slice();
+      const md=makeSchedule(teams.length);
+      Math.random=prevRandom;
+      const other=md[0].find(m=>m[0]!==0 && m[1]!==0);
+      const b=other[0]===0?other[1]:other[0];
+      const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{}, cups:{dfb:{kind:'dfb', id:'dfb', entrants:[teams[0], teams[b]], rounds:[{name:'Finale', drawn:true, matches:[cupMatch(teams[0], teams[b], true)]}]}}};
+      S.seasons=(S.seasons||[]).concat([season]);
+      S.view=S.seasons.length-1;
+      S.ui.tab='pokal'; S.ui.league='BL'; S.ui.cup='dfb';
+      const first=scheduleNextBlock(season, 'BL');
+      if (!first) return 'kein erster Block';
+      md[first[0]].forEach(m=>{
+        if (m[0]===0 || m[0]===b){ m[2]=3; m[3]=0; }
+        else if (m[1]===0 || m[1]===b){ m[2]=0; m[3]=3; }
+        else { m[2]=0; m[3]=0; }
+      });
+      const frozen=JSON.parse(JSON.stringify(season.kickoffs.BL));
+      mutateCup('dfb', 0, 0, m=>{ m.hg=2; m.ag=0; });
+      const decided=season.cups.dfb.rounds[0].matches[0];
+      if (decided.at!==lastScheduled(season, 'BL')) return 'at '+decided.at;
+      if (cupWinner(decided)!==teams[0]) return 'sieger';
+      const next=scheduleNextBlock(season, 'BL');
+      if (!next || next[0]<=first[1]) return 'kein neuer Block';
+      if (!Object.keys(frozen).every(k=>JSON.stringify(frozen[k])===JSON.stringify(season.kickoffs.BL[k]))) return 'alter Block geändert';
+      if (season.termSnap.BL[next[0]].zones.uecl!==8) return 'platz8 '+season.termSnap.BL[next[0]].zones.uecl;
+      const round=unpackMatch(packMatch(decided));
+      if (round.at!==decided.at || cupWinner(round)!==teams[0]) return 'packMatch';
+      const disk=JSON.parse(JSON.stringify(packForDisk({v:1, seasons:[season], view:0, chronicle:[], pokalRuns:[], ui:{}})));
+      const loaded=unpackState(disk).seasons[0];
+      const kept=loaded.cups.dfb.rounds[0].matches[0];
+      if (kept.at!==decided.at) return 'speichern '+kept.at;
+      if (eighthKnown(loaded, next[0])!==true) return 'nach dem Laden';
+      const simSeasonCup={name:'2099/00', status:'running', leagues:{BL:{teams:teams.slice(), md:md.map(d=>d.map(m=>m.slice()))}}, pools:{}, kickoffs:{}, cups:{dfb:{kind:'dfb', entrants:[teams[0], teams[b]], rounds:[{name:'Finale', drawn:true, matches:[cupMatch(teams[0], teams[b], true)]}]}}};
+      simSeasonCup.leagues.BL.md.forEach((d,i)=>{ if (i>first[1]) return; d.forEach((m,k)=>{ m[2]=md[i][k][2]; m[3]=md[i][k][3]; }); });
+      Object.keys(frozen).forEach(k=>{ simSeasonCup.kickoffs.BL=simSeasonCup.kickoffs.BL||{}; simSeasonCup.kickoffs.BL[k]=JSON.parse(JSON.stringify(frozen[k])); });
+      simCup(simSeasonCup, simSeasonCup.cups.dfb);
+      const simM=simSeasonCup.cups.dfb.rounds[0].matches[0];
+      if (simM.at!==lastScheduled(simSeasonCup, 'BL') || !cupWinner(simM)) return 'sim at '+simM.at;
+      const simNext=scheduleNextBlock(simSeasonCup, 'BL');
+      if (!simNext || simSeasonCup.termSnap.BL[simNext[0]].zones.uecl!==8) return 'sim platz8';
+      mutateCup('dfb', 0, 0, m=>{ m.hg=1; m.ag=1; m.peh=3; m.pea=3; });
+      const tied=season.cups.dfb.rounds[0].matches[0];
+      if (cupWinner(tied)!==null || tied.at!=null) return '3:3';
+      const ahead=JSON.parse(JSON.stringify(season.kickoffs.BL));
+      return Object.keys(frozen).every(k=>JSON.stringify(frozen[k])===JSON.stringify(ahead[k])) ? '' : 'nach 3:3';
+    } finally {
+      saveHold=prevHold;
+      S.seasons=keep.seasons; S.view=keep.view; S.ui.tab=keep.tab; S.ui.league=keep.league;
+      if (S.ui) S.ui.cup=undefined;
+    }
+  })();
+  check('manuelles und simuliertes Pokalergebnis öffnet Platz 8 nur für den nächsten Block', cupProd==='', cupProd);
+  const types=[['BL','BL'],['BL2','BL2'],['L3','L3'],['L4','L4'],['RL',['RLN','RLO','RLS','RLW']],['OL',['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW']]];
+  const report={};
+  const parentOf=lid=>{ const spec=L[lid]; if(!spec||spec.level<5) return ''; return spec.level===5?'L4':spec.upTo; };
+  function playRange(md, range, rnd){
+    for (let mi=range[0]; mi<=range[1] && mi<md.length; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=Math.floor(rnd()*4); m[3]=Math.floor(rnd()*3); } });
+  }
+  function runOne(lid, seed, which){
+    seedRandom(seed);
+    const teams=squad.leagues[lid].slice();
+    const md=makeSchedule(teams.length);
+    const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}, cups:{dfb:{entrants:teams.slice(0,8), rounds:[
+      {name:'Achtelfinale', drawn:true, matches:[{h:teams[0], a:teams[1], hg:2, ag:1, at:0, peh:null, pea:null}]},
+      {name:'Finale', drawn:true, matches:[{h:teams[2], a:teams[3], hg:1, ag:0, at:40, peh:3, pea:3}]}
+    ]}}};
+    const parent=parentOf(lid);
+    if (parent && squad.leagues[parent]) season.leagues[parent]={teams:squad.leagues[parent].slice(), md:makeSchedule(squad.leagues[parent].length)};
+    if (L[lid] && L[lid].level===6 && squad.leagues.L4) season.leagues.L4={teams:squad.leagues.L4.slice(), md:makeSchedule(squad.leagues.L4.length)};
+    const rnd=Math.random;
+    Math.random=prevRandom;
+    const sched=which==='old'?scheduleNextBlockPR66:scheduleNextBlock;
+    const half=teams.length-1, total=md.length;
+    let cross=0, guard=0;
+    while (lastScheduled(season, lid)<total-1 && guard++<24){
+      const from=lastScheduled(season, lid)+1;
+      const before=JSON.parse(JSON.stringify(season.kickoffs[lid]||{}));
+      const range=sched(season, lid);
+      if (!range) break;
+      if (from<half && range[1]>=half) cross++;
+      Object.keys(before).forEach(k=>{
+        if (JSON.stringify(before[k])!==JSON.stringify(season.kickoffs[lid][k])) cross++;
+      });
+      playRange(md, range, rnd);
+      if (parent && season.leagues[parent]) playRange(season.leagues[parent].md, range, rnd);
+      if (season.leagues.L4 && parent!=='L4') playRange(season.leagues.L4.md, range, rnd);
+    }
+    return {season, lid, teams, md, cross};
+  }
+  function auditTops(pack){
+    const {season, lid, teams, md}=pack;
+    const total=md.length;
+    let sum=0, n=0, km=0, kmN=0, mi=0;
+    while (mi<total){
+      const range=nextBlockRange(teams.length, mi);
+      if (!range) break;
+      const snap=powerSnapshot(season, lid, range[0]);
+      for (let d=range[0]; d<=range[1]; d++){
+        const row=season.kickoffs[lid][d]||[];
+        row.forEach((slot,i)=>{
+          if (!slot) return;
+          const h=teams[md[d][i][0]], a=teams[md[d][i][1]];
+          if (slot.kind==='top'){ sum+=matchValue(h, a, snap, d).total; n++; }
+          if (slot.kind==='regional'){ const dist=kmBetween(h,a); if (dist!=null){ km+=dist; kmN++; } }
+        });
+      }
+      mi=range[1]+1;
+    }
+    return {avg:n?sum/n:0, km:kmN?km/kmN:0, n};
+  }
+  function qualityHoles(pack){
+    const {season, lid, teams, md}=pack, total=md.length;
+    let holes=0, mi=0;
+    while (mi<total){
+      const range=nextBlockRange(teams.length, mi);
+      if (!range) break;
+      const snap=powerSnapshot(season, lid, range[0]);
+      for (let d=range[0]; d<=range[1]; d++){
+        if (isClosingDay(total, d)) continue;
+        const row=season.kickoffs[lid][d]||[];
+        const vals=md[d].map(m=>matchValue(teams[m[0]], teams[m[1]], snap, d).total);
+        row.forEach((slot,i)=>{
+          if (!slot || slot.kind!=='top') return;
+          let better=false;
+          row.forEach((other,j)=>{
+            if (better || j===i || !other || other.kind==='top' || vals[j]<=vals[i]+0.05) return;
+            if (other.kind==='konferenz'){
+              const donors=[teams[md[d][j][0]], teams[md[d][j][1]]];
+              if (topCanTakeConference(season, lid, range[1], donors)) better=true;
+              return;
+            }
+            better=true;
+          });
+          if (better) holes++;
+        });
+      }
+      mi=range[1]+1;
+    }
+    return holes;
+  }
+  function openFrSa(pack){
+    const {season, lid, teams, md}=pack;
+    if (!slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Fr') || !slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Sa')) return 0;
+    const total=md.length;
+    let open=0, mi=0;
+    while (mi<total){
+      const range=nextBlockRange(teams.length, mi);
+      if (!range) break;
+      const snap=powerSnapshot(season, lid, range[0]);
+      const c={}; teams.forEach(id=>c[id]={fr:0, sa:0});
+      for (let d=0; d<=range[1]; d++) (season.kickoffs[lid][d]||[]).forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top') return;
+        const key=slot.dow==='Fr'?'fr':slot.dow==='Sa'?'sa':'';
+        if (!key) return;
+        c[teams[md[d][i][0]]][key]++; c[teams[md[d][i][1]]][key]++;
+      });
+      for (let d=range[0]; d<=range[1]; d++){
+        if (isClosingDay(total, d)) continue;
+        const row=season.kickoffs[lid][d]||[];
+        let fr=-1, sa=-1;
+        row.forEach((slot,i)=>{ if (slot&&slot.kind==='top'&&slot.dow==='Fr') fr=i; if (slot&&slot.kind==='top'&&slot.dow==='Sa') sa=i; });
+        if (fr<0 || sa<0) continue;
+        const vf=matchValue(teams[md[d][fr][0]], teams[md[d][fr][1]], snap, d).total;
+        const vs=matchValue(teams[md[d][sa][0]], teams[md[d][sa][1]], snap, d).total;
+        if (Math.abs(vf-vs)>2) continue;
+        const ids=[teams[md[d][fr][0]], teams[md[d][fr][1]], teams[md[d][sa][0]], teams[md[d][sa][1]]];
+        const uniq=[]; ids.forEach(id=>{ if (uniq.indexOf(id)<0) uniq.push(id); });
+        const abs=map=>uniq.reduce((s,id)=>s+Math.abs((map[id]||{fr:0,sa:0}).fr-(map[id]||{fr:0,sa:0}).sa),0);
+        const before=abs(c);
+        const next={}; uniq.forEach(id=>{ next[id]={fr:c[id].fr, sa:c[id].sa}; });
+        ids.slice(0,2).forEach(id=>{ next[id].fr--; next[id].sa++; });
+        ids.slice(2).forEach(id=>{ next[id].sa--; next[id].fr++; });
+        if (abs(next)<before) open++;
+      }
+      mi=range[1]+1;
+    }
+    return open;
+  }
+  const keepWorld={seasons:S.seasons, view:S.view, chronicle:S.chronicle, pokalRuns:S.pokalRuns};
+  try{
+    S.seasons=[{name:'2098/99', status:'done', leagues:{}, pools:{}}];
+    S.view=0;
+    S.chronicle=(keepWorld.chronicle||[]).filter(r=>r && seasonYear(r.season)<=2098);
+    S.pokalRuns=(keepWorld.pokalRuns||[]).filter(r=>r && seasonYear(r.season)<=2098);
+    chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
+    const rawIds=[];
+    ['BL','BL2','L3','L4','RLN','RLO','RLS','RLW','OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].forEach(lid=>(squad.leagues[lid]||[]).forEach(id=>{ if (rawIds.indexOf(id)<0) rawIds.push(id); }));
+    const rawSame=rawIds.every(id=>ansehenInfo(id, 2098).value===ansehenValue(id));
+    let hash=0; rawIds.forEach((id,i)=>{ hash=(hash+Math.round((ansehenInfo(id, 2098).value||0)*100)*(i+1))|0; });
+    report.ansehen={clubs:rawIds.length, same:rawSame, hash, end:2098, view:S.seasons[0].name};
+    check('neuer und alter Scheduler sehen denselben Roh-Ansehenwert', rawSame, JSON.stringify(report.ansehen));
+    types.forEach(([type, lids], ti)=>{
+      const list=Array.isArray(lids)?lids:[lids];
+      const acc={seasons:0, below:0, oldBelow:0, oldClubs:0, clubs:0, top:0, topN:0, frSa:[], cross:0, newAvg:0, oldAvg:0, newKm:0, oldKm:0, maxFrSa:0, holes:0, openFr:0, repairFail:0, sameN:0, sameO:0, sameC:0};
+      for (let s=0;s<50;s++){
+        const lid=list[s%list.length];
+        const seed=1000+ti*1000+s;
+        const neu=runOne(lid, seed, 'new');
+        const alt=runOne(lid, seed, 'old');
+        const need=Math.ceil(neu.md.length/2);
+        const tall=slotTally(neu.season, lid);
+        const tallOld=slotTally(alt.season, lid);
+        const dualTop=slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Fr') && slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Sa');
+        let worstFr=0;
+        neu.teams.forEach(id=>{
+          acc.clubs++;
+          if ((tall[id].konferenz||0)<need) acc.below++;
+          if (dualTop){
+            const diff=Math.abs((tall[id].frTop||0)-(tall[id].saTop||0));
+            acc.frSa.push(diff);
+            if (diff>worstFr) worstFr=diff;
+          }
+          if (tall[id].topN){ acc.top+=tall[id].topSum; acc.topN+=tall[id].topN; }
+        });
+        alt.teams.forEach(id=>{
+          acc.oldClubs++;
+          if ((tallOld[id].konferenz||0)<need) acc.oldBelow++;
+        });
+        if (lid==='BL'){
+          const clocks=[{dow:'Fr', time:'20:30'},{dow:'Sa', time:'18:30'}];
+          const scoreClock=(pack)=>{
+            let sum=0, n=0, mi=0;
+            while (mi<pack.md.length){
+              const range=nextBlockRange(pack.teams.length, mi);
+              if (!range) break;
+              const snap=powerSnapshot(pack.season, pack.lid, range[0]);
+              for (let d=range[0]; d<=range[1]; d++){
+                if (isClosingDay(pack.md.length, d)) continue;
+                const row=pack.season.kickoffs[pack.lid][d]||[];
+                clocks.forEach(clock=>{
+                  const i=row.findIndex(slot=>slot && slot.dow===clock.dow && slot.time===clock.time);
+                  if (i<0) return;
+                  sum+=matchValue(pack.teams[pack.md[d][i][0]], pack.teams[pack.md[d][i][1]], snap, d).total;
+                  n++;
+                });
+              }
+              mi=range[1]+1;
+            }
+            return {sum, n};
+          };
+          const sn=scoreClock(neu), so=scoreClock(alt);
+          acc.sameN+=sn.sum; acc.sameO+=so.sum; acc.sameC+=sn.n;
+        }
+        if (worstFr>acc.maxFrSa) acc.maxFrSa=worstFr;
+        acc.cross+=neu.cross;
+        acc.holes+=qualityHoles(neu);
+        acc.openFr+=openFrSa(neu);
+        if ((neu.season.termRepair[lid]||[]).some(r=>!r.ok)) acc.repairFail++;
+        const aNew=auditTops(neu), aOld=auditTops(alt);
+        acc.newAvg+=aNew.avg; acc.oldAvg+=aOld.avg; acc.newKm+=aNew.km; acc.oldKm+=aOld.km;
+        acc.seasons++;
+      }
+      acc.frSa.sort((a,b)=>a-b);
+      const mid=acc.frSa[Math.floor(acc.frSa.length/2)]||0;
+      const round1=v=>Math.round(v*10)/10;
+      report[type]={seasons:acc.seasons, below:acc.below, oldBelow:acc.oldBelow, clubs:acc.clubs, quota:acc.clubs?Math.round((1-acc.below/acc.clubs)*1000)/10:0, oldQuota:acc.oldClubs?Math.round((1-acc.oldBelow/acc.oldClubs)*1000)/10:0, avgTop:acc.topN?round1(acc.top/acc.topN):0, topKindNeu:round1(acc.newAvg/acc.seasons), topKindAlt:round1(acc.oldAvg/acc.seasons), topKindHinweis:type==='BL'?'neu Fr 20:30 und Sa 18:30, alt nur Sa 18:30':'gleiche Top-Anstöße', sameClockNeu:acc.sameC?round1(acc.sameN/acc.sameC):null, sameClockAlt:acc.sameC?round1(acc.sameO/acc.sameC):null, newKm:Math.round(acc.newKm/acc.seasons), oldKm:Math.round(acc.oldKm/acc.seasons), frSaMedian:mid, frSaMax:acc.maxFrSa, cross:acc.cross, holes:acc.holes, openFr:acc.openFr, repairFail:acc.repairFail};
+      check(type+' jede der 50 Saisons hält die halbe Konferenz', acc.seasons===50 && acc.below===0 && acc.cross===0 && acc.holes===0 && acc.openFr===0 && acc.repairFail===0, JSON.stringify(report[type]));
+    });
+  }finally{
+    Math.random=prevRandom;
+    S.seasons=keepWorld.seasons; S.view=keepWorld.view; S.chronicle=keepWorld.chronicle; S.pokalRuns=keepWorld.pokalRuns;
+    chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
+  }
+  const lock=(()=>{
+    seedRandom(4242);
+    const lid='L4', teams=squad.leagues.L4.slice(), md=makeSchedule(teams.length);
+    Math.random=prevRandom;
+    const season={name:'2097/98', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
+    const total=md.length;
+    let saved=null;
+    while (lastScheduled(season, lid)<total-2){
+      const range=scheduleNextBlock(season, lid);
+      if (!range) return false;
+      if (range[1]>=total-2){ saved=JSON.parse(JSON.stringify(season.kickoffs[lid])); break; }
+      for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+    }
+    const range=scheduleNextBlock(season, lid);
+    if (!range || !saved) return false;
+    const again=JSON.parse(JSON.stringify(season.kickoffs[lid]));
+    scheduleNextBlock(season, lid);
+    const held=Object.keys(saved).every(k=>JSON.stringify(saved[k])===JSON.stringify(season.kickoffs[lid][k]));
+    const reloaded=JSON.parse(JSON.stringify(season));
+    return held && Object.keys(again).every(k=>JSON.stringify(again[k])===JSON.stringify(reloaded.kickoffs[lid][k]));
+  })();
+  const lockRl=(()=>{
+    seedRandom(3434);
+    const lid='RLN', teams=squad.leagues.RLN.slice(), md=makeSchedule(teams.length);
+    Math.random=prevRandom;
+    const season={name:'2095/96', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
+    const total=md.length;
+    let saved=null;
+    while (lastScheduled(season, lid)<total-2){
+      const range=scheduleNextBlock(season, lid);
+      if (!range) return false;
+      if (range[1]>=total-2){ saved=JSON.parse(JSON.stringify(season.kickoffs[lid])); break; }
+      for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+    }
+    const range=scheduleNextBlock(season, lid);
+    if (!range || !saved) return false;
+    return Object.keys(saved).every(k=>JSON.stringify(saved[k])===JSON.stringify(season.kickoffs[lid][k]));
+  })();
+  check('der letzte Spieltag ändert keine früheren Slots', lock && lockRl);
+  const leak=(()=>{
+    const build=()=>{
+      seedRandom(77);
+      const teams=squad.leagues.RLN.slice(), md=makeSchedule(teams.length);
+      const parentTeams=squad.leagues.L4.slice(), parentMd=makeSchedule(parentTeams.length);
+      Math.random=prevRandom;
+      return {name:'2099/00', status:'running', leagues:{RLN:{teams, md}, L4:{teams:parentTeams, md:parentMd}}, pools:{}, kickoffs:{}, cups:{dfb:{entrants:[teams[0], teams[1]], rounds:[{name:'Finale', matches:[{h:teams[0], a:teams[1], hg:null, ag:null}]}]}}};
+    };
+    const clean=build(), dirty=build();
+    dirty.leagues.L4.md[10][0][2]=6; dirty.leagues.L4.md[10][0][3]=0;
+    dirty.leagues.RLN.md[8][0][2]=5; dirty.leagues.RLN.md[8][0][3]=0;
+    dirty.cups.dfb.rounds[0].matches[0].hg=1; dirty.cups.dfb.rounds[0].matches[0].ag=0; dirty.cups.dfb.rounds[0].matches[0].at=20; dirty.cups.dfb.rounds[0].matches[0].peh=3; dirty.cups.dfb.rounds[0].matches[0].pea=3;
+    const chronKeep=S.chronicle, runKeep=S.pokalRuns;
+    S.chronicle=(chronKeep||[]).concat([{season:'2099/00', id:dirty.leagues.RLN.teams[0], liga:'Regionalliga Nord', ebene:5, n:18, pl:1, pts:70}]);
+    S.pokalRuns=(runKeep||[]).concat([{season:'2099/00', id:dirty.leagues.RLN.teams[0], comp:'dfb', round:'Finale', won:true}]);
+    chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
+    scheduleNextBlock(clean, 'RLN');
+    scheduleNextBlock(dirty, 'RLN');
+    const slots=JSON.stringify(clean.kickoffs.RLN)===JSON.stringify(dirty.kickoffs.RLN);
+    const snapC=clean.termSnap.RLN[0], snapD=dirty.termSnap.RLN[0];
+    const zones=JSON.stringify(snapC.zones)===JSON.stringify(snapD.zones);
+    const raw=JSON.stringify(snapC.raw)===JSON.stringify(snapD.raw);
+    const endOk=snapC.ansehenEnd===2098 && snapD.ansehenEnd===2098;
+    const formOk=snapC.form && snapD.form && JSON.stringify(snapC.form)===JSON.stringify(snapD.form);
+    for (let mi=0; mi<=3; mi++) clean.leagues.RLN.md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+    scheduleNextBlock(clean, 'RLN');
+    const played=tableBefore(clean, 'RLN', 4);
+    const stored=clean.termSnap.RLN[4];
+    const formMatch=played.every(r=>JSON.stringify(stored.form[r.id]||[])===JSON.stringify(r.form||[]));
+    const edgeOk=played.every(r=>formEdge({form:stored.form[r.id]})===formEdge(r));
+    S.chronicle=chronKeep; S.pokalRuns=runKeep; chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
+    return slots && zones && raw && endOk && formOk && formMatch && edgeOk;
+  })();
+  check('vorgefüllte Zukunft ändert die erste Terminierung nicht', leak);
+  const booted=(()=>{
+    seedRandom(5);
+    const teams=squad.leagues.BL.slice(), md=makeSchedule(teams.length);
+    Math.random=prevRandom;
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{}};
+    const first=scheduleNextBlock(season, 'BL');
+    if (!first) return false;
+    for (let mi=first[0]; mi<=first[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+    const disk=JSON.parse(JSON.stringify(packForDisk({v:1, seasons:[season], view:0, chronicle:[], pokalRuns:[], ui:{}})));
+    const loaded=unpackState(disk);
+    const again=loaded.seasons[0];
+    const before=JSON.parse(JSON.stringify(again.kickoffs.BL));
+    const next=scheduleNextBlock(again, 'BL');
+    if (!next || next[0]<=first[1]) return false;
+    return Object.keys(before).every(k=>JSON.stringify(before[k])===JSON.stringify(again.kickoffs.BL[k]));
+  })();
+  check('nach dem Laden bleibt der Block stehen und der nächste kommt dazu', booted);
+  return {ok:!fails.length, fails, report};
+
+}
+window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
