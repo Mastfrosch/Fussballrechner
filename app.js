@@ -6467,11 +6467,12 @@ function forceOpenTimes(row, md, teams, counts, mi, total, lid, season){
     }
   });
 }
+const RESIDUAL_STATS={calls:0, nodes:0, ms:0, maxMs:0, capped:0, repairs:0};
 // Exakte Rest-Machbarkeit der Konferenzquote. Schlusstermine sind für alle Konferenz.
 // An jedem offenen regulären Spieltag hat jeder Verein genau eine feste Begegnung;
 // ein Konferenzplatz deckt beide Vereine. Reicht die Platzzahl schon ohne dieses
 // Teilen, ist der Rest machbar. Sonst sucht die Funktion die Belegungen vollständig.
-// Zeitlücken prüft blockObligations nur als notwendige Platzzahl, nicht als Paarungsbeweis.
+// Pflichtzeiten nutzen dieselbe Paarung: ein Platz deckt nur die beiden Vereine der Begegnung.
 function sharedConferenceOk(season, lid, to, conf){
   const lg=season.leagues[lid], total=lg.md.length;
   const need=Math.ceil(total/2);
@@ -6567,39 +6568,299 @@ function rowConferenceOk(season, lid, mi, teams, counts, md, row){
   });
   return sharedConferenceOk(season, lid, mi, conf);
 }
-function blockObligations(season, lid, to){
+function templateGroups(lid){
+  const map={}, order=[];
+  slotTemplate(lid).forEach(s=>{
+    const key=slotTimeKey(s);
+    if (!map[key]){ map[key]={key, n:0, kind:s.kind||''}; order.push(map[key]); }
+    map[key].n++;
+  });
+  return order;
+}
+function popcount(x){ let n=0; x>>>=0; while (x){ n++; x&=x-1; } return n; }
+function residualBase(season, lid, before){
   const lg=season.leagues[lid], total=lg.md.length, bag=season.kickoffs&&season.kickoffs[lid]||{};
-  const need=Math.ceil(total/2);
-  const conf={}, times={};
-  lg.teams.forEach(id=>{ conf[id]=0; times[id]={}; });
-  for (let d=0; d<=to; d++){
+  const n=lg.teams.length, need=Math.ceil(total/2);
+  const have=[], conf=[];
+  for (let i=0;i<n;i++){ have[i]={}; conf[i]=0; }
+  for (let d=0; d<before; d++){
     const row=bag[d]; if (!row) continue;
     lg.md[d].forEach((m,i)=>{
       if (!row[i]) return;
       const key=slotTimeKey(row[i]);
-      [lg.teams[m[0]], lg.teams[m[1]]].forEach(id=>{
-        times[id][key]=(times[id][key]||0)+1;
-        if (row[i].kind==='konferenz') conf[id]++;
-      });
+      have[m[0]][key]=(have[m[0]][key]||0)+1;
+      have[m[1]][key]=(have[m[1]][key]||0)+1;
+      if (row[i].kind==='konferenz'){ conf[m[0]]++; conf[m[1]]++; }
     });
   }
-  const future=total-to-1;
-  for (const id of lg.teams){
-    if ((conf[id]||0)+future<need) return {ok:false, reason:'quote'};
+  let closing=0;
+  const days=[];
+  for (let d=before; d<total; d++){
+    if (isClosingDay(total, d)) closing++;
+    else days.push(d);
   }
-  if (!sharedConferenceOk(season, lid, to, conf)) return {ok:false, reason:'kapazitaet'};
+  return {lg, total, n, need, have, conf, closing, days};
+}
+function solveResidual(season, lid, before, recordFrom, recordTo){
+  const t0=Date.now();
+  RESIDUAL_STATS.calls++;
+  const base=residualBase(season, lid, before);
+  const groups=templateGroups(lid);
   const closingKey=slotTimeKey(finalSaturdaySlot(lid));
-  let closingLeft=0, regularAfter=0;
-  for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closingLeft++; else regularAfter++; }
-  let timeGap='';
-  templateTimes(lid).forEach(spec=>{
-    if (timeGap || (spec.key===closingKey && closingLeft>0)) return;
-    let z=0;
-    lg.teams.forEach(id=>{ if (!(times[id][spec.key]>0)) z++; });
-    if (z>regularAfter*spec.n*2) timeGap=spec.key;
+  const miss={};
+  groups.forEach(g=>{
+    if (g.key===closingKey && base.closing>0) return;
+    let mask=0;
+    for (let i=0;i<base.n;i++) if (!(base.have[i][g.key]>0)) mask|=(1<<i);
+    if (mask) miss[g.key]=mask>>>0;
   });
-  if (timeGap) return {ok:false, reason:'zeit '+timeGap};
-  return {ok:true};
+  const extra=base.conf.map(c=>{ const e=base.need-c-base.closing; return e>0?e:0; });
+  const finish=(ok, reason)=>{
+    const ms=Date.now()-t0;
+    RESIDUAL_STATS.ms+=ms;
+    if (ms>RESIDUAL_STATS.maxMs) RESIDUAL_STATS.maxMs=ms;
+    return {ok, reason:reason||'', plan:null};
+  };
+  for (const key in miss){
+    const g=groups.find(x=>x.key===key);
+    if (popcount(miss[key])>g.n*base.days.length*2) return finish(false, 'zeit '+key);
+  }
+  for (let i=0;i<base.n;i++){
+    let times=0;
+    for (const key in miss) if ((miss[key]>>>0)&(1<<i)) times++;
+    if (extra[i]+times>base.days.length) return finish(false, 'zeit bund');
+  }
+  const confMap={};
+  base.lg.teams.forEach((id,i)=>{ confMap[id]=base.conf[i]; });
+  if (!sharedConferenceOk(season, lid, before-1, confMap)) return finish(false, 'kapazitaet');
+  const open=Object.keys(miss).length || extra.some(e=>e>0);
+  if (!open) return finish(true);
+  if (!base.days.length) return finish(false, 'zeit rest');
+  const pairs=base.days.map(d=>base.lg.md[d].map(m=>[m[0], m[1]]));
+  const nonConf=groups.filter(g=>g.kind!=='konferenz');
+  const confGroups=groups.filter(g=>g.kind==='konferenz');
+  const planG=[];
+  function greedyWitness(){
+    const missC=Object.assign({}, miss);
+    const extraC=extra.slice();
+    for (let di=0; di<pairs.length; di++){
+      const used=[];
+      const choice=[];
+      const left=pairs.length-di;
+      const ordered=nonConf.slice().sort((a,b)=>popcount(missC[b.key]||0)-popcount(missC[a.key]||0));
+      for (const g of ordered){
+        const mask=(missC[g.key]||0)>>>0;
+        const cand=[];
+        for (let i=0;i<pairs[di].length;i++) cand.push(i);
+        cand.sort((a,b)=>{
+          const pa=pairs[di][a], pb=pairs[di][b];
+          const ca=covered(mask, pa[0], pa[1]), cb=covered(mask, pb[0], pb[1]);
+          if (cb!==ca) return cb-ca;
+          return (extraC[pa[0]]+extraC[pa[1]])-(extraC[pb[0]]+extraC[pb[1]]);
+        });
+        const take=[];
+        for (const i of cand){ if (used[i]) continue; if (take.length>=g.n) break; take.push(i); }
+        if (take.length<g.n) return false;
+        take.forEach(i=>{
+          used[i]=1;
+          choice[i]=g.key;
+          const pair=pairs[di][i];
+          if (missC[g.key]) missC[g.key]=(missC[g.key]&~((1<<pair[0])|(1<<pair[1])))>>>0;
+        });
+        if (missC[g.key]===0) delete missC[g.key];
+      }
+      let rest=[];
+      for (let i=0;i<pairs[di].length;i++) if (!used[i]) rest.push(i);
+      for (const g of confGroups){
+        rest.sort((a,b)=>covered((missC[g.key]||0)>>>0, pairs[di][b][0], pairs[di][b][1])-covered((missC[g.key]||0)>>>0, pairs[di][a][0], pairs[di][a][1]));
+        const take=rest.splice(0, g.n);
+        if (take.length<g.n) return false;
+        take.forEach(i=>{
+          choice[i]=g.key;
+          const pair=pairs[di][i];
+          if (missC[g.key]) missC[g.key]=(missC[g.key]&~((1<<pair[0])|(1<<pair[1])))>>>0;
+          if (missC[g.key]===0) delete missC[g.key];
+          if (extraC[pair[0]]>0) extraC[pair[0]]--;
+          if (extraC[pair[1]]>0) extraC[pair[1]]--;
+        });
+      }
+      if (rest.length) return false;
+      if (choice.length<pairs[di].length || choice.some(k=>!k)) return false;
+      planG[di]=choice.slice();
+      for (let i=0;i<extraC.length;i++){
+        let times=0;
+        for (const key in missC) if ((missC[key]>>>0)&(1<<i)) times++;
+        if (extraC[i]+times>left-1) return false;
+      }
+    }
+    for (const key in missC) if (missC[key]) return false;
+    return extraC.every(e=>e<=0);
+  }
+  if (greedyWitness()){
+    const byDay={};
+    base.days.forEach((d,i)=>{ if (d>=recordFrom && d<=recordTo) byDay[d]=planG[i]; });
+    const ms=Date.now()-t0;
+    RESIDUAL_STATS.ms+=ms;
+    if (ms>RESIDUAL_STATS.maxMs) RESIDUAL_STATS.maxMs=ms;
+    return {ok:true, reason:'', plan:byDay};
+  }
+  if (base.days.length>6){
+    RESIDUAL_STATS.capped++;
+    return finish(false, 'zeit suche');
+  }
+  const CAP=100000;
+  let nodes=0, capped=false;
+  const plan=[];
+  function covered(mask, a, b){
+    let n=0;
+    if (mask&(1<<a)) n++;
+    if (mask&(1<<b)) n++;
+    return n;
+  }
+  function search(di, missNow, extraNow){
+    if (capped) return false;
+    if (++nodes>CAP){ capped=true; RESIDUAL_STATS.capped++; return false; }
+    RESIDUAL_STATS.nodes++;
+    const left=base.days.length-di;
+    for (const key in missNow){
+      const g=groups.find(x=>x.key===key);
+      if (popcount(missNow[key])>g.n*left*2) return false;
+    }
+    for (let i=0;i<extraNow.length;i++){
+      let times=0;
+      for (const key in missNow) if ((missNow[key]>>>0)&(1<<i)) times++;
+      if (extraNow[i]+times>left) return false;
+    }
+    let pending=false;
+    for (const key in missNow) if (missNow[key]) pending=true;
+    if (!pending && extraNow.every(e=>e<=0)) return true;
+    if (!left) return false;
+    const choice=[];
+    function place(list, idx, used, miss2, extra2){
+      if (capped) return false;
+      if (idx===list.length){
+        const rest=[];
+        for (let i=0;i<pairs[di].length;i++) if (!(used&(1<<i))) rest.push(i);
+        let ci=0, leftMatches=rest.slice();
+        const miss3=Object.assign({}, miss2);
+        const extra3=extra2.slice();
+        for (const g of confGroups){
+          const take=leftMatches.splice(0, g.n);
+          if (take.length<g.n) return false;
+          take.forEach(i=>{
+            choice[i]=g.key;
+            const pair=pairs[di][i];
+            if (miss3[g.key]) miss3[g.key]=(miss3[g.key]&~((1<<pair[0])|(1<<pair[1])))>>>0;
+            if (extra3[pair[0]]>0) extra3[pair[0]]--;
+            if (extra3[pair[1]]>0) extra3[pair[1]]--;
+          });
+          ci++;
+        }
+        if (leftMatches.length) return false;
+        for (const key in miss3) if (!miss3[key]) delete miss3[key];
+        plan[di]=choice.slice();
+        if (search(di+1, miss3, extra3)) return true;
+        return false;
+      }
+      const g=list[idx];
+      const mask=(miss2[g.key]||0)>>>0;
+      const picks=[];
+      function rec(start, leftN, acc, bits){
+        if (!leftN){ picks.push({acc:acc.slice(), bits}); return; }
+        for (let i=start; i<pairs[di].length; i++){
+          if (bits&(1<<i)) continue;
+          acc.push(i);
+          rec(i+1, leftN-1, acc, bits|(1<<i));
+          acc.pop();
+          if (!mask && picks.length) return;
+        }
+      }
+      if (!mask){
+        const acc=[];
+        for (let i=0; i<pairs[di].length && acc.length<g.n; i++) if (!(used&(1<<i))){
+          const pair=pairs[di][i];
+          acc.push(i);
+        }
+        if (acc.length<g.n) return false;
+        acc.sort((a,b)=>{
+          const pa=pairs[di][a], pb=pairs[di][b];
+          return (extra2[pa[0]]+extra2[pa[1]])-(extra2[pb[0]]+extra2[pb[1]]);
+        });
+        // keep the n lowest-pressure matches; rec already needs a single combo
+        const chosen=acc.slice(0, g.n);
+        let bits=used;
+        chosen.forEach(i=>{ bits|=(1<<i); });
+        const missNext=Object.assign({}, miss2);
+        chosen.forEach(i=>{ choice[i]=g.key; });
+        return place(list, idx+1, bits, missNext, extra2);
+      }
+      rec(0, g.n, [], used);
+      picks.sort((p,q)=>{
+        const sc=item=>item.acc.reduce((s,i)=>s+covered(mask, pairs[di][i][0], pairs[di][i][1]), 0);
+        return sc(q)-sc(p);
+      });
+      for (const pick of picks){
+        const missNext=Object.assign({}, miss2);
+        let bits=used;
+        pick.acc.forEach(i=>{
+          bits|=(1<<i);
+          choice[i]=g.key;
+          const pair=pairs[di][i];
+          if (missNext[g.key]) missNext[g.key]=(missNext[g.key]&~((1<<pair[0])|(1<<pair[1])))>>>0;
+        });
+        if (missNext[g.key]===0) delete missNext[g.key];
+        if (place(list, idx+1, bits, missNext, extra2)) return true;
+        if (capped) return false;
+      }
+      return false;
+    }
+    const ordered=nonConf.slice().sort((a,b)=>popcount((missNow[b.key]||0))-popcount((missNow[a.key]||0)));
+    return place(ordered, 0, 0, missNow, extraNow);
+  }
+  const ok=search(0, miss, extra);
+  const ms=Date.now()-t0;
+  RESIDUAL_STATS.ms+=ms;
+  if (ms>RESIDUAL_STATS.maxMs) RESIDUAL_STATS.maxMs=ms;
+  if (capped){ RESIDUAL_STATS.last={reason:'cap', nodes, days:base.days.length}; return {ok:false, reason:'zeit suche', plan:null}; }
+  if (!ok){ RESIDUAL_STATS.last={reason:'paar', nodes, days:base.days.length, miss:Object.keys(miss).map(k=>k+':'+popcount(miss[k]))}; return {ok:false, reason:'zeit paar', plan:null}; }
+  const byDay={};
+  base.days.forEach((d,i)=>{ if (d>=recordFrom && d<=recordTo) byDay[d]=plan[i]; });
+  return {ok:true, reason:'', plan:byDay};
+}
+function applyResidualPlan(season, lid, plan){
+  const lg=season.leagues[lid], bag=season.kickoffs&&season.kickoffs[lid];
+  if (!bag || !plan) return false;
+  for (const d in plan){
+    const row=bag[d];
+    const keys=plan[d];
+    if (!row || !keys || keys.length!==row.length) return false;
+    const pool=row.slice(), used=[];
+    const next=keys.map(key=>{
+      for (let j=0;j<pool.length;j++){
+        if (used[j]) continue;
+        if (slotTimeKey(pool[j])===key){ used[j]=1; return pool[j]; }
+      }
+      return null;
+    });
+    if (next.some(s=>!s)) return false;
+    for (let i=0;i<row.length;i++) row[i]=next[i];
+  }
+  return true;
+}
+function hardResidualOk(season, lid, to){
+  return solveResidual(season, lid, to+1, to+1, to);
+}
+function repairHardResiduals(season, lid, from, to){
+  if (hardResidualOk(season, lid, to).ok) return true;
+  const solved=solveResidual(season, lid, from, from, to);
+  RESIDUAL_STATS.repairLast={ok:solved.ok, reason:solved.reason, days:solved.plan?Object.keys(solved.plan).length:0, last:RESIDUAL_STATS.last};
+  if (!solved.ok || !solved.plan) return false;
+  if (!applyResidualPlan(season, lid, solved.plan)){ RESIDUAL_STATS.repairLast.apply=false; return false; }
+  RESIDUAL_STATS.repairs++;
+  return hardResidualOk(season, lid, to).ok;
+}
+function blockObligations(season, lid, to){
+  return hardResidualOk(season, lid, to);
 }
 function coverSlotGaps(season, lid, from, to){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
@@ -6712,13 +6973,19 @@ function scheduleNextBlock(season, lid){
     raiseTops(season, lid, range[0], range[1], snap);
     liftConferenceTops(season, lid, range[0], range[1], snap);
     balanceFrSaBlock(season, lid, range[0], range[1], snap);
-    let held=blockObligations(season, lid, range[1]);
+    const polish=()=>{
+      let held=blockObligations(season, lid, range[1]);
+      if (held.ok) return held;
+      if (repairHardResiduals(season, lid, range[0], range[1])) held=blockObligations(season, lid, range[1]);
+      return held;
+    };
+    let held=polish();
     if (!held.ok){
       restoreRows(pre);
-      held=blockObligations(season, lid, range[1]);
+      held=polish();
       if (!held.ok){
         restoreRows(raw);
-        held=blockObligations(season, lid, range[1]);
+        held=polish();
         if (!held.ok) dropBlock=true;
       }
     }
@@ -11279,6 +11546,20 @@ function terminSelfTest(){
       });
     };
     for (let d=0; d<=34; d++) bag[d]=rowOf(d);
+    const pairHas=(i, dow, time, except)=>{ for (let d=0; d<=34; d++) if (d!==except && bag[d][i].dow===dow && bag[d][i].time===time) return true; return false; };
+    [{dow:'Fr',time:'20:30',kind:'top'},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}].forEach(spec=>{
+      for (let i=0;i<10;i++){
+        if (spec.time==='17:30' && i===6) continue;
+        if (pairHas(i, spec.dow, spec.time, -1)) continue;
+        for (let d=0; d<=33; d++){
+          const cur=bag[d][i];
+          if (cur.kind==='konferenz' || cur.time==='17:30') continue;
+          if (!pairHas(i, cur.dow, cur.time, d)) continue;
+          bag[d][i]=Object.assign({}, spec);
+          break;
+        }
+      }
+    });
     const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
     const mustOn=()=>{
       const conf={}; teams.forEach((_,ix)=>{ conf[ix]=0; });
@@ -11383,6 +11664,99 @@ function terminSelfTest(){
     const noNew=!bag[31] && !bag[34] && !bag[35];
     check('scheduleNextBlock schreibt einen unmöglichen Block nicht fest', scheduled===null && kicksSame && scoresSame && noNew && bag[30] && md[30][0][2]===1, JSON.stringify({scheduled, kicksSame, scoresSame, noNew, repair:(season.termRepair&&season.termRepair.BL||[]).slice(-1)}));
     report.targeted.rest={sixCount, a:conf[teams[6]], held, spared, scheduled, kicksSame, scoresSame};
+  })();
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const md=[], bag={};
+    const circle=shift=>{
+      const t=Array.from({length:20},(_,i)=>i);
+      for (let s=0;s<shift;s++){ const rest=t.slice(1); rest.push(rest.shift()); t.splice(1,19,...rest); }
+      const p=[]; for (let i=0;i<10;i++) p.push([t[i], t[19-i]]);
+      return p;
+    };
+    const withFixed=(fixed)=>{
+      const used={}; fixed.forEach(p=>{ used[p[0]]=used[p[1]]=1; });
+      const left=[]; for (let i=0;i<20;i++) if (!used[i]) left.push(i);
+      const p=fixed.slice();
+      while (left.length) p.push([left.shift(), left.shift()]);
+      return p;
+    };
+    const rowFor=(pairs, fridayAt)=>{
+      const row=pairs.map(()=>({dow:'Sa', time:'15:30', kind:'konferenz'}));
+      const singles=[{dow:'Fr',time:'20:30',kind:'top'},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}];
+      let k=1;
+      row[fridayAt]=Object.assign({}, singles[0]);
+      for (let i=0;i<row.length && k<singles.length;i++) if (i!==fridayAt) row[i]=Object.assign({}, singles[k++]);
+      return row;
+    };
+    for (let d=0;d<38;d++){
+      let pairs;
+      if (d===31) pairs=withFixed([[2,10],[1,14]]);
+      else if (d===32) pairs=withFixed([[3,11]]);
+      else if (d===33) pairs=withFixed([[4,12]]);
+      else if (d===34) pairs=withFixed([[5,13]]);
+      else if (d===35) pairs=withFixed([[0,2],[1,6]]);
+      else pairs=circle(d);
+      md.push(pairs.map(p=>[p[0], p[1], d<=30?1:null, d<=30?0:null]));
+      if (d<=30){
+        let friday=pairs.findIndex(p=>p[0]>5 && p[1]>5);
+        if (friday<0) friday=pairs.findIndex(p=>p[0]>5 || p[1]>5);
+        const heavy=pairs.map(()=>({dow:'Sa', time:'15:30', kind:'konferenz'}));
+        heavy[Math.max(0, friday)]={dow:'Fr', time:'20:30', kind:'top'};
+        if (d<4 && heavy.length>3){
+          const singles=[{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}];
+          let k=0;
+          for (let i=0;i<heavy.length && k<singles.length;i++) if (i!==friday) heavy[i]=Object.assign({}, singles[k++]);
+        }
+        bag[d]=heavy;
+      }
+    }
+    const fridayIdx=(d, club)=>md[d].findIndex(m=>m[0]===club||m[1]===club);
+    [{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}].forEach(spec=>{
+      for (let club=0; club<20; club++){
+        let seen=false;
+        for (let d=0; d<=30 && !seen; d++){
+          const i=fridayIdx(d, club);
+          if (i>=0 && bag[d][i].dow===spec.dow && bag[d][i].time===spec.time) seen=true;
+        }
+        if (seen) continue;
+        for (let d=0; d<=30; d++){
+          const i=fridayIdx(d, club);
+          if (i<0 || bag[d][i].kind!=='konferenz') continue;
+          bag[d][i]=Object.assign({}, spec);
+          break;
+        }
+      }
+    });
+    bag[31]=rowFor(md[31], fridayIdx(31, 2));
+    bag[32]=rowFor(md[32], fridayIdx(32, 3));
+    bag[33]=rowFor(md[33], fridayIdx(33, 4));
+    bag[34]=rowFor(md[34], fridayIdx(34, 5));
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    const hasFriday=(club, from, to)=>{
+      for (let d=from; d<=to; d++){
+        const i=fridayIdx(d, club);
+        if (i>=0 && bag[d] && bag[d][i] && bag[d][i].dow==='Fr' && bag[d][i].time==='20:30') return true;
+      }
+      return false;
+    };
+    const locked=JSON.stringify(Object.keys(bag).filter(k=>+k<=30).map(k=>bag[k]));
+    const scores=JSON.stringify(md.map(round=>round.map(m=>[m[2], m[3]])));
+    const bad=blockObligations(season, 'BL', 34);
+    const zeros=[0,1,2,3,4,5].filter(c=>!hasFriday(c, 0, 34)).length;
+    check('zwei fehlende Freitage auf getrennten Paarungen sind nicht machbar', bad.ok===false && String(bad.reason).indexOf('zeit')===0 && zeros===2 && zeros<=1*2, JSON.stringify(bad));
+    const repaired=repairHardResiduals(season, 'BL', 31, 34);
+    const after=blockObligations(season, 'BL', 34);
+    const bGot=hasFriday(1, 31, 34), cKept=hasFriday(2, 31, 34), dKept=hasFriday(3, 31, 34), eKept=hasFriday(4, 31, 34), fKept=hasFriday(5, 31, 34);
+    check('offener Block deckt B, D, E und F vor dem letzten Spieltag', repaired && after.ok && bGot && dKept && eKept && fKept, JSON.stringify({repaired, after, bGot, cKept, dKept, eKept, fKept}));
+    const next=scheduleNextBlock(season, 'BL');
+    const st36=bag[35]?bag[35].findIndex(s=>s&&s.dow==='Fr'&&s.time==='20:30'):-1;
+    const pair=st36>=0?md[35][st36]:null;
+    const ac=pair && ((pair[0]===0&&pair[1]===2)||(pair[0]===2&&pair[1]===0));
+    const locksSame=JSON.stringify(Object.keys(bag).filter(k=>+k<=30).map(k=>bag[k]))===locked;
+    const scoresSame=JSON.stringify(md.map(round=>round.map(m=>[m[2], m[3]])))===scores;
+    check('scheduleNextBlock legt den letzten Freitag auf A gegen C', next && ac && locksSame && scoresSame && blockObligations(season, 'BL', 37).ok, JSON.stringify({next, st36, pair, locksSame, scoresSame, last:RESIDUAL_STATS.last, repairLast:RESIDUAL_STATS.repairLast}));
+    report.targeted.freitag={bad, repaired, bGot, cKept, dKept, eKept, fKept, ac, locksSame, scoresSame};
   })();
   (()=>{
     const teams=squad.leagues.BL.slice();
@@ -11503,6 +11877,7 @@ function terminSelfTest(){
   });
   const uiRes=uiSelfTest();
   const anRes=ansehenSelfTest();
+  report.residual={calls:RESIDUAL_STATS.calls, nodes:RESIDUAL_STATS.nodes, ms:RESIDUAL_STATS.ms, maxMs:RESIDUAL_STATS.maxMs, capped:RESIDUAL_STATS.capped, repairs:RESIDUAL_STATS.repairs};
   report.ui={ok:!!uiRes.ok, fails:uiRes.fails||[]};
   report.ansehenSelf={ok:!!anRes.ok, fails:anRes.fails||[]};
   check('UI-Test', !!uiRes.ok, (uiRes.fails||[]).slice(0,3).join(' | '));
