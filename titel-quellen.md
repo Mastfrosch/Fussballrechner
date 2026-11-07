@@ -17,7 +17,7 @@ Nicht vergeben und nicht erfunden: 1904 und 1922 kein Meister, 1915–1919 und 1
 
 Tschammer-Ausgaben bleiben das Ausgabejahr, auch wenn das Finale im Januar oder April des Folgejahres stattfand: 1936 am 3. Januar 1937, 1937 am 9. Januar 1938, 1938 am 8. Januar 1939, 1939 am 28. April 1940. Rapid Wien nennt den Pokal 1938 auf der Vereinsseite teils nach dem Finaljahr 1939. Im Register bleibt die Ausgabe 1938.
 
-Alterung: Ausgabejahr 1964 ist die Saison 1963/64 und altert wie jeder importierte Saisonstring ab dem Beginnjahr. Nationale Meistertitel, auch vor 1963 und in der DDR-Oberliga, haben den Bundesliga-Titelwert 180. DFB- und FDGB-Siege haben den DFB-Titelwert 55. Es gilt 1 Prozent des Ursprungswerts pro Jahr, ab Alter 60 bei 40 Prozent. Es gibt keine zusätzlichen Platz- oder Rundenpunkte.
+Alterung: Ausgabejahr 1964 ist die Saison 1963/64 und altert wie jeder importierte Saisonstring ab dem Beginnjahr. Nationale Meistertitel, auch vor 1963 und in der DDR-Oberliga, haben den Bundesliga-Titelwert 180. DFB- und FDGB-Siege haben den DFB-Titelwert 50. Historische Pokalrunden werden nicht erfunden. Es gilt 1 Prozent des Ursprungswerts pro Jahr, ab Alter 60 bei 40 Prozent. Es gibt keine zusätzlichen Platz- oder Rundenpunkte.
 
 ## Zuordnung
 
@@ -31,7 +31,7 @@ Ohne heutigen Verein im Spiel, deshalb ohne Ansehen und ohne Umleitung: Freiburg
 
 ## Nachprüfung vom 7. November 2026
 
-276 Ereignisse bleiben nach dem ersatzlosen Entfernen der beiden Pokalsiege 2022 und 2023. Deutsche Meisterschaft vor der Bundesliga, Bundesliga und DDR-Meisterschaft haben denselben Grundwert 180. DFB-Pokal und FDGB-Pokal haben denselben Grundwert 55. Alle fünf altern mit 1 Prozent des Ursprungswerts pro Jahr und bleiben ab Alter 60 bei 40 Prozent. Die DDR-Meisterschaft ist kein unterklassiger Titel. Eine absolute Garantie ist das nicht.
+276 Ereignisse bleiben nach dem ersatzlosen Entfernen der beiden Pokalsiege 2022 und 2023. Deutsche Meisterschaft vor der Bundesliga, Bundesliga und DDR-Meisterschaft haben denselben Grundwert 180. DFB-Pokal und FDGB-Pokal haben denselben Grundwert 50. Alle fünf altern mit 1 Prozent des Ursprungswerts pro Jahr und bleiben ab Alter 60 bei 40 Prozent. Die DDR-Meisterschaft ist kein unterklassiger Titel. Eine absolute Garantie ist das nicht.
 
 Präzisiert, ohne den Sieger zu wechseln:
 
