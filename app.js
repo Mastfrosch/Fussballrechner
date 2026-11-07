@@ -503,7 +503,12 @@ function ansehenValue(id){
   return v;
 }
 function ansehenSelfTest(){
+  const navMuteWas=navMute; navMute++;
   const fails=[];
+  try{ return ansehenSelfTestBody(fails); }
+  finally{ navMute=navMuteWas; }
+}
+function ansehenSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
   for (let age=0; age<=150; age++){
@@ -2923,7 +2928,8 @@ function renderPokal(s){
   S.ui.cup=key;
   const cup=getCup(s, key);
   const allowed=['spiele','sieger','uebersicht','qualifikation','rekorde'];
-  if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+  if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+  if (S.ui.cupView==='punkte' && (!cup || cup.kind!=='land')) S.ui.cupView='spiele';
   const view=S.ui.cupView;
   $('#title').textContent=cup?cup.name:'Pokal';
   let sub='DFB-Pokal und 16 Landespokale';
@@ -2946,13 +2952,16 @@ function viewPokal(s, cup, view){
   const ed=isEditable();
   const key=S.ui.cup;
   let h='<div class="pokal-bar">'+cupSelectHTML(key);
-  h+='<span class="toggle" data-toggle="cupView">'+[['spiele','Spielplan'],['karte','Karte'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation'],['rekorde','Rekorde']].map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
+  const cupTabs=[['spiele','Spielplan'],['karte','Karte'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation'],['rekorde','Rekorde']];
+  if (cup && cup.kind==='land') cupTabs.splice(3, 0, ['punkte','Wertung']);
+  h+='<span class="toggle" data-toggle="cupView">'+cupTabs.map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
   h+='</div>';
   if (!cup && view!=='qualifikation' && view!=='rekorde') return h+'<div class="box">Dieser Pokal fehlt.</div>';
   if (view==='karte'){
     const states=cup&&cup.kind==='land'&&cup.bl?[cup.bl]:null;
     return h+viewMap((cup&&cup.name)||'Pokal', cupParticipantIds(cup), states, 'cup:'+(cup&&(cup.id||cup.bl)||key));
   }
+  if (view==='punkte' && cup && cup.kind==='land') return h+landPointsHTML(s, cup);
   if (view==='sieger') return h+viewCupWinners(s);
   if (view==='uebersicht') return h+viewCupOverview(s, cup);
   if (view==='rekorde') return h+viewCupRekorde(key);
@@ -3272,10 +3281,16 @@ function simulatedTitleRows(comp){
     if (comp==='bl'){
       const table=sea.endData && sea.endData.tables && sea.endData.tables.BL;
       const row=(table||[]).find(r=>r&&r.pl===1);
-      if (row && row.id) out.push({comp:'bl', year:start+1, original:TEAMS[row.id]?TEAMS[row.id].name:'', id:row.id, map:'simulation', note:''});
+      if (row && row.id) out.push({comp:'bl', year:start+1, season:sea.name, original:TEAMS[row.id]?TEAMS[row.id].name:'', id:row.id, map:'simulation', note:''});
     } else if (comp==='dfb'){
       const fin=sea.cups && cupFinalists(sea.cups.dfb);
-      if (fin && fin.winner) out.push({comp:'dfb', year:start+1, original:TEAMS[fin.winner]?TEAMS[fin.winner].name:'', id:fin.winner, map:'simulation', note:''});
+      if (fin && fin.winner){
+        const m=fin.match||{};
+        let score=m.hg==null?'':m.hg+':'+m.ag;
+        if (score && m.et && m.hg!==m.ag) score+=' n.V.';
+        if (score && m.peh!=null && m.pea!=null && +m.peh!==+m.pea) score+=' / '+m.peh+':'+m.pea+' i.E.';
+        out.push({comp:'dfb', year:start+1, season:sea.name, original:TEAMS[fin.winner]?TEAMS[fin.winner].name:'', id:fin.winner, finalist:fin.finalist, score, map:'simulation', note:''});
+      }
     }
   });
   return out;
@@ -3332,6 +3347,66 @@ function titleAudit(endYear){
   list.sort((a,b)=>b.delta-a.delta || a.name.localeCompare(b.name,'de'));
   return {end, season:(cur()&&cur().name)||'', list};
 }
+const LAND_LEVEL={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga',7:'Amateurliga'};
+function landPointsHTML(s, cup){
+  const scale=landScaleOf(s.name, cup.bl);
+  if (!scale || scale.missing) return '<div class="box"><h3>Wertung '+esc(cup.name||cup.bl)+'</h3><p class="muted">'+(scale&&scale.reason?esc(scale.reason):'Für diese Saison liegt keine Wertung vor.')+'</p></div>';
+  const rounds=scale.rounds||[];
+  const fin=rounds[rounds.length-1];
+  const finPts=fin?landRoundPoints(scale, fin):0;
+  const sum=ansehenRound2(finPts+(scale.title||0));
+  const levels=Object.keys(scale.byLevel||{}).map(k=>+k).sort((a,b)=>a-b);
+  let mix='<table class="tbl fit"><thead><tr><th class="l">Liga</th><th>Vereine</th><th>Gewicht je Verein</th></tr></thead><tbody>';
+  if (!levels.length) mix+='<tr><td class="l" colspan="3"><span class="muted">Die gespeicherte Skala dieser Saison nennt das Feld nicht mehr einzeln.</span></td></tr>';
+  levels.forEach(lv=>{
+    const n=scale.byLevel[lv];
+    const w=ANSEHEN.land.levelW[lv]!=null?ANSEHEN.land.levelW[lv]:ANSEHEN.land.unknownW;
+    mix+='<tr><td class="l">'+esc(LAND_LEVEL[lv]||('Stufe '+lv))+'</td>'+sortCell(n, n)+sortCell(w, ansehenPts(w))+'</tr>';
+  });
+  if (scale.unknown) mix+='<tr><td class="l">ohne Liga</td>'+sortCell(scale.unknown, scale.unknown)+sortCell(ANSEHEN.land.unknownW, ansehenPts(ANSEHEN.land.unknownW))+'</tr>';
+  mix+='</tbody></table>';
+  let roundsHtml='<table class="tbl fit"><thead><tr><th class="l">Erreichte Runde</th><th>Punkte</th></tr></thead><tbody>';
+  rounds.forEach(name=>{ roundsHtml+='<tr><td class="l">'+esc(name)+'</td>'+sortCell(landRoundPoints(scale, name), ansehenPts(landRoundPoints(scale, name)))+'</tr>'; });
+  roundsHtml+='<tr><td class="l">Titel, einmalig für den Sieger</td>'+sortCell(scale.title||0, ansehenPts(scale.title||0))+'</tr>';
+  roundsHtml+='<tr data-pin="1"><td class="l"><b>Sieger insgesamt</b></td>'+sortCell(sum, ansehenPts(sum))+'</tr>';
+  roundsHtml+='</tbody></table>';
+  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher, höchstens '+ansehenPts(ANSEHEN.land.capBudget)+'. Daraus folgt das Budget '+ansehenPts(scale.budget)+'. Der Titel ist 18 Prozent davon.</p>'+mix+roundsHtml+'</div>';
+}
+function rowSeason(r){
+  if (r.season) return r.season;
+  return titelSeason(r.comp, r.year);
+}
+function championRows(leftComps, rightComp){
+  const by={};
+  const put=(r, side)=>{
+    const row=by[r.year]||(by[r.year]={year:r.year, left:null, right:null});
+    row[side]=r;
+    by[r.year]=row;
+  };
+  leftComps.forEach(comp=>titleRowsFor(comp).forEach(r=>put(r,'left')));
+  if (rightComp) titleRowsFor(rightComp).forEach(r=>put(r,'right'));
+  return Object.keys(by).map(k=>by[k]).sort((a,b)=>b.year-a.year);
+}
+function resultBit(r){
+  if (!r || !r.finalist || !TEAMS[r.finalist]) return '';
+  return '<div class="muted">Finalist '+esc(TEAMS[r.finalist].name)+(r.score?' · '+esc(r.score):'')+'</div>';
+}
+function championBoardHTML(leftComps, rightComp, leftTitle, rightTitle){
+  const rows=championRows(leftComps, rightComp);
+  const heading=rightTitle?leftTitle+' · '+rightTitle:leftTitle;
+  let h='<div class="box"><h3>'+esc(heading)+'</h3><p class="muted">Ein Jahr ist eine Zeile. Links '+esc(leftTitle)+(rightTitle?', rechts '+esc(rightTitle)+' nur in den Jahren, in denen er ausgespielt wurde':'')+'. Der historische Name steht zuerst, der heutige Nachfolger dahinter.</p>';
+  if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
+  h+='<table class="tbl fit pair-board"><thead><tr><th>Jahr</th><th class="l">'+esc(leftTitle)+'</th>'+(rightTitle?'<th class="l">'+esc(rightTitle)+'</th>':'')+'</tr></thead><tbody>';
+  rows.forEach(row=>{
+    const season=row.left?rowSeason(row.left):(row.right?rowSeason(row.right):String(row.year));
+    const other=row.left&&row.right&&rowSeason(row.left)!==rowSeason(row.right)?rowSeason(row.right):'';
+    h+='<tr><td><b>'+esc(season)+'</b>'+(other?'<div class="muted">'+esc(other)+'</div>':'')+'</td><td class="l">'+(row.left?titleWinnerHTML(row.left)+resultBit(row.left):'<span class="muted">–</span>')+'</td>';
+    if (rightTitle) h+='<td class="l">'+(row.right?titleWinnerHTML(row.right):'<span class="muted">–</span>')+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
 function titleRegisterHTML(comp){
   const rows=titleRowsFor(comp).slice().sort((a,b)=>b.year-a.year);
   let h='<div class="box"><h3>'+esc(titelGroup(comp))+'</h3><p class="muted">Zuerst der Verein, der den Titel in diesem Jahr gewonnen hat. Dahinter steht der heutige Nachfolger, wenn er im Spiel ist. Fehlt er, bleibt nur der historische Name.</p>';
@@ -3354,11 +3429,7 @@ function viewCupWinners(){
     if (!rows.length) return '<div class="box"><h3>Sieger '+esc(key)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
     return '<div class="box sieger-box"><h3>Sieger '+esc(key)+'</h3>'+siegerHead()+rows.reverse().join('')+'</div>';
   }
-  const opts=[['dfb','DFB-Pokal'],['de','Deutsche Meister'],['bl','Bundesliga'],['ddr','DDR-Oberliga'],['fdgb','FDGB-Pokal']];
-  const list=opts.some(x=>x[0]===S.ui.titleList)?S.ui.titleList:'dfb';
-  S.ui.titleList=list;
-  const bar='<div class="toggle" data-toggle="titleList">'+opts.map(([k,n])=>'<button type="button" data-v="'+k+'" class="'+(list===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
-  return bar+titleRegisterHTML(list);
+  return championBoardHTML(['dfb'], 'fdgb', 'DFB-Pokal', 'FDGB-Pokal');
 }
 function touchDecide(lid, idx, fn){
   if (!isEditable()) return;
@@ -3426,8 +3497,148 @@ function maybeAutoFinal(season, cup){
   if (!roundComplete(cup.rounds[cup.rounds.length-2])) return false;
   return drawCupRound(season, cup, cup.rounds.length-1);
 }
+let navIndex=0, navMax=0, navMute=0, navReady=false;
+const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx'];
+function navVal(v){ return v===undefined?null:v; }
+function navState(){
+  const u=S.ui||{};
+  const o={view:S.view};
+  NAV_KEYS.forEach(k=>{ o[k]=navVal(u[k]); });
+  const mdKey=S.view+':'+(u.league||'');
+  o.md=u.md && u.md[mdKey]!=null ? u.md[mdKey] : null;
+  o.cupRound=navVal(u.cupRound);
+  const tbKey=S.view+':'+(u.league||'');
+  o.termBlock=u.termBlock && u.termBlock[tbKey]!=null ? u.termBlock[tbKey] : null;
+  return JSON.stringify(o);
+}
+function navNormalize(){
+  if (!S || !S.ui) return;
+  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
+  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
+  if (S.ui.tab==='ansehen') S.ui.ansehenSec=S.ui.ansehenSec==='liste'?'liste':'wertung';
+  if (S.ui.tab==='pokal'){
+    const s=cur();
+    try{ ensureCups(s); }catch(e){}
+    const land=s.cups && s.cups.land;
+    const key=S.ui.cup && (S.ui.cup==='dfb' || (land && land[S.ui.cup])) ? S.ui.cup : 'dfb';
+    S.ui.cup=key;
+    const cup=getCup(s, key);
+    if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+    if (S.ui.cupView==='punkte' && (!cup || cup.kind!=='land')) S.ui.cupView='spiele';
+    if (cup && cup.rounds && cup.rounds.length){
+      let ri=S.ui.cupRound;
+      if (ri==null || ri<0 || ri>=cup.rounds.length){
+        const open=cup.rounds.findIndex(r=>!roundComplete(r));
+        ri=open<0?cup.rounds.length-1:open;
+      }
+      S.ui.cupRound=ri;
+    }
+  }
+  if (S.ui.tab==='info'){
+    if (['historie','bilanz','gegner','vergleich','termin','erfolge','ansehen'].indexOf(S.ui.infoSec)<0) S.ui.infoSec='historie';
+    if (S.ui.infoSec==='historie' && ['liga','dfb','land'].indexOf(S.ui.infoHist)<0) S.ui.infoHist='liga';
+  }
+  const lid=S.ui.league;
+  if (S.ui.tab==='tabelle' && L[lid]){
+    const s=cur();
+    const lg=s.leagues && s.leagues[lid];
+    if (lg && lg.md){
+      if (!S.ui.md) S.ui.md={};
+      const key=S.view+':'+lid;
+      if (S.ui.md[key]==null) S.ui.md[key]=currentMd(s, lid);
+    }
+  }
+}
+function navApply(snap){
+  const o=JSON.parse(snap);
+  if (o.view!=null && S.seasons[o.view]) S.view=o.view;
+  NAV_KEYS.forEach(k=>{ if (k in o) S.ui[k]=o[k]; });
+  if (!S.ui.md) S.ui.md={};
+  const mdKey=S.view+':'+(S.ui.league||'');
+  if (o.md==null) delete S.ui.md[mdKey];
+  else S.ui.md[mdKey]=o.md;
+  S.ui.cupRound=o.cupRound;
+  if (!S.ui.termBlock) S.ui.termBlock={};
+  const tbKey=S.view+':'+(S.ui.league||'');
+  if (o.termBlock==null) delete S.ui.termBlock[tbKey];
+  else S.ui.termBlock[tbKey]=o.termBlock;
+}
+function navRemember(){
+  if (!navReady || !S || !S.ui) return;
+  const snap=navState();
+  const cur=history.state;
+  if (navMute){
+    if (cur && typeof cur.fr==='string' && cur.fr!==snap && cur.i===navIndex) history.replaceState({fr:snap, i:navIndex, y:cur.y||0}, '', location.href);
+    return;
+  }
+  if (cur && cur.fr===snap) return;
+  if (cur && cur.fr && cur.i===navIndex) history.replaceState({fr:cur.fr, i:cur.i, y:window.scrollY||0}, '', location.href);
+  navIndex++;
+  navMax=navIndex;
+  history.pushState({fr:snap, i:navIndex, y:window.scrollY||0}, '', location.href);
+  navPaint();
+}
+function navInstall(){
+  if (!S || !S.ui) return;
+  const snap=navState();
+  const prev=history.state;
+  const i=prev && typeof prev.i==='number' ? prev.i : 0;
+  navIndex=i;
+  navMax=i;
+  try{ history.scrollRestoration='manual'; }catch(e){}
+  history.replaceState({fr:snap, i, y:0}, '', location.href);
+  navReady=true;
+  navPaint();
+}
+function navGo(dir){
+  if (dir<0 && navIndex<=0) return;
+  if (dir>0 && navIndex>=navMax) return;
+  const cur=history.state;
+  if (cur && cur.fr && cur.i===navIndex) history.replaceState({fr:cur.fr, i:cur.i, y:window.scrollY||0}, '', location.href);
+  if (dir<0) history.back();
+  else history.forward();
+}
+function navPaint(){
+  const back=document.getElementById('navBack');
+  const fwd=document.getElementById('navFwd');
+  if (back){ back.disabled=navIndex<=0; back.title=navIndex<=0?'Kein Schritt zurück':'Zurück'; }
+  if (fwd){ fwd.disabled=navIndex>=navMax; fwd.title=fwd.disabled?'Kein Schritt vor':'Vorwärts'; }
+}
+window.addEventListener('popstate', ev=>{
+  const st=ev.state;
+  if (!st || typeof st.i!=='number' || typeof st.fr!=='string') return;
+  navIndex=st.i;
+  if (st.i>navMax) navMax=st.i;
+  navMute++;
+  try{
+    navApply(st.fr);
+    render();
+    window.scrollTo(0, st.y||0);
+  }finally{
+    navMute--;
+  }
+  navPaint();
+});
+let navScrollTick=0;
+window.addEventListener('scroll', ()=>{
+  if (navScrollTick || !navReady || navMute) return;
+  navScrollTick=1;
+  requestAnimationFrame(()=>{
+    navScrollTick=0;
+    const cur=history.state;
+    if (!cur || cur.fr==null || cur.i!==navIndex) return;
+    const y=window.scrollY||0;
+    if (cur.y===y) return;
+    history.replaceState({fr:cur.fr, i:cur.i, y}, '', location.href);
+  });
+}, {passive:true});
 function render(){
   try{ if (S && isEditable()) repairOpenReturns(cur()); }catch(e){}
+  navNormalize();
+  try{ renderMain(); }
+  finally{ navRemember(); }
+}
+function renderMain(){
   if (S.ui.tab==='abschluss') S.ui.tab='aufab';
   if (S.ui.tab==='derbys') S.ui.tab='tabelle';
   renderMigrate();
@@ -3866,7 +4077,7 @@ function viewCupRekorde(key){
 function viewHistorie(lid){
   const done=S.seasons.filter(s=>s.endData&&s.endData.tables);
   let h='';
-  if (lid==='BL') h+=titleRegisterHTML('de')+titleRegisterHTML('bl');
+  if (lid==='BL') h+=championBoardHTML(['bl','de'], 'ddr', 'Bundesliga und deutsche Meisterschaft', 'DDR-Meister');
   h+='<div class="box"><h3>Saisons der '+esc(L[lid].name)+'</h3>';
   if (!done.length) h+='<p class="muted">Noch keine abgeschlossene Saison. Nach dem ersten Saisonabschluss stehen hier Meister, Aufsteiger und Absteiger.</p>';
   else {
@@ -7121,7 +7332,16 @@ document.addEventListener('input', ev=>{
 });
 document.addEventListener('keydown', ev=>{
   if (ev.key==='Escape'){ $('#modal').classList.add('hidden'); document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open')); }
+  const typing=ev.target && ev.target.closest && ev.target.closest('input,textarea,select');
+  if (!typing && ev.altKey && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && (ev.key==='ArrowLeft' || ev.key==='ArrowRight')){
+    ev.preventDefault();
+    navGo(ev.key==='ArrowLeft'?-1:1);
+  }
 });
+const navBackBtn=document.getElementById('navBack');
+const navFwdBtn=document.getElementById('navFwd');
+if (navBackBtn) navBackBtn.addEventListener('click', ()=>navGo(-1));
+if (navFwdBtn) navFwdBtn.addEventListener('click', ()=>navGo(1));
 $('#modalClose').onclick=()=>$('#modal').classList.add('hidden');
 $('#modal').addEventListener('click', ev=>{ if (ev.target.id==='modal') $('#modal').classList.add('hidden'); });
 $('#btnExport').onclick=()=>{
@@ -7155,6 +7375,7 @@ function adopt(data, empty){
   migrateArchive();
   recomputePokalPoints();
   save(); render();
+  navInstall();
 }
 function readBright(){
   let n=100;
@@ -7378,7 +7599,12 @@ function simulateIsolated(n, seed, hold){
   return report;
 }
 function uiSelfTest(){
+  const navMuteWas=navMute; navMute++;
   const fails=[];
+  try{ return uiSelfTestBody(fails); }
+  finally{ navMute=navMuteWas; try{ navPaint(); }catch(e){} }
+}
+function uiSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   const matches=[
     {md:0,h:'t001',a:'t002',hg:1,ag:0},
@@ -7680,8 +7906,229 @@ function uiSelfTest(){
   renderAmateur();
   check('Amateurstaffel-Karte', !!document.querySelector('#view .de-map') || (document.querySelector('#view')||{}).textContent.indexOf('keine Vereine')>=0);
   S.ui.scView=scWas; S.ui.tab=tabWas; S.ui.league=leagueWas; S.ui.amateurView=amWas;
+  const sea=cur();
+  const idsAt=(level, n)=>{
+    const out=[];
+    const take=list=>{ (list||[]).forEach(id=>{
+      if (out.length>=n || !TEAMS[id]) return;
+      const lid=clubLeagueId(sea, id);
+      const lv=L[lid]?L[lid].level:(lid?7:null);
+      if (lv===level) out.push(id);
+    }); };
+    Object.keys(sea.leagues||{}).forEach(lid=>take(sea.leagues[lid].teams));
+    Object.keys(sea.pools||{}).forEach(pid=>take(sea.pools[pid]));
+    return out;
+  };
+  const rounds=['1. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'];
+  const mixed=idsAt(3,6).concat(idsAt(5,8), idsAt(7,10));
+  const small=idsAt(6,4).concat(idsAt(7,4));
+  const bigS=landAnsehenScale(mixed, sea, rounds);
+  const smallS=landAnsehenScale(small, sea, rounds);
+  const shortS=landAnsehenScale(mixed, sea, ['Finale']);
+  check('anderes Feld und andere Ligaverteilung ändern die Punkte', mixed.length>small.length && bigS.budget>smallS.budget && bigS.field>smallS.field && Object.keys(bigS.byLevel).length>=2);
+  check('weniger Runden senken das Budget derselben Mannschaften', shortS.budget<bigS.budget);
+  check('ein Freilos ist keine Extra-Runde', landRoundPoints(bigS, 'Freilos')===0);
+  const summed=ansehenRound2(rounds.reduce((a,name)=>a+landRoundPoints(bigS, name),0));
+  check('die Finalpunkte sind nicht die Summe aller Runden', landRoundPoints(bigS, 'Finale')>0 && landRoundPoints(bigS, 'Finale')<summed);
+  const ghost={name:'2099/00', cups:{land:{Saarland:{bl:'Saarland', kind:'land', name:'Saarlandpokal', ansehenScale:Object.assign({}, bigS), entrants:mixed.slice()}}}};
+  S.seasons.push(ghost);
+  const storedScale=landScaleOf('2099/00','Saarland');
+  const punkte=landPointsHTML(ghost, ghost.cups.land.Saarland);
+  S.seasons.pop();
+  const finPts=landRoundPoints(storedScale, 'Finale');
+  const sieger=ansehenRound2(finPts+(storedScale.title||0));
+  check('die angezeigte Wertung ist die gespeicherte Skala', storedScale.budget===bigS.budget && punkte.indexOf(ansehenPts(finPts))>=0 && punkte.indexOf(ansehenPts(sieger))>=0 && punkte.indexOf('nicht die Summe')>=0 && punkte.indexOf('3. Liga')>=0);
+  if (landCup && landCup.bl){
+    const prevScale=landCup.ansehenScale;
+    const live=landScaleOf(sea.name, landCup.bl);
+    const liveHtml=viewPokal(sea, landCup, 'punkte');
+    if (prevScale) landCup.ansehenScale=prevScale; else delete landCup.ansehenScale;
+    if (!live.missing && live.rounds && live.rounds.length){
+      const liveFin=landRoundPoints(live, live.rounds[live.rounds.length-1]);
+      check('offener Landespokal zeigt die Ledger-Skala', liveHtml.indexOf('data-v="punkte"')>=0 && liveHtml.indexOf(ansehenPts(live.budget))>=0 && liveHtml.indexOf(ansehenPts(ansehenRound2(liveFin+(live.title||0))))>=0);
+    } else check('fehlendes Feld wird nicht erfunden', liveHtml.indexOf('nicht')>=0);
+  }
+  const master=championRows(['bl','de'],'ddr');
+  const y1963=master.find(r=>r.year===1963);
+  const y1955=master.find(r=>r.year===1955);
+  const y1903=master.find(r=>r.year===1903);
+  check('1963 steht Dortmund neben Jena', !!(y1963 && y1963.left && y1963.left.original.indexOf('Dortmund')>=0 && y1963.right && y1963.right.original.indexOf('Jena')>=0));
+  check('1955 ist Essen und Erfurt, ohne Übergangsrunde', !!(y1955 && y1955.left && y1955.left.original.indexOf('Essen')>=0 && y1955.right && y1955.right.original==='SC Turbine Erfurt'));
+  check('1903 hat keinen DDR-Meister daneben', !!(y1903 && y1903.left && !y1903.right));
+  check('1945 ist kein Meisterjahr', !master.some(r=>r.year===1945 || r.year===1904 || r.year===1922));
+  const board=championBoardHTML(['bl','de'],'ddr','Bundesliga und deutsche Meisterschaft','DDR-Meister');
+  check('1961/62 steht in der Meisterliste', board.indexOf('1961/62')>=0 && board.indexOf('DDR-Meister')>=0);
+  const cups=championRows(['dfb'],'fdgb');
+  const y1957=cups.find(r=>r.year===1957);
+  const histDfb=cups.filter(r=>r.left && r.left.map!=='simulation' && r.left.year<=1943);
+  check('1957 steht Lok neben dem DFB-Jahr', !!(y1957 && y1957.right && y1957.right.id==='t084' && y1957.right.original==='SC Lokomotive Leipzig'));
+  check('historische DFB-Jahre erfinden kein Finale', histDfb.length>0 && histDfb.every(r=>!r.left.finalist && !r.left.score));
+  const hist=historicalTitleRows();
+  const keys={};
+  let dupKey=false;
+  hist.forEach(r=>{ const k=r.comp+'|'+r.year; if (keys[k]) dupKey=true; keys[k]=1; });
+  const badId=hist.filter(r=>r.id && !TEAMS[r.id]);
+  const openId=hist.filter(r=>!r.id);
+  check('278 Titel, jede ID gültig, fehlende Vereine leer', hist.length===278 && !dupKey && !badId.length && openId.length===7);
+  check('1957 geht nicht an Chemie', !hist.some(r=>r.comp==='fdgb' && r.year===1957 && r.id==='t139'));
+  const kiel=hist.find(r=>r.comp==='de' && r.year===1912);
+  const dessau=hist.find(r=>r.comp==='fdgb' && r.year===1949);
+  const thale=hist.find(r=>r.comp==='fdgb' && r.year===1950);
+  const dresdenLiga=hist.find(r=>r.comp==='ddr' && r.year===1990);
+  const dresdenPokal=hist.find(r=>r.comp==='fdgb' && r.year===1990);
+  const erfurt=hist.find(r=>r.comp==='ddr' && r.year===1954);
+  const vorwaerts=hist.find(r=>r.comp==='fdgb' && r.year===1954);
+  check('1912 heißt FV Holstein Kiel und bleibt Holstein', !!(kiel && kiel.original==='FV Holstein Kiel' && kiel.id==='t039' && kiel.map==='supported_merger'));
+  check('1949 heißt Waggonfabrik und bleibt Dessau', !!(dessau && dessau.original==='BSG Waggonfabrik Dessau' && dessau.id==='t497' && dessau.note.indexOf('Waggonbau')>=0));
+  check('1950 behält den Listennamen und Stahl Thale', !!(thale && thale.original==='BSG EHW Thale' && thale.id==='t552'));
+  check('1990 trennt SG und 1. FC Dynamo Dresden', !!(dresdenLiga && dresdenLiga.original==='SG Dynamo Dresden' && dresdenPokal && dresdenPokal.original==='1. FC Dynamo Dresden' && dresdenLiga.id==='t037' && dresdenPokal.id==='t037'));
+  check('1954 bleibt BSG Turbine Erfurt und ZSK Vorwärts', !!(erfurt && erfurt.original==='BSG Turbine Erfurt' && erfurt.id==='t053' && vorwaerts && vorwaerts.original==='ZSK Vorwärts Berlin' && vorwaerts.id==='t492'));
+  const uiWas=JSON.parse(JSON.stringify(S.ui)), viewWas=S.view;
+  const len0=history.length, i0=navIndex;
+  const match=cur().leagues.BL && cur().leagues.BL.md && cur().leagues.BL.md[0] && cur().leagues.BL.md[0][0];
+  const scoreSnap=match?match.slice():null;
+  S.ui.tab='abschluss';
+  S.ui.cup='kein-pokal';
+  S.ui.cupView='punkte';
+  render();
+  check('alte Reiter werden vor dem Verlauf normalisiert', S.ui.tab==='aufab' && history.length===len0 && navIndex===i0);
+  render();
+  check('ein zweiter Render nach der Normalisierung bleibt stehen', history.length===len0 && navIndex===i0);
+  S.ui.tab='derbys';
+  render();
+  check('Derbys landen auf der Tabelle', S.ui.tab==='tabelle' && history.length===len0);
+  S.ui.tab='pokal';
+  render();
+  check('ungültige Wertung wird Spielplan, ohne neuen Verlauf', S.ui.cup==='dfb' && S.ui.cupView==='spiele' && history.length===len0 && navIndex===i0);
+  const pokalSnap=navState();
+  render();
+  check('der normalisierte Pokal bleibt beim nächsten Render gleich', navState()===pokalSnap && history.length===len0);
+  if (match){ match[2]=match[2]==null?1:match[2]+1; render(); }
+  check('ein Tor erzeugt keinen Verlaufseintrag', history.length===len0 && navIndex===i0);
+  if (match && scoreSnap){ match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; render(); }
+  check('null bleibt null', JSON.parse(navState()).ansehenId===null || S.ui.ansehenId!=null);
+  const idKeep=S.ui.ansehenId;
+  S.ui.ansehenId=null;
+  const nullSnap=navState();
+  S.ui.ansehenId='t001';
+  navApply(nullSnap);
+  check('eine leere Vereinswahl wird nicht zum Text', S.ui.ansehenId===null && JSON.parse(nullSnap).ansehenId===null);
+  S.ui.ansehenLiga='BL2'; S.ui.ansehenBl='Bayern'; S.ui.allPools=true; S.ui.infoOpp='t002';
+  const filterSnap=navState();
+  S.ui.ansehenLiga=null; S.ui.ansehenBl=null; S.ui.allPools=false; S.ui.infoOpp=null;
+  navApply(filterSnap);
+  check('Ligafilter, Landesfilter und Vergleich bleiben erhalten', S.ui.ansehenLiga==='BL2' && S.ui.ansehenBl==='Bayern' && S.ui.allPools===true && S.ui.infoOpp==='t002');
+  S.ui.ansehenId=idKeep;
+  let probe=navMute, thrown=false;
+  try{ navMute++; throw new Error('nav'); }
+  catch(e){ thrown=true; }
+  finally{ navMute--; }
+  check('eine Testausnahme gibt die Aufzeichnung zurück', thrown && navMute===probe);
+  Object.keys(S.ui).forEach(k=>{ if (!(k in uiWas)) delete S.ui[k]; });
+  Object.assign(S.ui, uiWas);
+  S.view=viewWas;
+  if (match && scoreSnap){ match[0]=scoreSnap[0]; match[1]=scoreSnap[1]; match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; }
   render();
   return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name), sizes, regionBad};
+}
+function navWaitPop(){
+  return new Promise(resolve=>{
+    const timer=setTimeout(()=>resolve('timeout'), 1200);
+    const fn=()=>{ clearTimeout(timer); window.removeEventListener('popstate', fn); resolve('pop'); };
+    window.addEventListener('popstate', fn);
+  });
+}
+async function navEventSelfTest(){
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  const savedState=history.state;
+  const savedUI=JSON.parse(JSON.stringify(S.ui));
+  const savedView=S.view;
+  const savedIndex=navIndex, savedMax=navMax;
+  const match=cur().leagues.BL && cur().leagues.BL.md && cur().leagues.BL.md[0] && cur().leagues.BL.md[0][0];
+  const score=match?match.slice():null;
+  const baseIndex=navIndex;
+  let guard=null;
+  try{
+    navMute=0;
+    S.ui.league='BL';
+    S.ui.tab='tabelle';
+    S.ui.ansehenId=null;
+    render();
+    S.ui.tab='historie';
+    render();
+    S.ui.tab='ansehen';
+    S.ui.ansehenSec='liste';
+    S.ui.ansehenLiga='BL';
+    S.ui.ansehenBl='Bayern';
+    S.ui.ansehenId=null;
+    render();
+    const atList=navIndex;
+    check('drei Ansichten liegen im Browserverlauf', atList>=baseIndex+2 && history.state && history.state.fr && JSON.parse(history.state.fr).tab==='ansehen' && JSON.parse(history.state.fr).ansehenLiga==='BL');
+    let pop=navWaitPop();
+    document.getElementById('navBack').click();
+    check('der App-Pfeil löst genau einen Browser-Zurück aus', await pop==='pop' && S.ui.tab==='historie' && navIndex===atList-1);
+    pop=navWaitPop();
+    history.back();
+    check('natives Zurück geht eine Ansicht zurück', await pop==='pop' && S.ui.tab==='tabelle' && navIndex===atList-2);
+    const lenAtTable=history.length;
+    const iAtTable=navIndex;
+    check('Vorwärts ist nach dem Zurück offen', !document.getElementById('navFwd').disabled);
+    if (match) match[2]=match[2]==null?1:match[2]+1;
+    render();
+    check('ein Tor löscht den Vorwärtspfad nicht', navIndex===iAtTable && history.length===lenAtTable && !document.getElementById('navFwd').disabled);
+    if (match && score) check('das Tor bleibt der Spielstand und kein Verlauf', match[2]===(score[2]==null?1:score[2]+1));
+    pop=navWaitPop();
+    document.getElementById('navFwd').click();
+    check('Vorwärts nach dem Tor öffnet die Historie', await pop==='pop' && S.ui.tab==='historie' && navIndex===iAtTable+1);
+    const beforeKey=navIndex;
+    pop=navWaitPop();
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft', altKey:true, bubbles:true}));
+    await pop;
+    await new Promise(r=>setTimeout(r,80));
+    check('Alt+Links geht genau einen Schritt', navIndex===beforeKey-1 && S.ui.tab==='tabelle');
+    pop=navWaitPop();
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight', altKey:true, bubbles:true}));
+    check('Alt+Rechts geht genau einen Schritt', await pop==='pop' && navIndex===beforeKey && S.ui.tab==='historie');
+    pop=navWaitPop();
+    history.forward();
+    check('natives Vorwärts öffnet Ansehen mit dem Filter', await pop==='pop' && S.ui.tab==='ansehen' && S.ui.ansehenLiga==='BL' && S.ui.ansehenBl==='Bayern' && S.ui.ansehenId===null);
+    S.ui.infoId='t001';
+    S.ui.tab='info';
+    render();
+    check('eine neue Ansicht schneidet Vorwärts ab', document.getElementById('navFwd').disabled && navIndex===navMax && S.ui.tab==='info' && S.ui.infoId==='t001');
+    const realBack=history.back;
+    let calls=0;
+    history.back=()=>{ calls++; };
+    const held=navIndex;
+    navIndex=0;
+    navPaint();
+    document.getElementById('navBack').click();
+    check('der App-Pfeil am Anfang verlässt die App nicht', calls===0 && document.getElementById('navBack').disabled);
+    history.back=realBack;
+    navIndex=held;
+    navPaint();
+    guard={calls};
+  }finally{
+    if (match && score){ match[0]=score[0]; match[1]=score[1]; match[2]=score[2]; match[3]=score[3]; }
+    const backBy=Math.max(0, navIndex-baseIndex);
+    if (backBy){
+      const pop=navWaitPop();
+      history.go(-backBy);
+      await pop;
+    }
+    navMute++;
+    S.view=savedView;
+    Object.keys(S.ui).forEach(k=>{ if (!(k in savedUI)) delete S.ui[k]; });
+    Object.assign(S.ui, savedUI);
+    render();
+    navMute--;
+    navIndex=savedIndex;
+    navMax=savedMax;
+    if (savedState) history.replaceState(savedState, '', location.href);
+    navPaint();
+  }
+  return {ok:!fails.length, fails, guard};
 }
 applyBright(readBright(), false);
 const brightEl=document.getElementById('brightRange');
@@ -7702,5 +8149,5 @@ function boot(){
 boot();
 
 // Für Tests/Debugging
-window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();

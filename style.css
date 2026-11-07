@@ -5,7 +5,12 @@
 body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;font-size:13px;color:var(--text);background:var(--bg);line-height:1.4}
 #app{display:flex;flex-direction:column;min-height:100vh}
 #topbar{position:sticky;top:0;z-index:30;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid var(--line);min-height:42px}
-.brand{display:flex;align-items:center;font-weight:650;font-size:15px;letter-spacing:-.02em;padding:0 16px;color:var(--ink);white-space:nowrap}
+.brand{display:flex;align-items:center;gap:8px;font-weight:650;font-size:15px;letter-spacing:-.02em;padding:0 16px;color:var(--ink);white-space:nowrap}
+.nav-hist{display:inline-flex;gap:2px}
+.nav-arrow{width:26px;height:26px;padding:0;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:18px;line-height:1;cursor:pointer}
+.nav-arrow:disabled{opacity:.35;cursor:default}
+.pair-board td{vertical-align:middle}
+.pair-board .muted{display:block}
 .topnav{display:flex;align-items:stretch;flex:1;min-width:0}
 .nav-menu,.top-tools{position:relative;display:flex;align-items:stretch}
 .nav-menu-btn{border:0;border-bottom:2px solid transparent;background:transparent;padding:0 12px;cursor:pointer;color:#5c6570;font-size:12.5px;white-space:nowrap}
