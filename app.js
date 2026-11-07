@@ -5779,7 +5779,7 @@ function assignMatchday(season, lid, mi, snap, counts){
     };
     if (score(true)<score(false)){ const tmp=row[frTop]; row[frTop]=row[saTop]; row[saTop]=tmp; }
   }
-  forceOpenTimes(row, md, lg.teams, counts, mi, total, lid);
+  forceOpenTimes(row, md, lg.teams, counts, mi, total, lid, season);
   row.forEach((slot,i)=>{
     if (!slot) return;
     const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
@@ -6191,6 +6191,7 @@ function reserveTightClubs(season, lid, from, to, snap){
           const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
           if (donors.some(id=> (need-(c[id]-1)-closing) > regular.length)) return;
           if (!swapKeepsTimes(season, lid, mi, to, i, j)) return;
+          if (!conferenceSwapOk(season, lid, to, c, donors, ids)) return;
           const score=val(mi,j)-val(mi,i);
           if (!best || score>best.score) best={mi,i,j,score};
         });
@@ -6249,7 +6250,7 @@ function topCanTakeConference(season, lid, to, donorIds){
     lg.md[d].forEach(m=>{ if (set.has(lg.teams[m[0]]) || set.has(lg.teams[m[1]])) matches++; });
     if (matches>konf) return false;
   }
-  return true;
+  return sharedConferenceOk(season, lid, to, c);
 }
 function liftConferenceTops(season, lid, from, to, snap){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
@@ -6395,6 +6396,7 @@ function repairBlockConference(season, lid, from, to, snap){
           const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
           if (donors.some(id=>c[id]-1+future<need)) return;
           if (!swapKeepsTimes(season, lid, mi, to, i, j)) return;
+          if (!conferenceSwapOk(season, lid, to, c, donors, ids)) return;
           const score=val(mi,j)-val(mi,i);
           if (!best || score>best.score) best={mi,i,j,score};
         });
@@ -6406,7 +6408,7 @@ function repairBlockConference(season, lid, from, to, snap){
   }
   return false;
 }
-function forceOpenTimes(row, md, teams, counts, mi, total, lid){
+function forceOpenTimes(row, md, teams, counts, mi, total, lid, season){
   if (!row || mi>=total-2) return;
   const left=total-2-mi;
   const times=templateTimes(lid);
@@ -6441,6 +6443,7 @@ function forceOpenTimes(row, md, teams, counts, mi, total, lid){
       return false;
     })) return;
     const tmp=row[mine]; row[mine]=row[donor]; row[donor]=tmp;
+    if (!rowConferenceOk(season, lid, mi, teams, counts, md, row)){ const back=row[mine]; row[mine]=row[donor]; row[donor]=back; }
   });
   times.forEach(spec=>{
     if (!(zeroOf[spec.key]>left-1)) return;
@@ -6460,24 +6463,109 @@ function forceOpenTimes(row, md, teams, counts, mi, total, lid){
       }
       if (donor<0) break;
       const tmp=row[needy]; row[needy]=row[donor]; row[donor]=tmp;
+      if (!rowConferenceOk(season, lid, mi, teams, counts, md, row)){ const back=row[needy]; row[needy]=row[donor]; row[donor]=back; break; }
     }
   });
 }
+// Exakte Rest-Machbarkeit der Konferenzquote. Schlusstermine sind für alle Konferenz.
+// An jedem offenen regulären Spieltag hat jeder Verein genau eine feste Begegnung;
+// ein Konferenzplatz deckt beide Vereine. Reicht die Platzzahl schon ohne dieses
+// Teilen, ist der Rest machbar. Sonst sucht die Funktion die Belegungen vollständig.
+// Zeitlücken prüft blockObligations nur als notwendige Platzzahl, nicht als Paarungsbeweis.
 function sharedConferenceOk(season, lid, to, conf){
   const lg=season.leagues[lid], total=lg.md.length;
   const need=Math.ceil(total/2);
   const konfPer=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
   const regular=[]; let closing=0;
   for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closing++; else regular.push(d); }
+  const extras=lg.teams.map(id=>{ const e=need-(conf[id]||0)-closing; return e>0?e:0; });
+  if (extras.some(e=>e>regular.length)) return false;
   if (!regular.length) return true;
-  const must=lg.teams.filter(id=> (need-(conf[id]||0)-closing)>0 && (need-(conf[id]||0)-closing)>=regular.length);
-  const set=new Set(must);
-  for (const d of regular){
-    let matches=0;
-    lg.md[d].forEach(m=>{ if (set.has(lg.teams[m[0]]) || set.has(lg.teams[m[1]])) matches++; });
-    if (matches>konfPer) return false;
+  const days=regular.map(d=>lg.md[d].map(m=>[m[0], m[1]]));
+  const left0=days.length;
+  let demand0=0;
+  for (let i=0;i<extras.length;i++) demand0+=extras[i];
+  if (demand0>2*konfPer*left0) return false;
+  if (demand0<=konfPer*left0) return true;
+  const memo=new Map();
+  function key(di){
+    let s=di+'|';
+    for (let i=0;i<extras.length;i++) if (extras[i]>0) s+=i+':'+extras[i]+',';
+    return s;
   }
-  return true;
+  function search(di){
+    const left=days.length-di;
+    let demand=0;
+    for (let i=0;i<extras.length;i++){
+      if (extras[i]>left) return false;
+      if (extras[i]>0) demand+=extras[i];
+    }
+    if (!demand) return true;
+    if (demand>2*konfPer*left) return false;
+    if (demand<=konfPer*left) return true;
+    const sig=key(di);
+    if (memo.has(sig)) return memo.get(sig);
+    const pairs=days[di];
+    const forced=[], optional=[];
+    for (let i=0;i<pairs.length;i++){
+      const ea=extras[pairs[i][0]]||0, eb=extras[pairs[i][1]]||0;
+      if (ea>=left || eb>=left) forced.push(i);
+      else if (ea>0 || eb>0) optional.push(i);
+    }
+    if (forced.length>konfPer){ memo.set(sig,false); return false; }
+    const budget=konfPer-forced.length;
+    const touch=[];
+    function decList(list){
+      for (const i of list) for (const id of pairs[i]) if (extras[id]>0){ extras[id]--; touch.push(id); }
+    }
+    function undo(n){ while (touch.length>n) extras[touch.pop()]++; }
+    decList(forced);
+    let ok=false;
+    if (optional.length<=budget){
+      decList(optional);
+      ok=search(di+1);
+    } else {
+      optional.sort((i,j)=>((extras[pairs[j][0]]||0)+(extras[pairs[j][1]]||0))-((extras[pairs[i][0]]||0)+(extras[pairs[i][1]]||0)));
+      const mark=touch.length;
+      decList(optional.slice(0, budget));
+      if (search(di+1)) ok=true;
+      else {
+        undo(mark);
+        ok=combine(0, budget);
+      }
+    }
+    undo(0);
+    memo.set(sig, ok);
+    return ok;
+    function combine(start, needPick){
+      if (!needPick) return search(di+1);
+      if (optional.length-start<needPick) return false;
+      for (let i=start;i<=optional.length-needPick;i++){
+        const mark=touch.length;
+        decList([optional[i]]);
+        if (combine(i+1, needPick-1)){ undo(mark); return true; }
+        undo(mark);
+      }
+      return false;
+    }
+  }
+  return search(0);
+}
+function conferenceSwapOk(season, lid, to, conf, loseIds, gainIds){
+  const next=Object.assign({}, conf);
+  loseIds.forEach(id=>{ next[id]=(next[id]||0)-1; });
+  (gainIds||[]).forEach(id=>{ next[id]=(next[id]||0)+1; });
+  return sharedConferenceOk(season, lid, to, next);
+}
+function rowConferenceOk(season, lid, mi, teams, counts, md, row){
+  const conf={};
+  teams.forEach(id=>{ conf[id]=(counts[id]&&counts[id].konferenz)||0; });
+  row.forEach((slot,i)=>{
+    if (!slot || slot.kind!=='konferenz' || !md[i]) return;
+    conf[teams[md[i][0]]]=(conf[teams[md[i][0]]]||0)+1;
+    conf[teams[md[i][1]]]=(conf[teams[md[i][1]]]||0)+1;
+  });
+  return sharedConferenceOk(season, lid, mi, conf);
 }
 function blockObligations(season, lid, to){
   const lg=season.leagues[lid], total=lg.md.length, bag=season.kickoffs&&season.kickoffs[lid]||{};
@@ -6512,13 +6600,6 @@ function blockObligations(season, lid, to){
   });
   if (timeGap) return {ok:false, reason:'zeit '+timeGap};
   return {ok:true};
-}
-function releaseIfImpossible(season, lid, from, to){
-  const held=blockObligations(season, lid, to);
-  if (held.ok) return true;
-  const bag=season.kickoffs&&season.kickoffs[lid];
-  if (bag) for (let mi=from; mi<=to; mi++) delete bag[mi];
-  return false;
 }
 function coverSlotGaps(season, lid, from, to){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
@@ -6612,25 +6693,36 @@ function scheduleNextBlock(season, lid){
   const exact=false;
   let repairOk=true;
   let dropBlock=false;
+  const cloneRows=()=>{
+    const out={};
+    for (let mi=range[0]; mi<=range[1]; mi++) out[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
+    return out;
+  };
+  const restoreRows=(saved)=>{
+    for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(saved[mi]||[]).map(s=>Object.assign({}, s));
+  };
   if (exact && range[0]>=half) settleExactBlock(season, lid, range[0], range[1]);
   else if (konfPer && !exact){
+    const raw=cloneRows();
     nudgeNonExactBlock(season, lid, range[0], range[1], snap);
-    const confOk=repairBlockConference(season, lid, range[0], range[1], snap) && reserveTightClubs(season, lid, range[0], range[1], snap);
-    const pre={};
-    for (let mi=range[0]; mi<=range[1]; mi++) pre[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
-    const covered=coverSlotGaps(season, lid, range[0], range[1])!==false;
+    repairBlockConference(season, lid, range[0], range[1], snap);
+    reserveTightClubs(season, lid, range[0], range[1], snap);
+    const pre=cloneRows();
+    coverSlotGaps(season, lid, range[0], range[1]);
     raiseTops(season, lid, range[0], range[1], snap);
     liftConferenceTops(season, lid, range[0], range[1], snap);
     balanceFrSaBlock(season, lid, range[0], range[1], snap);
     let held=blockObligations(season, lid, range[1]);
-    let restored=false;
     if (!held.ok){
-      for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=pre[mi].map(s=>Object.assign({}, s));
+      restoreRows(pre);
       held=blockObligations(season, lid, range[1]);
-      restored=true;
-      if (!held.ok) dropBlock=true;
+      if (!held.ok){
+        restoreRows(raw);
+        held=blockObligations(season, lid, range[1]);
+        if (!held.ok) dropBlock=true;
+      }
     }
-    repairOk=confOk && held.ok && !dropBlock && (restored || covered);
+    repairOk=held.ok && !dropBlock;
   }
   if (dropBlock){
     for (let mi=range[0]; mi<=range[1]; mi++) delete bag[mi];
@@ -11204,10 +11296,93 @@ function terminSelfTest(){
     const broken=bag[34][6]; bag[34][6]=bag[34][7]; bag[34][7]=broken;
     const heldBroken=blockObligations(season, 'BL', 34);
     check('Sieben Pflichtspiele auf sechs Konferenzplätze sind unzulässig', heldBroken.ok===false && heldBroken.reason==='kapazitaet', JSON.stringify(heldBroken));
-    const kept33=JSON.stringify(bag[33]);
-    const released=releaseIfImpossible(season, 'BL', 34, 34);
-    check('Unmöglicher Block wird nicht festgeschrieben', released===false && !bag[34] && JSON.stringify(bag[33])===kept33);
     report.targeted.kapazitaet={before, after, covered, heldBroken};
+  })();
+  (()=>{
+    const teams=squad.leagues.BL.slice();
+    const md=[];
+    const pairDay=(confList)=>{
+      const conf=confList.slice(), rest=[], mark={};
+      conf.forEach(i=>{ mark[i]=1; });
+      for (let i=0;i<20;i++) if (!mark[i]) rest.push(i);
+      const matches=[], isConf=[];
+      while (conf.length){ matches.push([conf.pop(), conf.pop()]); isConf.push(true); }
+      while (rest.length){ matches.push([rest.pop(), rest.pop()]); isConf.push(false); }
+      return {matches, isConf};
+    };
+    const days=[];
+    const add=(list)=>{ days.push(pairDay(list)); };
+    const six=[0,1,2,3,4,5];
+    const fromTo=(a,b)=>{ const s=[]; for (let i=a;i<=b;i++) s.push(i); return s; };
+    add(six.concat([7,8]));
+    add(six.concat([9,10]));
+    add(six.concat([8,11]));
+    for (let d=3;d<=11;d++) add(six.slice());
+    add(fromTo(8,19));
+    add([7].concat(fromTo(9,19)));
+    add([7,8].concat(fromTo(10,19)));
+    for (let d=15;d<=30;d++) add(fromTo(6,19));
+    for (let d=0;d<38;d++){
+      if (d<=30) md.push(days[d].matches.map(p=>[p[0], p[1], null, null]));
+      else if (d<=35){ const pairs=[]; for (let i=0;i<10;i++) pairs.push([i, 10+i, null, null]); md.push(pairs); }
+      else { const pairs=[]; for (let i=0;i<10;i++) pairs.push([i*2, i*2+1, null, null]); md.push(pairs); }
+    }
+    const bag={};
+    const opts=[{dow:'Fr',time:'20:30',kind:'top'},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}];
+    for (let d=0;d<=30;d++){
+      bag[d]=days[d].matches.map((_,i)=>days[d].isConf[i]?{dow:'Sa',time:'15:30',kind:'konferenz'}:Object.assign({}, opts[(d+i)%4]));
+      md[d].forEach(m=>{ m[2]=1; m[3]=0; });
+    }
+    const seen={};
+    teams.forEach((_,ix)=>{ seen[ix]={}; });
+    for (let d=0;d<=30;d++) bag[d].forEach((slot,i)=>{
+      const key=slot.dow+' '+slot.time;
+      seen[md[d][i][0]][key]=1; seen[md[d][i][1]][key]=1;
+    });
+    opts.forEach(spec=>{
+      const key=spec.dow+' '+spec.time;
+      for (let ix=0; ix<20; ix++) if (!seen[ix][key]){
+        for (let d=0; d<=30 && !seen[ix][key]; d++){
+          const at=md[d].findIndex(m=>m[0]===ix||m[1]===ix);
+          if (at<0 || bag[d][at].kind==='konferenz') continue;
+          bag[d][at]=Object.assign({}, spec);
+          seen[md[d][at][0]][key]=1; seen[md[d][at][1]][key]=1;
+        }
+      }
+    });
+    const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{BL:bag}};
+    const tally=()=>{
+      const conf={}; teams.forEach(id=>{ conf[id]=0; });
+      for (let d=0;d<=30;d++) bag[d].forEach((slot,i)=>{
+        if (slot.kind!=='konferenz') return;
+        conf[teams[md[d][i][0]]]++; conf[teams[md[d][i][1]]]++;
+      });
+      return conf;
+    };
+    const conf=tally();
+    const sixCount=[0,1,2,3,4,5].map(i=>conf[teams[i]]);
+    const held=blockObligations(season, 'BL', 30);
+    const plus=Object.assign({}, conf); plus[teams[6]]++;
+    const spared=sharedConferenceOk(season, 'BL', 30, plus);
+    check('nach Spieltag 31 bleibt ein einzelner Konferenzbedarf ohne Platz unerkannt nicht mehr', sixCount.every(n=>n===12) && conf[teams[6]]===16 && held.ok===false && held.reason==='kapazitaet' && spared===true, JSON.stringify({sixCount, a:conf[teams[6]], held, spared}));
+    const counts={};
+    teams.forEach((id,ix)=>{
+      counts[id]={konferenz:conf[id], byTime:{'Fr 20:30':2,'Sa 15:30':4,'Sa 18:30':2,'So 15:30':2,'So 17:30':2}, fr:2, so:2, top:2, frTop:1, saTop:1, regional:2, total:30, einzel:0, topSum:0, topN:0, regSum:0, regN:0};
+    });
+    counts[teams[6]].byTime=Object.assign({}, counts[teams[6]].byTime, {'So 17:30':0});
+    counts[teams[6]].konferenz=16;
+    const today=[]; for (let i=0;i<10;i++) today.push([i, 10+i]);
+    const row=today.map((_,i)=>i===6?{dow:'Sa',time:'15:30',kind:'konferenz'}:i===7?{dow:'So',time:'17:30',kind:'regional'}:{dow:'Fr',time:'20:30',kind:'top'});
+    forceOpenTimes(row, today, teams, counts, 30, 38, 'BL', season);
+    check('forceOpenTimes entzieht die Konferenz nicht, wenn danach kein Platz bleibt', row[6].kind==='konferenz' && row[7].time==='17:30', row.slice(6,8).map(s=>s.kind+' '+s.time).join(','));
+    const oldKicks=JSON.stringify(bag);
+    const oldScores=JSON.stringify(md.map(round=>round.map(m=>[m[2], m[3]])));
+    const scheduled=scheduleNextBlock(season, 'BL');
+    const kicksSame=JSON.stringify(bag)===oldKicks;
+    const scoresSame=JSON.stringify(md.map(round=>round.map(m=>[m[2], m[3]])))===oldScores;
+    const noNew=!bag[31] && !bag[34] && !bag[35];
+    check('scheduleNextBlock schreibt einen unmöglichen Block nicht fest', scheduled===null && kicksSame && scoresSame && noNew && bag[30] && md[30][0][2]===1, JSON.stringify({scheduled, kicksSame, scoresSame, noNew, repair:(season.termRepair&&season.termRepair.BL||[]).slice(-1)}));
+    report.targeted.rest={sixCount, a:conf[teams[6]], held, spared, scheduled, kicksSame, scoresSame};
   })();
   (()=>{
     const teams=squad.leagues.BL.slice();
