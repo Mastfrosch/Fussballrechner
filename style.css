@@ -159,7 +159,9 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .form-pop .ft-pair img{width:22px;height:22px;flex:0 0 22px}
 .form-pop .ft-name{color:#1c1f23;font-size:13px;font-weight:650;line-height:1.2;width:auto;height:auto;white-space:nowrap}
 .form-pop .ft-score{color:#1c1f23;font-size:14px;font-weight:750;line-height:1;width:auto;height:auto;background:none}
-.hin-score{display:block;margin:1px 0 2px;font-size:10px;line-height:1.1;color:#6b7280;font-weight:650;text-align:center;white-space:nowrap;pointer-events:none}
+.hin-score{display:block;box-sizing:border-box;height:12px;min-height:12px;margin:0 0 2px;font-size:10px;line-height:12px;color:#6b7280;font-weight:650;text-align:center;white-space:nowrap;pointer-events:none}
+.match.cup .ie-slot,.match.cup .ie-link,.match.cup .ie-box{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:18px;min-height:18px;max-height:18px;margin:0 0 2px;font-size:10px;line-height:18px;overflow:hidden}
+.match.cup .ie-box input{width:12px;height:12px;margin:0}
 tr.band-full td:first-child{box-shadow:inset 3px 0 #1d6b45}
 tr.band-mid td:first-child{box-shadow:inset 3px 0 #3d8f62}
 tr.band-gentle td:first-child{box-shadow:inset 3px 0 #c4a15a}
@@ -194,6 +196,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .match-solo>.match{width:min(680px,100%)}
 .scorecol{display:flex;flex-direction:column;align-items:center;gap:0}
 .score{display:flex;align-items:center;justify-content:center;gap:5px}
+.match.sp-line .score{min-height:33px}
 .meta{font-size:10px;color:var(--muted);text-align:center;line-height:1.25}
 .meta .kick{display:block}
 .slot-head{background:#eef3f8;color:#234;font-size:11px;font-weight:700;letter-spacing:.02em;padding:5px 10px;border-top:1px solid var(--line)}
