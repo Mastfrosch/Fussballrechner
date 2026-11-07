@@ -185,8 +185,9 @@ function strengthInfo(id, endYear, full){
 }
 // Alte Ansehen-Formel, nur noch als Spielstärke-Signal.
 // Kopplungen, die NICHT die neue Erfolgswertung nutzen dürfen:
-// simStrength (80 % historischer Schnitt + 20 % dieser Mischung),
-// teamPower/Terminierung und cupAppeal (Anstoßzeiten).
+// simStrength (80 % historischer Schnitt + 20 % dieser Mischung)
+// und cupAppeal (Anstoßzeiten im Pokal).
+// Die Topspiel-Auswahl nutzt das Erfolg-Ansehen nur als Rang innerhalb der Staffel.
 // Die Vorrunde des Landespokals sortiert weiter nach ansehenValue,
 // also nach dem Erfolg, nicht nach dieser Stärke.
 const strengthMemo=new Map();
@@ -242,9 +243,18 @@ function ageWeight(age){
   }
   return 0;
 }
-function titleFactor(age){
+function meisterDurable(level){ return level===1; }
+function titleFactor(age, durable){
   const a=Math.max(0, age|0);
+  const raw=ansehenRound2(Math.max(0, 1-0.01*a));
+  if (durable===false) return a>=100 ? 0 : raw;
   return ansehenRound2(Math.max(0.4, 1-0.01*a));
+}
+function titleNote(durable, rechner){
+  const src=rechner?'Rechner-Titel':'historischer Titel';
+  return durable
+    ? src+' · 1 % des Ursprungswerts pro Jahr, ab Alter 60 bei 40 %'
+    : src+' · 1 % des Ursprungswerts pro Jahr, ohne Boden, ab Alter 100 bei 0';
 }
 function seasonFactor(age, rechner){
   const a=Math.max(0, age|0);
@@ -382,7 +392,10 @@ function ansehenLedger(id, endYear){
       const factor=seasonFactor(age, rechner);
       const note=age>=50?(rechner?'Rechner-Saison, dauerhafter Grundwert':'importierte Historie, älter als 50 Jahre'):(rechner?'im Rechner gespielt':'importierte Historie');
       push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:(p.liga||'Liga')+' '+p.pl+'.'+(p.n?'/'+p.n:''), original:placePoints(level, p.n||spec.size||18, p.pl), age, factor, note});
-      if (p.pl===1) push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age), note:(rechner?'Rechner-Titel':'historischer Titel')+' · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
+      if (p.pl===1){
+        const durable=meisterDurable(level);
+        push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', durable, label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age, durable), note:titleNote(durable, rechner)});
+      }
       const euro=euroClaim(rechner?'rechner':'historie', level, p.pl, id, p.season);
       if (euro) push({season:p.season, src:'rechner', kind:'euro', label:'Qualifikation '+euro.key, original:euro.pts, age, factor, note:'Rechner-Regel: Bundesliga 1–4 CL, 5–6 EL, 7 UECL. DFB-Pokalsieger EL, wenn das höher ist. Nur der höchste Wettbewerb.'});
     });
@@ -408,7 +421,7 @@ function ansehenLedger(id, endYear){
       const age=end-seasonYear(season);
       const factor=seasonFactor(age, true);
       push({season, src:'rechner', kind:'dfb', label:'DFB-Pokal '+r.round, original:r.pts, age, factor, note:'erreichte Runde, nicht kumuliert'});
-      if (r.won) push({season, src:'rechner', kind:'titel', label:'DFB-Pokal-Titel', original:ANSEHEN.dfb.title, age, factor:titleFactor(age), note:'Rechner-Titel · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
+      if (r.won) push({season, src:'rechner', kind:'titel', durable:true, label:'DFB-Pokal-Titel', original:ANSEHEN.dfb.title, age, factor:titleFactor(age, true), note:titleNote(true, true)});
     });
     Object.keys(landBest).forEach(key=>{
       const r=landBest[key];
@@ -417,7 +430,7 @@ function ansehenLedger(id, endYear){
       const reached=landRoundPoints(scale, r.round);
       const note=scale.missing?(scale.reason||'Teilnehmerfeld nicht gespeichert'):('Feld '+scale.n+' Vereine, '+((scale.rounds||[]).length)+' Runden, Feldwert '+deNum(scale.field,1)+(scale.unknown?' · '+scale.unknown+' ohne Liga':''));
       push({season:r.season, src:'rechner', kind:'land', label:'Landespokal '+(r.bl||'')+' '+r.round, original:reached, age, factor:scale.missing?0:seasonFactor(age, true), note});
-      if (r.won&&!scale.missing) push({season:r.season, src:'rechner', kind:'titel', label:'Landespokal-Titel '+(r.bl||''), original:scale.title||0, age, factor:titleFactor(age), note:'Rechner-Titel · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
+      if (r.won&&!scale.missing) push({season:r.season, src:'rechner', kind:'titel', durable:true, label:'Landespokal-Titel '+(r.bl||''), original:scale.title||0, age, factor:titleFactor(age, true), note:titleNote(true, true)});
     });
     (S.seasons||[]).forEach(season=>{
       if (!season||season.status!=='done'||!season.name||!season.supercup||seasonYear(season.name)>end) return;
@@ -425,7 +438,7 @@ function ansehenLedger(id, endYear){
       try{ winner=supercupWinner(season.supercup); }catch(e){ winner=null; }
       if (winner!==id) return;
       const age=end-seasonYear(season.name);
-      push({season:season.name, src:'rechner', kind:'titel', label:'Supercup-Titel', original:ANSEHEN.supercup.title, age, factor:titleFactor(age), note:'einmal pro gewonnenem Supercup · 1 % des Ursprungswerts pro Jahr, mindestens 40 %'});
+      push({season:season.name, src:'rechner', kind:'titel', durable:true, label:'Supercup-Titel', original:ANSEHEN.supercup.title, age, factor:titleFactor(age, true), note:titleNote(true, true)});
     });
   }
   lines.sort((a,b)=>a.season===b.season?(a.kind===b.kind?0:(a.kind==='liga'?-1:1)):(a.season<b.season?1:-1));
@@ -457,7 +470,7 @@ function ansehenSelfTest(){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
   let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
   for (let age=0; age<=150; age++){
-    const w=seasonFactor(age, true), tf=titleFactor(age);
+    const w=seasonFactor(age, true), tf=titleFactor(age, false);
     for (let lv=2; lv<=7; lv++){
       const champ=ansehenRound2(placePoints(lv, 18, 1)*w)+ansehenRound2(ANSEHEN.levels[lv].title*tf);
       const last=ansehenRound2(placePoints(lv-1, 18, 18)*w);
@@ -499,12 +512,15 @@ function ansehenSelfTest(){
   check('Alter 50 Historie raus', ageWeight(50)===0 && seasonFactor(50, false)===0);
   check('Alter 51 und 150 Historie raus', seasonFactor(51, false)===0 && seasonFactor(150, false)===0);
   check('Rechner 50 bis 150 bleibt Grundwert', seasonFactor(50, true)===ANSEHEN.rechnerFloorW && seasonFactor(51, true)===ANSEHEN.rechnerFloorW && seasonFactor(150, true)===ANSEHEN.rechnerFloorW);
+  [0,1,59,60,99,100,150].forEach(age=>{
+    const big=titleFactor(age, true), low=titleFactor(age, false);
+    const raw=ansehenRound2(Math.max(0, 1-0.01*age));
+    check('großer Titel Alter '+age, big===(age>=60?0.4:raw), String(big));
+    check('unterer Meistertitel Alter '+age, low===(age>=100?0:raw), String(low));
+  });
+  check('Bundesliga-Meistertitel hat Boden', meisterDurable(1) && !meisterDurable(2) && !meisterDurable(7));
   check('Titel 0', titleFactor(0)===1);
-  check('Titel 1', titleFactor(1)===0.99);
-  check('Titel 59', titleFactor(59)===0.41);
-  check('Titel 60', titleFactor(60)===0.4);
-  check('Titel 100', titleFactor(100)===0.4);
-  check('Titel 150', titleFactor(150)===0.4);
+  check('Titel 60 bleibt 40 %', titleFactor(60)===0.4 && titleFactor(150)===0.4);
   const maxLand=ANSEHEN.land.capBudget*(1+ANSEHEN.land.titleShare);
   check('DFB 2. Runde > 1. Runde + maximaler Landespokal', ANSEHEN.dfb['2. Runde']>ANSEHEN.dfb['1. Runde']+maxLand, ANSEHEN.dfb['2. Runde']+' gegen '+(ANSEHEN.dfb['1. Runde']+maxLand));
   const landTitle=ansehenRound2(ANSEHEN.land.capBudget*ANSEHEN.land.titleShare);
@@ -670,6 +686,27 @@ function ansehenSelfTest(){
     touchAnsehen();
   }
   check('Tests stellen den Spielstand wieder her', S.seasons===stamp.seasons && S.chronicle===stamp.chronicle && S.pokalRuns===stamp.pokalRuns && S.view===stamp.view && (S.seasons||[]).length===stamp.n && ansehenValue('t001')===stamp.an);
+  const keptSeasons=S.seasons, keptChron=S.chronicle, keptView=S.view;
+  try{
+    S.seasons=[{name:'2000/01', status:'done'}];
+    S.view=0;
+    S.chronicle=[
+      {season:'1900/01', id:'t090', liga:'2. Bundesliga', ebene:2, n:18, pl:1, pts:60},
+      {season:'1900/01', id:'t091', liga:'Bundesliga', ebene:1, n:18, pl:1, pts:70}
+    ];
+    chronSeen=null; chronIndex=null; chronBuilt=-1;
+    touchAnsehen();
+    const low=ansehenLedger('t090', 2000).lines.filter(l=>l.kind==='titel')[0];
+    const big=ansehenLedger('t091', 2000).lines.filter(l=>l.kind==='titel')[0];
+    check('historischer Zweitliga-Titel ohne Boden', low && low.durable===false && low.age===100 && low.factor===0 && low.today===0, low&&low.factor);
+    check('historischer Bundesliga-Titel behält 40 %', big && big.durable===true && big.age===100 && big.factor===0.4, big&&big.factor);
+  }finally{
+    S.seasons=keptSeasons; S.chronicle=keptChron; S.view=keptView;
+    chronSeen=null; chronIndex=null; chronBuilt=-1;
+    touchAnsehen();
+  }
+  const bayernParts=ansehenParts(ansehenLedger('t001'));
+  check('Bayern-Spalten summieren sich zum Ansehen', bayernParts.sum===ansehenLedger('t001').value, bayernParts.sum+' gegen '+ansehenLedger('t001').value);
   return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, worstDfb, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
@@ -3883,43 +3920,84 @@ function topKind(rh, ra, needH, needA, n){
   if (hi<=upper && lowerNeeds) return 'rescue';
   return 'no';
 }
-function teamPower(id, pkt, sp, mi, total){
-  const an=strengthBlend(id);
-  const now=sp>0 ? Math.max(0, Math.min(100, (pkt/sp)*40)) : an;
-  const t=total>0 ? mi/total : 0;
-  // Saisonanfang fast nur Ansehen (etwa 0,95), zum Ende noch rund ein Drittel.
-  const anShare=0.32 + 0.63*Math.pow(Math.max(0, 1-t), 1.35);
-  return anShare*an + (1-anShare)*now;
+// Topspiel: aktuelle Tabelle zählt mehr als Ansehen.
+// Ansehen wird nur als Rang in der Staffel auf 0–1 gezogen, nie als Rohpunktzahl.
+// Ohne gespielte Partie gibt es keine Tabelle; die Poolreihenfolge ist dann keine Leistung.
+// Ab dem dritten Spiel gilt ein Verein als Tabellenspitze, wenn sein Platz dort liegt.
+function sportSignal(pkt, sp){
+  if (!(sp>0)) return null;
+  const ppg=Math.max(0, Math.min(3, pkt/sp))/3;
+  const trust=Math.min(1, sp/5);
+  return 0.5*(1-trust)+ppg*trust;
+}
+function teamAppeal(sport, ansehen){
+  if (sport==null) return ansehen;
+  return 0.65*sport+0.35*ansehen;
+}
+function ansehenUnit(ids){
+  const vals=(ids||[]).map(id=>({id, v:ansehenValue(id)||0}));
+  vals.sort((a,b)=>b.v-a.v || String(a.id).localeCompare(String(b.id)));
+  const n=vals.length, unit={}, rank={};
+  vals.forEach((s,i)=>{
+    rank[s.id]=i+1;
+    unit[s.id]=n<=1?1:1-(i)/(n-1);
+  });
+  return {unit, rank};
 }
 function powerSnapshot(season, lid, mi){
   const lg=season.leagues[lid];
   const rows=mi>0 ? tableBefore(season, lid, mi) : [];
   const by={}; rows.forEach(r=>by[r.id]=r);
-  const total=lg.md.length;
+  const an=ansehenUnit(lg.teams);
   const list=lg.teams.map(id=>{
-    const r=by[id], pkt=r?r.pkt:0, sp=r?r.sp:0;
-    return {id, pkt, sp, power:teamPower(id, pkt, sp, mi, total)};
+    const r=by[id]||{};
+    const pkt=r.pkt||0, sp=r.sp||0;
+    const sport=sportSignal(pkt, sp);
+    const ansehen=an.unit[id]==null?0:an.unit[id];
+    const appeal=teamAppeal(sport, ansehen);
+    return {id, pkt, sp, diff:r.diff||0, tg:r.tg||0, sport, ansehen, anRank:an.rank[id]||lg.teams.length, appeal, power:appeal};
   });
-  list.sort((a,b)=>b.power-a.power || byRang(a.id,b.id));
+  const played=list.filter(s=>s.sp>0).sort((a,b)=>b.pkt-a.pkt || b.diff-a.diff || b.tg-a.tg || String(a.id).localeCompare(String(b.id)));
+  let place=1;
+  played.forEach((s,i)=>{
+    if (i>0){
+      const p=played[i-1];
+      if (s.pkt!==p.pkt || s.diff!==p.diff || s.tg!==p.tg) place=i+1;
+    }
+    s.sportPlace=place;
+  });
+  list.sort((a,b)=>b.appeal-a.appeal || b.ansehen-a.ansehen || String(a.id).localeCompare(String(b.id)));
   const rank={}, info={};
   list.forEach((s,i)=>{ rank[s.id]=i+1; info[s.id]=s; });
-  return {rank, info, total};
+  return {rank, info, total:lg.md.length};
 }
 function pairScore(h, a, snap){
   const H=snap.info[h], A=snap.info[a];
-  const gap=Math.abs(H.pkt-A.pkt);
-  let gapPen;
-  if (H.sp<4 && A.sp<4) gapPen=Math.abs(H.power-A.power)*0.18;
-  else if (gap<=4) gapPen=gap*0.5;
-  else if (gap<=10) gapPen=2+(gap-4)*2.6;
-  else gapPen=17.6+(gap-10)*7;
-  const n=Object.keys(snap.rank).length||20;
-  const rh=snap.rank[h]||n, ra=snap.rank[a]||n, half=Math.ceil(n/2);
-  let bonus=0;
-  if (rh<=half && ra<=half) bonus+=70;
-  if (rh<=7 && ra<=7) bonus+=45;
-  if (rh<=4 && ra<=4) bonus+=35;
-  return Math.min(H.power,A.power)*2 + (H.power+A.power)*0.1 - gapPen + bonus;
+  if (!H || !A) return 0;
+  const s1=H.sport==null?0.5:H.sport, s2=A.sport==null?0.5:A.sport;
+  const sportTerm=(H.sport==null||A.sport==null)?0:Math.min(s1,s2);
+  const anDuel=Math.min(H.ansehen||0, A.ansehen||0);
+  const cross=Math.max(Math.min(s1, A.ansehen||0), Math.min(s2, H.ansehen||0));
+  return 0.62*sportTerm+0.18*anDuel+0.20*cross;
+}
+function topCategory(h, a, snap){
+  const H=snap&&snap.info&&snap.info[h], A=snap&&snap.info&&snap.info[a];
+  if (!H || !A) return 'none';
+  const n=Object.keys(snap.rank||{}).length||20;
+  const upper=n>=20?8:6;
+  const sportUp=s=>!!(s && s.sp>=3 && s.sportPlace!=null && s.sportPlace<=upper);
+  const anUp=s=>!!(s && s.anRank<=upper);
+  const sh=sportUp(H), sa=sportUp(A), ah=anUp(H), aa=anUp(A);
+  if (sh && sa) return 'sport';
+  if ((sh && aa) || (sa && ah)) return 'cross';
+  if (ah && aa) return 'ansehen';
+  return 'none';
+}
+function topDesire(cat, q){
+  if (cat==='sport') return 170000+(q||0)*4000;
+  if (cat==='cross') return 90000+(q||0)*4000;
+  if (cat==='ansehen') return 55000+(q||0)*4000;
+  return q||0;
 }
 function rankedIds(ids){
   if (orderCacheIds!==ids){
@@ -4143,11 +4221,14 @@ function assignMatchday(season, lid, mi, snap, counts){
       if (slot.kind==='top'){
         const kind=topKind(rankOf(h), rankOf(a), needH, needA, n);
         const q=pairScore(h, a, snap);
+        const cat=topCategory(h, a, snap);
         const bothHalf=Math.max(rankOf(h), rankOf(a))<=Math.ceil(n/2);
         const bothHot=Math.max(rankOf(h), rankOf(a))<=hotCut(lid, n);
         const mustSave=!uncovered && needsLeft<=usefulZero && bothCount>=topSlots;
         const urgeOf=id=>rescueUrge(id, mi, total, lg.teams);
-        if (kind==='both'){
+        if (cat==='sport' || cat==='cross' || cat==='ansehen'){
+          c += -topDesire(cat, q) - (cat==='sport' && bothHot ? 80000 : 0);
+        } else if (kind==='both'){
           c += -q*520 - (bothHot?160000:40000);
           if (needH) c -= urgeOf(h)*0.35;
           if (needA) c -= urgeOf(a)*0.35;
@@ -4222,6 +4303,10 @@ function assignMatchday(season, lid, mi, snap, counts){
   const exactMirror=false;
   const topClass=i=>{
     const h=lg.teams[md[i][0]], a=lg.teams[md[i][1]];
+    const cat=topCategory(h, a, snap);
+    if (cat==='sport') return 0;
+    if (cat==='cross') return 1;
+    if (cat==='ansehen') return 2;
     const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
     if (lo<=upper) return 0;
     if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
@@ -5244,6 +5329,24 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes.</p>';
   return h;
 }
+function ansehenParts(info){
+  const keys=['liga','dfb','land','titel','euro'];
+  const raw={liga:0,dfb:0,land:0,titel:0,euro:0};
+  (info&&info.lines||[]).forEach(l=>{ if (raw[l.kind]!=null) raw[l.kind]+=l.today||0; });
+  const parts={};
+  keys.forEach(k=>{ parts[k]=ansehenRound2(raw[k]); });
+  let sum=ansehenRound2(keys.reduce((s,k)=>s+parts[k],0));
+  const target=ansehenRound2(info&&info.value||0);
+  const drift=ansehenRound2(target-sum);
+  if (drift){
+    let k=keys[0];
+    keys.forEach(key=>{ if (Math.abs(parts[key])>=Math.abs(parts[k])) k=key; });
+    parts[k]=ansehenRound2(parts[k]+drift);
+    sum=ansehenRound2(keys.reduce((s,key)=>s+parts[key],0));
+  }
+  parts.sum=sum;
+  return parts;
+}
 function ansehenRanks(endYear){
   const rows=Object.keys(TEAMS).map(id=>{
     const info=ansehenInfo(id, endYear);
@@ -5265,21 +5368,22 @@ function viewAnsehen(){
   const season=cur();
   const liga=S.ui.ansehenLiga||'';
   const bl=S.ui.ansehenBl||'';
-  const end=windowEndYear();
+  const end=ansehenEndYear();
   const nowRank=ansehenRanks(end);
   const prevRank=ansehenRanks(end-1);
   const list=Object.keys(TEAMS).map(id=>{
-    const info=ansehenInfo(id);
-    return {id, info, lid:clubLeagueId(season, id), bl:TEAMS[id].bl};
+    const info=ansehenInfo(id, end);
+    return {id, info, parts:ansehenParts(info), lid:clubLeagueId(season, id), bl:TEAMS[id].bl};
   }).filter(r=>(!liga || r.lid===liga) && (!bl || r.bl===bl));
   list.sort((a,b)=>(b.info.value==null?-1:b.info.value)-(a.info.value==null?-1:a.info.value) || TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de'));
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
-  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen ist die Summe der Erfolge bis zur geöffneten Saison. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
-  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Ansehen','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
-  list.forEach((r,i)=>{
+  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln und Europa. Der Supercup steckt in der Titelspalte. Der Rang ist der Platz nach dem Gesamtansehen und bleibt stehen, wenn eine Spalte sortiert wird. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
+  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
+  list.forEach(r=>{
     const name=TEAMS[r.id].name;
-    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer">'+sortCell(nowRank[r.id], nowRank[r.id]||'–')+'<td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id)+'</td>'+sortCell(r.info.value, deNum(r.info.value,2), 'pts')+'<td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
+    const p=r.parts;
+    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer">'+sortCell(nowRank[r.id], nowRank[r.id]||'–')+'<td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id)+'</td>'+sortCell(p.liga, deNum(p.liga,2))+sortCell(p.dfb, deNum(p.dfb,2))+sortCell(p.land, deNum(p.land,2))+sortCell(p.titel, deNum(p.titel,2))+sortCell(p.euro, deNum(p.euro,2))+sortCell(p.sum, deNum(p.sum,2), 'pts')+'<td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
   });
   h+='</tbody></table></div></div>';
   return h;
@@ -5310,13 +5414,13 @@ function ansehenLegendHTML(){
   return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Platz 1 hat den ersten Wert, der letzte Platz den zweiten. Dazwischen wird linear geteilt. Der Meistertitel kommt extra dazu und ist nicht im Platzwert enthalten.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel ist ein eigener Posten.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div></div>'+ageScaleHTML();
 }
 function ageScaleHTML(){
-  const ages=[0,4,5,10,11,20,21,49,50,60,100];
+  const ages=[0,1,4,5,10,11,20,21,49,50,59,60,99,100,150];
   let rows='';
   ages.forEach(age=>{
     const band=ageBand(age);
-    rows+='<tr class="band-'+band.id+'"><td class="l">'+esc(band.label)+'</td><td>'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age),2)+'</td></tr>';
+    rows+='<tr class="band-'+band.id+'"><td class="l">'+esc(band.label)+'</td><td>'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age, true),2)+'</td><td>'+deNum(titleFactor(age, false),2)+'</td></tr>';
   });
-  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Alter 5 ist die sechste Saison davor. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Ein Titel verliert jedes Jahr 1 % seines Ursprungswerts und bleibt ab Alter 60 bei 40 %.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Titel</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Alter 5 ist die sechste Saison davor. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Bundesliga-Meistertitel, DFB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Meistertitel darunter verlieren ebenfalls 1 % pro Jahr, haben keinen Boden und sind ab Alter 100 bei 0.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>Unterer Meistertitel</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function ansehenGuideHTML(){
   const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga',7:'Amateurliga'};
@@ -6527,14 +6631,15 @@ function placementChart(pts){
     segs+='<line class="seg'+cls+'" x1="'+X(i-1).toFixed(1)+'" y1="'+Y(pts[i-1].y).toFixed(1)+'" x2="'+X(i).toFixed(1)+'" y2="'+Y(pts[i].y).toFixed(1)+'"/>';
   }
   const dots=pts.map((p,i)=>{
-    const prev=pts[i-1];
-    const moved=prev&&seasonYear(p.season)-seasonYear(prev.season)===1?(p.ebene<prev.ebene?' up':p.ebene>prev.ebene?' down':''):'';
-    const change=moved===' up'?' · Aufstieg':moved===' down'?' · Abstieg':'';
+    const next=pts[i+1];
+    const gap=next?seasonYear(next.season)-seasonYear(p.season):0;
+    const moved=next&&gap===1?(next.ebene<p.ebene?' up':next.ebene>p.ebene?' down':''):'';
+    const change=moved===' up'?' · Aufstieg am Saisonende':moved===' down'?' · Abstieg am Saisonende':'';
     const liga=p.liga||'Liga nicht gespeichert';
     return '<g class="dot'+moved+'"><circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="9"/><text x="'+X(i).toFixed(1)+'" y="'+(Y(p.y)+3).toFixed(1)+'">'+p.pl+'</text><title>'+esc(p.season+' · '+liga+' · Platz '+p.pl+(p.n?' von '+p.n:'')+change)+'</title></g>';
   }).join('');
   const labels=pts.map((p,i)=>'<text x="'+X(i).toFixed(1)+'" y="'+(h-8)+'" text-anchor="middle">'+esc(seasonShort(p.season))+'</text>').join('');
-  return '<div class="hscroll"><svg class="place-chart" style="width:'+w+'px;height:'+h+'px" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Platzierungskurve">'+grid+segs+dots+labels+'</svg></div><p class="muted">Die Zahl im Punkt ist der Platz. Grün ist ein Aufstieg, rot ein Abstieg. Die Saisons stehen unten. Eine Lücke in den Jahren bleibt offen.</p>';
+  return '<div class="hscroll"><svg class="place-chart" style="width:'+w+'px;height:'+h+'px" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Platzierungskurve">'+grid+segs+dots+labels+'</svg></div><p class="muted">Die Zahl im Punkt ist der Platz. Rot oder grün ist die Saison, an deren Ende der Verein ab- oder aufsteigt, und die Linie in die nächste Ligastufe. Der Kreis der neuen Saison bleibt neutral. Die Saisons stehen unten. Eine Lücke in den Jahren bleibt offen.</p>';
 }
 function viewVerein(id){
   const t=TEAMS[id];
@@ -6925,7 +7030,7 @@ function mulberry32(seed){
 }
 function expectedAnsehenFactor(line){
   if (!line) return 0;
-  if (line.kind==='titel') return titleFactor(line.age);
+  if (line.kind==='titel') return titleFactor(line.age, line.durable!==false);
   if (!(line.original||0) && !(line.factor||0)) return 0;
   return seasonFactor(line.age, line.src==='rechner');
 }
@@ -7315,7 +7420,52 @@ function uiSelfTest(){
     const fake={name:cur().name, status:'running', leagues:{BL:{teams:srcLg.teams.slice(), md:mdCopy}}, kickoffs:{}, markers:{}};
     try{ for (let g=0;g<40 && scheduleNextBlock(fake,'BL');g++){} }catch(e){}
     check('Terminieren lässt die Paarungen auf ihrem Spieltag', JSON.stringify(mdCopy.map(round=>round.map(m=>[m[0],m[1]])))===pairsBefore);
+    const kept=JSON.stringify(fake.kickoffs.BL[0]||null);
+    fake.kickoffs.BL[0]=[{dow:'Fr',time:'20:30',kind:'sentinel'}];
+    const sentinel=JSON.stringify(fake.kickoffs.BL[0]);
+    try{ scheduleNextBlock(fake,'BL'); }catch(e){}
+    check('schon terminierter Spieltag bleibt stehen', JSON.stringify(fake.kickoffs.BL[0])===sentinel && JSON.stringify(fake.kickoffs.BL[0])!==kept);
   }
+  ['L4','RLN'].forEach(lid=>{
+    const lg=cur().leagues[lid];
+    if (!lg||!lg.md) return;
+    const mdCopy=lg.md.map(round=>round.map(m=>m.slice()));
+    const before=JSON.stringify(mdCopy.map(round=>round.map(m=>[m[0],m[1]])));
+    const fake={name:cur().name, status:'running', leagues:{[lid]:{teams:lg.teams.slice(), md:mdCopy}}, kickoffs:{}, markers:{}};
+    try{ for (let g=0;g<50 && scheduleNextBlock(fake,lid);g++){} }catch(e){}
+    check('Terminieren lässt die Paarungen in '+lid, JSON.stringify(mdCopy.map(round=>round.map(m=>[m[0],m[1]])))===before && scheduleMirrorHolds(mdCopy));
+  });
+  const blIds=cur().leagues.BL.teams.slice();
+  const startSnap=powerSnapshot({leagues:{BL:{teams:blIds, md:cur().leagues.BL.md}}}, 'BL', 0);
+  const anOrder=blIds.slice().sort((a,b)=>(ansehenValue(b)||0)-(ansehenValue(a)||0) || String(a).localeCompare(String(b)));
+  const snapOrder=blIds.slice().sort((a,b)=>startSnap.rank[a]-startSnap.rank[b]);
+  check('Saisonstart sortiert nach Ansehen, nicht nach Poolreihenfolge', snapOrder.join()===anOrder.join() && startSnap.info[blIds[0]].sport==null);
+  const row=(id, sport, sp, sportPlace, ansehen, anRank)=>({id, sport, sp, sportPlace, ansehen, anRank, pkt:0, diff:0, tg:0, appeal:0, power:0});
+  const lateSnap={info:{
+    a:row('a',1,8,1,0.05,19), b:row('b',1,8,2,0.08,20),
+    c:row('c',0.02,8,19,1,1), d:row('d',0.04,8,18,0.95,2),
+    e:row('e',0.42,8,9,0.9,3)
+  }, rank:{a:1,b:2,c:19,d:18,e:9}};
+  const sportQ=pairScore('a','b',lateSnap), cellarQ=pairScore('c','d',lateSnap), crossQ=pairScore('a','c',lateSnap), tradQ=pairScore('d','e',lateSnap);
+  check('Tabellenspitze schlägt das Ansehen-Kellerduell', topCategory('a','b',lateSnap)==='sport' && topCategory('c','d',lateSnap)==='ansehen' && sportQ>cellarQ && topDesire('sport', sportQ)>topDesire('ansehen', cellarQ), sportQ+'/'+cellarQ);
+  check('hohes Ansehen gegen die Spitze ist ein Topspiel', topCategory('a','c',lateSnap)==='cross' && topDesire('sport', sportQ)>topDesire('cross', crossQ) && topDesire('cross', crossQ)>topDesire('ansehen', cellarQ));
+  check('zwei Traditionsvereine bleiben ein Ansehen-Duell', topCategory('d','e',lateSnap)==='ansehen' && tradQ>cellarQ*0.5);
+  const early={info:{p:row('p',null,0,null,1,1), q:row('q',null,0,null,0.9,2), r:row('r',null,0,null,0.1,18)}, rank:{p:1,q:2,r:18}};
+  check('frühe Saison ohne Ergebnisse bevorzugt zwei hohe Ansehen', topCategory('p','q',early)==='ansehen' && topCategory('p','r',early)==='none' && pairScore('p','q',early)>pairScore('p','r',early));
+  const simBase=(TEAMS.t001.schnitt??50), sim=simStrength('t001');
+  check('Spielstärke bleibt unabhängig vom Erfolg-Ansehen', Math.abs(sim-(simBase*0.8+strengthBlend('t001')*0.2))<0.001 && Math.abs(sim-ansehenValue('t001'))>100);
+  const relPts=[
+    {season:'2015/16', ebene:2, n:18, pl:2, liga:'2. Bundesliga', y:pyramidScore(2,18,2)},
+    {season:'2016/17', ebene:1, n:18, pl:17, liga:'Bundesliga', y:pyramidScore(1,18,17)},
+    {season:'2017/18', ebene:2, n:18, pl:14, liga:'2. Bundesliga', y:pyramidScore(2,18,14)},
+    {season:'2018/19', ebene:2, n:18, pl:6, liga:'2. Bundesliga', y:pyramidScore(2,18,6)}
+  ];
+  const relSvg=placementChart(relPts);
+  const relDots=[...relSvg.matchAll(/class="dot([^"]*)"/g)].map(m=>m[1].trim());
+  const relSegs=[...relSvg.matchAll(/class="seg([^"]*)"/g)].map(m=>m[1].trim());
+  check('Abstieg färbt die 17 und die Linie danach, nicht die 14', relDots[1]==='down' && relSegs[1]==='down' && relDots[2]==='' && relSegs[0]==='up', relDots.join('|')+' / '+relSegs.join('|'));
+  const rankHtml=viewAnsehen();
+  check('Rangliste zeigt Liga, Pokale, Titel, Europa und Gesamt', rankHtml.indexOf('>Liga<')>=0 && rankHtml.indexOf('DFB-Pokal')>=0 && rankHtml.indexOf('Landespokal')>=0 && rankHtml.indexOf('>Titel<')>=0 && rankHtml.indexOf('Europa')>=0 && rankHtml.indexOf('Gesamt')>=0 && rankHtml.indexOf('class="bl"')>=0);
   const step=side=>'<span class="stepper"><button type="button">+</button><button type="button">−</button></span>';
   const host=document.createElement('div');
   host.style.cssText='position:absolute;left:0;top:0;width:760px;visibility:hidden';
