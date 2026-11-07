@@ -1,6 +1,6 @@
 # Historische Titel
 
-Stand der Prüfung: 7. November 2026. 278 Titelereignisse bis zur Ausgabe 2025/26: 51 deutsche Meister vor der Bundesliga, 63 Bundesliga, 83 DFB-Pokal einschließlich Tschammerpokal, 41 DDR-Oberliga, 40 FDGB-Pokal einschließlich des NOFV-Pokals 1991. Landespokale sind nicht enthalten.
+Stand der Prüfung: 7. November 2026. 276 Titelereignisse bis zur Ausgabe 2025/26: 51 deutsche Meister vor der Bundesliga, 63 Bundesliga, 81 DFB-Pokal einschließlich Tschammerpokal, 41 DDR-Oberliga, 40 FDGB-Pokal einschließlich des NOFV-Pokals 1991. Landespokale sind nicht enthalten. Die Pokalsiege 2022 und 2023 sind ersatzlos aus dem Register genommen.
 
 Jede Zeile wurde gegen zwei veröffentlichte Siegerlisten und die 919 Vereine im Spiel geprüft. Das ist ein belegter Abgleich, keine Garantie jeder juristischen Vereinsidentität oder jeder historischen Schreibweise.
 
@@ -27,11 +27,11 @@ Der FDGB-Sieg 1957 von SC Lokomotive Leipzig geht nur an den heutigen 1. FC Loko
 
 Jede Zeile trägt den Vereinsnamen des jeweiligen Titeljahres, nicht einen späteren Sammelnamen. Der heutige Nachfolger steht dahinter, wenn er im Spiel ist. Fehlt er, bleibt nur der historische Name, ohne Wappen.
 
-Ohne heutigen Verein im Spiel, deshalb ohne Ansehen und ohne Umleitung: Freiburger FC 1907, Karlsruher FV 1910, SK Rapid Wien 1938 und 1941, First Vienna 1943, RB Leipzig 2022 und 2023.
+Ohne heutigen Verein im Spiel, deshalb ohne Ansehen und ohne Umleitung: Freiburger FC 1907, Karlsruher FV 1910, SK Rapid Wien 1938 und 1941, First Vienna 1943.
 
 ## Nachprüfung vom 7. November 2026
 
-278 von 278 Ereignissen sind gegen die beiden Listen je Wettbewerb abgeglichen. 271 gesetzte IDs existieren im Spiel. 46 Vereine sind Ziel. Sieben Titel bleiben ohne Verein. Kein Sieger, kein Jahr und keine Ziel-ID ist unter der dokumentierten Traditionspolitik falsch. Eine absolute Garantie ist das nicht.
+276 Ereignisse bleiben nach dem ersatzlosen Entfernen der beiden Pokalsiege 2022 und 2023. Deutsche Meisterschaft vor der Bundesliga, Bundesliga und DDR-Meisterschaft haben denselben Grundwert 180. DFB-Pokal und FDGB-Pokal haben denselben Grundwert 55. Alle fünf altern mit 1 Prozent des Ursprungswerts pro Jahr und bleiben ab Alter 60 bei 40 Prozent. Die DDR-Meisterschaft ist kein unterklassiger Titel. Eine absolute Garantie ist das nicht.
 
 Präzisiert, ohne den Sieger zu wechseln:
 
