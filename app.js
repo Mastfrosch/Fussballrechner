@@ -1623,12 +1623,16 @@ function unpackRows(rows){
 function packMatch(m){
   if (!m || Array.isArray(m)) return m;
   const slot=m.slot? [m.slot.dow||'', m.slot.time||'', m.slot.kind||'', m.slot.kracher?1:0] : null;
-  return [m.h, m.a, m.hg, m.ag, m.et?1:0, m.peh==null?null:m.peh, m.pea==null?null:m.pea, m.neutral?1:0, slot];
+  const row=[m.h, m.a, m.hg, m.ag, m.et?1:0, m.peh==null?null:m.peh, m.pea==null?null:m.pea, m.neutral?1:0, slot];
+  if (m.at!=null) row.push(m.at);
+  return row;
 }
 function unpackMatch(m){
   if (!m || !Array.isArray(m)) return m;
   const slot=m[8];
-  return {h:m[0], a:m[1], hg:m[2], ag:m[3], et:!!m[4], peh:m[5], pea:m[6], neutral:!!m[7], slot:slot?{dow:slot[0], time:slot[1], kind:slot[2]||'', kracher:!!slot[3]}:null};
+  const out={h:m[0], a:m[1], hg:m[2], ag:m[3], et:!!m[4], peh:m[5], pea:m[6], neutral:!!m[7], slot:slot?{dow:slot[0], time:slot[1], kind:slot[2]||'', kracher:!!slot[3]}:null};
+  if (m.length>9 && m[9]!=null && m[9]!=='') out.at=m[9]|0;
+  return out;
 }
 function packCup(cup){
   if (!cup) return cup;
@@ -2750,6 +2754,17 @@ const DFB_ROUNDS = [
 const CUP_DOW={Fr:0,Sa:1,So:2,Mi:3,Do:4};
 const VIA_TEXT={sieger:'Landespokalsieger', finalist:'Finalist, der Sieger ist schon über die Liga qualifiziert', staat:'bester noch nicht qualifizierter Verein des Landes', liga:'nächster freier Platz der 3. Liga'};
 function cupMatch(h,a,neutral){ return {h,a,hg:null,ag:null,et:false,peh:null,pea:null,slot:null,neutral:!!neutral}; }
+function cupKnownAt(season){
+  if (!season || !season.leagues || !season.leagues.BL || !season.leagues.BL.md) return null;
+  return lastScheduled(season, 'BL');
+}
+function stampCupDecision(season, m){
+  if (!m) return;
+  if (!cupWinner(m)){ m.at=null; return; }
+  const at=cupKnownAt(season);
+  if (at==null) return;
+  if (m.at==null || at>m.at) m.at=at;
+}
 function cupWinner(m){
   if (!m || m.hg==null || m.ag==null) return null;
   if (m.hg>m.ag) return m.h;
@@ -3110,6 +3125,7 @@ function simCup(season, cup){
       if (cupWinner(m)) return;
       const res=simCupScore(m.h, m.a);
       m.hg=res.hg; m.ag=res.ag; m.et=res.et; m.peh=res.peh; m.pea=res.pea;
+      stampCupDecision(season, m);
       c++;
     });
   }
@@ -4074,6 +4090,7 @@ function mutateCup(cupKey, ri, mi, fn){
   fn(m);
   if (m.hg!=null && m.ag!=null && m.hg!==m.ag){ m.peh=null; m.pea=null; }
   if (m.hg!=null && m.ag!=null && m.hg===m.ag) m.et=false;
+  stampCupDecision(s, m);
   clearLaterRounds(cup, ri);
   maybeAutoFinal(s, cup);
   save(); render();
@@ -4945,7 +4962,8 @@ function eighthKnown(season, mi){
   rows.forEach(r=>{ if (r.pl<=7) top[r.id]=1; });
   const cup=season.cups&&season.cups.dfb;
   if (!cup||!cup.rounds) return false;
-  // Ohne Spieltag am Pokalspiel ist nicht belegbar, dass das Ergebnis vor dem Block feststand.
+  // at ist der letzte schon terminierte Bundesliga-Spieltag zum Zeitpunkt der Entscheidung.
+  // Gespeicherte Pokalspiele ohne at bleiben undatiert und gelten nicht als bekannt.
   const known=m=>!!(m && m.at!=null && (m.at|0)<(mi|0));
   const alive=new Set();
   (cup.entrants||[]).forEach(id=>alive.add(id));
@@ -6063,6 +6081,54 @@ function raiseTops(season, lid, from, to, snap){
     }
   }
 }
+function topCanTakeConference(season, lid, to, donorIds){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  const need=Math.ceil(total/2);
+  const konf=slotTemplate(lid).filter(s=>s.kind==='konferenz').length;
+  const c={}; lg.teams.forEach(id=>c[id]=0);
+  for (let d=0; d<=to; d++){
+    const row=bag[d]; if (!row) continue;
+    lg.md[d].forEach((m,i)=>{ if (row[i] && row[i].kind==='konferenz'){ c[lg.teams[m[0]]]++; c[lg.teams[m[1]]]++; } });
+  }
+  donorIds.forEach(id=>{ c[id]--; });
+  const future=Math.max(0, total-(to+1));
+  if (donorIds.some(id=>c[id]+future<need+4)) return false;
+  const regular=[]; let closing=0;
+  for (let d=to+1; d<total; d++){ if (isClosingDay(total, d)) closing++; else regular.push(d); }
+  const must=lg.teams.filter(id=> (need-c[id]-closing)>0 && (need-c[id]-closing)>=regular.length);
+  const set=new Set(must);
+  for (const d of regular){
+    let matches=0;
+    lg.md[d].forEach(m=>{ if (set.has(lg.teams[m[0]]) || set.has(lg.teams[m[1]])) matches++; });
+    if (matches>konf) return false;
+  }
+  return true;
+}
+function liftConferenceTops(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
+  for (let guard=0; guard<lg.teams.length; guard++){
+    let best=null;
+    for (let mi=from; mi<=to; mi++){
+      if (isClosingDay(total, mi)) continue;
+      const row=bag[mi]; if (!row) continue;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top') return;
+        const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind!=='konferenz') return;
+          const donors=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+          const v=matchValue(donors[0], donors[1], snap, mi).total;
+          if (v<=here+0.05) return;
+          if (!topCanTakeConference(season, lid, to, donors)) return;
+          if (!best || v-here>best.gain) best={mi, i, j, gain:v-here};
+        });
+      });
+    }
+    if (!best) return;
+    const row=bag[best.mi];
+    const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+  }
+}
 function balanceFrSaBlock(season, lid, from, to, snap){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
   const tally=()=>{
@@ -6172,6 +6238,7 @@ function scheduleNextBlock(season, lid){
     nudgeNonExactBlock(season, lid, range[0], range[1], snap);
     repairOk=repairBlockConference(season, lid, range[0], range[1], snap) && reserveTightClubs(season, lid, range[0], range[1], snap);
     raiseTops(season, lid, range[0], range[1], snap);
+    liftConferenceTops(season, lid, range[0], range[1], snap);
     balanceFrSaBlock(season, lid, range[0], range[1], snap);
   }
   if (!season.termRepair) season.termRepair={};
@@ -10279,6 +10346,63 @@ function terminSelfTest(){
   const penSea=cupSea(0);
   penSea.cups.dfb.rounds[0].matches[0].hg=1; penSea.cups.dfb.rounds[0].matches[0].ag=1; penSea.cups.dfb.rounds[0].matches[0].peh=3; penSea.cups.dfb.rounds[0].matches[0].pea=3;
   check('3:3 im Elfmeterschießen entfernt niemanden', eighthKnown(penSea, 1)===false);
+  const cupProd=(()=>{
+    const prevHold=saveHold; saveHold=1;
+    const keep={seasons:S.seasons, view:S.view, tab:S.ui.tab, league:S.ui.league};
+    try{
+      seedRandom(17);
+      const teams=squad.leagues.BL.slice();
+      const md=makeSchedule(teams.length);
+      Math.random=prevRandom;
+      const other=md[0].find(m=>m[0]!==0 && m[1]!==0);
+      const b=other[0]===0?other[1]:other[0];
+      const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{}, cups:{dfb:{kind:'dfb', id:'dfb', entrants:[teams[0], teams[b]], rounds:[{name:'Finale', drawn:true, matches:[cupMatch(teams[0], teams[b], true)]}]}}};
+      S.seasons=(S.seasons||[]).concat([season]);
+      S.view=S.seasons.length-1;
+      S.ui.tab='pokal'; S.ui.league='BL'; S.ui.cup='dfb';
+      const first=scheduleNextBlock(season, 'BL');
+      if (!first) return 'kein erster Block';
+      md[first[0]].forEach(m=>{
+        if (m[0]===0 || m[0]===b){ m[2]=3; m[3]=0; }
+        else if (m[1]===0 || m[1]===b){ m[2]=0; m[3]=3; }
+        else { m[2]=0; m[3]=0; }
+      });
+      const frozen=JSON.parse(JSON.stringify(season.kickoffs.BL));
+      mutateCup('dfb', 0, 0, m=>{ m.hg=2; m.ag=0; });
+      const decided=season.cups.dfb.rounds[0].matches[0];
+      if (decided.at!==lastScheduled(season, 'BL')) return 'at '+decided.at;
+      if (cupWinner(decided)!==teams[0]) return 'sieger';
+      const next=scheduleNextBlock(season, 'BL');
+      if (!next || next[0]<=first[1]) return 'kein neuer Block';
+      if (!Object.keys(frozen).every(k=>JSON.stringify(frozen[k])===JSON.stringify(season.kickoffs.BL[k]))) return 'alter Block geändert';
+      if (season.termSnap.BL[next[0]].zones.uecl!==8) return 'platz8 '+season.termSnap.BL[next[0]].zones.uecl;
+      const round=unpackMatch(packMatch(decided));
+      if (round.at!==decided.at || cupWinner(round)!==teams[0]) return 'packMatch';
+      const disk=JSON.parse(JSON.stringify(packForDisk({v:1, seasons:[season], view:0, chronicle:[], pokalRuns:[], ui:{}})));
+      const loaded=unpackState(disk).seasons[0];
+      const kept=loaded.cups.dfb.rounds[0].matches[0];
+      if (kept.at!==decided.at) return 'speichern '+kept.at;
+      if (eighthKnown(loaded, next[0])!==true) return 'nach dem Laden';
+      const simSeasonCup={name:'2099/00', status:'running', leagues:{BL:{teams:teams.slice(), md:md.map(d=>d.map(m=>m.slice()))}}, pools:{}, kickoffs:{}, cups:{dfb:{kind:'dfb', entrants:[teams[0], teams[b]], rounds:[{name:'Finale', drawn:true, matches:[cupMatch(teams[0], teams[b], true)]}]}}};
+      simSeasonCup.leagues.BL.md.forEach((d,i)=>{ if (i>first[1]) return; d.forEach((m,k)=>{ m[2]=md[i][k][2]; m[3]=md[i][k][3]; }); });
+      Object.keys(frozen).forEach(k=>{ simSeasonCup.kickoffs.BL=simSeasonCup.kickoffs.BL||{}; simSeasonCup.kickoffs.BL[k]=JSON.parse(JSON.stringify(frozen[k])); });
+      simCup(simSeasonCup, simSeasonCup.cups.dfb);
+      const simM=simSeasonCup.cups.dfb.rounds[0].matches[0];
+      if (simM.at!==lastScheduled(simSeasonCup, 'BL') || !cupWinner(simM)) return 'sim at '+simM.at;
+      const simNext=scheduleNextBlock(simSeasonCup, 'BL');
+      if (!simNext || simSeasonCup.termSnap.BL[simNext[0]].zones.uecl!==8) return 'sim platz8';
+      mutateCup('dfb', 0, 0, m=>{ m.hg=1; m.ag=1; m.peh=3; m.pea=3; });
+      const tied=season.cups.dfb.rounds[0].matches[0];
+      if (cupWinner(tied)!==null || tied.at!=null) return '3:3';
+      const ahead=JSON.parse(JSON.stringify(season.kickoffs.BL));
+      return Object.keys(frozen).every(k=>JSON.stringify(frozen[k])===JSON.stringify(ahead[k])) ? '' : 'nach 3:3';
+    } finally {
+      saveHold=prevHold;
+      S.seasons=keep.seasons; S.view=keep.view; S.ui.tab=keep.tab; S.ui.league=keep.league;
+      if (S.ui) S.ui.cup=undefined;
+    }
+  })();
+  check('manuelles und simuliertes Pokalergebnis öffnet Platz 8 nur für den nächsten Block', cupProd==='', cupProd);
   const types=[['BL','BL'],['BL2','BL2'],['L3','L3'],['L4','L4'],['RL',['RLN','RLO','RLS','RLW']],['OL',['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW']]];
   const report={};
   const parentOf=lid=>{ const spec=L[lid]; if(!spec||spec.level<5) return ''; return spec.level===5?'L4':spec.upTo; };
@@ -10338,7 +10462,7 @@ function terminSelfTest(){
     return {avg:n?sum/n:0, km:kmN?km/kmN:0, n};
   }
   function qualityHoles(pack){
-    const {season, lid, teams, md}=pack, total=md.length, topNeed=slotTemplate(lid).filter(s=>s.kind==='top').length;
+    const {season, lid, teams, md}=pack, total=md.length;
     let holes=0, mi=0;
     while (mi<total){
       const range=nextBlockRange(teams.length, mi);
@@ -10348,16 +10472,19 @@ function terminSelfTest(){
         if (isClosingDay(total, d)) continue;
         const row=season.kickoffs[lid][d]||[];
         const vals=md[d].map(m=>matchValue(teams[m[0]], teams[m[1]], snap, d).total);
-        const sorted=vals.slice().sort((a,b)=>b-a);
-        const cut=sorted[Math.min(sorted.length-1, Math.max(0, topNeed-1))]||0;
         row.forEach((slot,i)=>{
-          if (!slot || slot.kind!=='top' || vals[i]>=cut-2) return;
-          let betterFree=false;
+          if (!slot || slot.kind!=='top') return;
+          let better=false;
           row.forEach((other,j)=>{
-            if (j===i || !other || other.kind==='top' || other.kind==='konferenz') return;
-            if (vals[j]>vals[i]+2) betterFree=true;
+            if (better || j===i || !other || other.kind==='top' || vals[j]<=vals[i]+0.05) return;
+            if (other.kind==='konferenz'){
+              const donors=[teams[md[d][j][0]], teams[md[d][j][1]]];
+              if (topCanTakeConference(season, lid, range[1], donors)) better=true;
+              return;
+            }
+            better=true;
           });
-          if (betterFree) holes++;
+          if (better) holes++;
         });
       }
       mi=range[1]+1;
@@ -10417,7 +10544,7 @@ function terminSelfTest(){
     check('neuer und alter Scheduler sehen denselben Roh-Ansehenwert', rawSame, JSON.stringify(report.ansehen));
     types.forEach(([type, lids], ti)=>{
       const list=Array.isArray(lids)?lids:[lids];
-      const acc={seasons:0, below:0, clubs:0, top:0, topN:0, frSa:[], cross:0, newAvg:0, oldAvg:0, newKm:0, oldKm:0, maxFrSa:0, holes:0, openFr:0, repairFail:0};
+      const acc={seasons:0, below:0, oldBelow:0, oldClubs:0, clubs:0, top:0, topN:0, frSa:[], cross:0, newAvg:0, oldAvg:0, newKm:0, oldKm:0, maxFrSa:0, holes:0, openFr:0, repairFail:0, sameN:0, sameO:0, sameC:0};
       for (let s=0;s<50;s++){
         const lid=list[s%list.length];
         const seed=1000+ti*1000+s;
@@ -10425,6 +10552,7 @@ function terminSelfTest(){
         const alt=runOne(lid, seed, 'old');
         const need=Math.ceil(neu.md.length/2);
         const tall=slotTally(neu.season, lid);
+        const tallOld=slotTally(alt.season, lid);
         const dualTop=slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Fr') && slotTemplate(lid).some(s=>s.kind==='top'&&s.dow==='Sa');
         let worstFr=0;
         neu.teams.forEach(id=>{
@@ -10437,6 +10565,35 @@ function terminSelfTest(){
           }
           if (tall[id].topN){ acc.top+=tall[id].topSum; acc.topN+=tall[id].topN; }
         });
+        alt.teams.forEach(id=>{
+          acc.oldClubs++;
+          if ((tallOld[id].konferenz||0)<need) acc.oldBelow++;
+        });
+        if (lid==='BL'){
+          const clocks=[{dow:'Fr', time:'20:30'},{dow:'Sa', time:'18:30'}];
+          const scoreClock=(pack)=>{
+            let sum=0, n=0, mi=0;
+            while (mi<pack.md.length){
+              const range=nextBlockRange(pack.teams.length, mi);
+              if (!range) break;
+              const snap=powerSnapshot(pack.season, pack.lid, range[0]);
+              for (let d=range[0]; d<=range[1]; d++){
+                if (isClosingDay(pack.md.length, d)) continue;
+                const row=pack.season.kickoffs[pack.lid][d]||[];
+                clocks.forEach(clock=>{
+                  const i=row.findIndex(slot=>slot && slot.dow===clock.dow && slot.time===clock.time);
+                  if (i<0) return;
+                  sum+=matchValue(pack.teams[pack.md[d][i][0]], pack.teams[pack.md[d][i][1]], snap, d).total;
+                  n++;
+                });
+              }
+              mi=range[1]+1;
+            }
+            return {sum, n};
+          };
+          const sn=scoreClock(neu), so=scoreClock(alt);
+          acc.sameN+=sn.sum; acc.sameO+=so.sum; acc.sameC+=sn.n;
+        }
         if (worstFr>acc.maxFrSa) acc.maxFrSa=worstFr;
         acc.cross+=neu.cross;
         acc.holes+=qualityHoles(neu);
@@ -10448,7 +10605,8 @@ function terminSelfTest(){
       }
       acc.frSa.sort((a,b)=>a-b);
       const mid=acc.frSa[Math.floor(acc.frSa.length/2)]||0;
-      report[type]={seasons:acc.seasons, below:acc.below, clubs:acc.clubs, quota:acc.clubs?Math.round((1-acc.below/acc.clubs)*1000)/10:0, avgTop:acc.topN?Math.round(acc.top/acc.topN*10)/10:0, newAudit:Math.round(acc.newAvg/acc.seasons*10)/10, oldAudit:Math.round(acc.oldAvg/acc.seasons*10)/10, newKm:Math.round(acc.newKm/acc.seasons), oldKm:Math.round(acc.oldKm/acc.seasons), frSaMedian:mid, frSaMax:acc.maxFrSa, cross:acc.cross, holes:acc.holes, openFr:acc.openFr, repairFail:acc.repairFail};
+      const round1=v=>Math.round(v*10)/10;
+      report[type]={seasons:acc.seasons, below:acc.below, oldBelow:acc.oldBelow, clubs:acc.clubs, quota:acc.clubs?Math.round((1-acc.below/acc.clubs)*1000)/10:0, oldQuota:acc.oldClubs?Math.round((1-acc.oldBelow/acc.oldClubs)*1000)/10:0, avgTop:acc.topN?round1(acc.top/acc.topN):0, topKindNeu:round1(acc.newAvg/acc.seasons), topKindAlt:round1(acc.oldAvg/acc.seasons), topKindHinweis:type==='BL'?'neu Fr 20:30 und Sa 18:30, alt nur Sa 18:30':'gleiche Top-Anstöße', sameClockNeu:acc.sameC?round1(acc.sameN/acc.sameC):null, sameClockAlt:acc.sameC?round1(acc.sameO/acc.sameC):null, newKm:Math.round(acc.newKm/acc.seasons), oldKm:Math.round(acc.oldKm/acc.seasons), frSaMedian:mid, frSaMax:acc.maxFrSa, cross:acc.cross, holes:acc.holes, openFr:acc.openFr, repairFail:acc.repairFail};
       check(type+' jede der 50 Saisons hält die halbe Konferenz', acc.seasons===50 && acc.below===0 && acc.cross===0 && acc.holes===0 && acc.openFr===0 && acc.repairFail===0, JSON.stringify(report[type]));
     });
   }finally{
