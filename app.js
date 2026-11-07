@@ -216,16 +216,17 @@ function simStrength(id){
 const ANSEHEN = {
   levels:{
     1:{first:480,last:240,title:180},
-    2:{first:160,last:104,title:10},
-    3:{first:74,last:48,title:4},
-    4:{first:34,last:22,title:1.8},
-    5:{first:16,last:10.4,title:0.8},
-    6:{first:7.4,last:4.8,title:0.35},
-    7:{first:3.2,last:1.8,title:0.16}
+    2:{first:160,last:104,title:0},
+    3:{first:74,last:48,title:0},
+    4:{first:34,last:22,title:0},
+    5:{first:16,last:10.4,title:0},
+    6:{first:7.4,last:4.8,title:0},
+    7:{first:3.2,last:1.8,title:0}
   },
+  promotionTo:{1:28,2:12,3:5,4:2.2,5:1,6:0.45},
   euro:{CL:36,EL:22,UECL:12},
   dfb:{'1. Runde':40,'2. Runde':110,'Achtelfinale':150,'Viertelfinale':180,'Halbfinale':200,'Finale':215,title:55},
-  land:{levelW:{1:0,2:0,3:6,4:4.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, capBudget:32, titleShare:0.18},
+  land:{levelW:{1:0,2:0,3:6,4:4.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, capBudget:32, titleShare:0.28},
   supercup:{title:0.2},
   rechnerFloorW:0.12,
   curve:{fullUntil:4, midUntil:10, midStep:0.035, gentleUntil:20, gentleAt10:0.79, gentleStep:0.012, lateAt20:0.67, floorAt:50}
@@ -265,25 +266,98 @@ function placePoints(level, n, place){
   const spec=ANSEHEN.levels[level]||ANSEHEN.levels[7];
   const nn=Math.max(1, n|0), pl=Math.min(Math.max(1, place|0), nn);
   if (nn<=1) return spec.first;
-  const t=(nn-pl)/(nn-1);
-  return ansehenRound2(spec.last+(spec.first-spec.last)*t);
+  let t=(pl-1)/(nn-1);
+  if (level===1 && nn>=12 && pl<nn){
+    const euro=Math.min(7, nn-2);
+    if (pl<=euro+1) t=0.62*(pl-1)/euro;
+    else t=0.62+0.20*(pl-(euro+1))/((nn-1)-(euro+1));
+  }
+  return ansehenRound2(spec.first-(spec.first-spec.last)*t);
 }
-function euroOf(level, place){
+function euroRank(key){ return {CL:3,EL:2,UECL:1}[key]||0; }
+function euroOf(level, place, eighth){
   if (level!==1) return null;
   if (place<=4) return {key:'CL', pts:ANSEHEN.euro.CL};
   if (place<=6) return {key:'EL', pts:ANSEHEN.euro.EL};
-  if (place===7) return {key:'UECL', pts:ANSEHEN.euro.UECL};
+  if (place===7 || (place===8 && eighth)) return {key:'UECL', pts:ANSEHEN.euro.UECL};
   return null;
+}
+function dfbWon(id, season){
+  try{ return (runsById(id)||[]).some(r=>r&&r.comp==='dfb'&&r.season===season&&r.won); }catch(e){ return false; }
 }
 function euroClaim(src, level, place, id, season){
   if (src!=='rechner') return null;
-  const league=euroOf(level, place);
+  const eighth=eighthForSeason(season);
+  const league=euroOf(level, place, eighth);
   let key=league?league.key:null;
-  let cup=false;
-  try{ cup=(runsById(id)||[]).some(r=>r&&r.comp==='dfb'&&r.season===season&&r.won); }catch(e){ cup=false; }
-  if (cup && key!=='CL') key='EL';
+  const cup=dfbWon(id, season);
+  if (cup && euroRank(key)<euroRank('UECL')) key='UECL';
   if (!key) return null;
   return {key, pts:ANSEHEN.euro[key]};
+}
+function landTitleOf(scale){
+  if (!scale || scale.budget==null) return 0;
+  return ansehenRound2(scale.budget*ANSEHEN.land.titleShare);
+}
+function dfbWinnerOf(season){
+  if (!season) return '';
+  const fin=season.cups&&season.cups.dfb?cupFinalists(season.cups.dfb):null;
+  if (fin&&fin.winner) return fin.winner;
+  const hist=(S.pokalHistory||[]).find(h=>h&&h.season===season.name&&h.dfb);
+  if (hist&&hist.dfb) return hist.dfb;
+  const run=(S.pokalRuns||[]).find(r=>r&&r.comp==='dfb'&&r.won&&r.season===season.name);
+  return run?run.id:'';
+}
+function blPlaceOf(season){
+  const map={};
+  try{ leagueTable(season,'BL').forEach(r=>{ if(r&&r.id) map[r.id]=r.pl; }); }catch(e){}
+  return map;
+}
+function dfbEighthOpen(season){
+  if (!season||!season.leagues||!season.leagues.BL) return false;
+  const places=blPlaceOf(season);
+  const top=id=>places[id]&&places[id]<=7;
+  if (season.status==='done'||season.status==='ending'){
+    const w=dfbWinnerOf(season);
+    return !!(w&&top(w));
+  }
+  const cup=season.cups&&season.cups.dfb;
+  if (!cup) return false;
+  const alive=cupAliveSet(cup);
+  if (!alive.size) return false;
+  let ok=true;
+  alive.forEach(id=>{ if(!top(id)) ok=false; });
+  return ok;
+}
+function eighthForSeason(name){
+  const season=(S.seasons||[]).find(s=>s&&s.name===name);
+  if (!season||(season.status!=='done'&&season.status!=='ending')) return false;
+  return dfbEighthOpen(season);
+}
+function promotionsOf(id, end){
+  const rows=collectPlacements(id).filter(p=>p&&p.season&&p.pl!=null&&seasonYear(p.season)<=end);
+  rows.sort((a,b)=>seasonYear(a.season)-seasonYear(b.season));
+  const found=[], seen={};
+  for (let i=0;i<rows.length-1;i++){
+    const a=rows[i], b=rows[i+1];
+    if (seasonYear(b.season)!==seasonYear(a.season)+1) continue;
+    const from=a.ebene||7, to=b.ebene||7;
+    if (to<from){ found.push({season:a.season, to}); seen[a.season]=1; }
+  }
+  (S.seasons||[]).forEach(season=>{
+    if (!season||!season.name||seen[season.name]||!season.endData) return;
+    if (season.status!=='done'&&season.status!=='ending') return;
+    const y=seasonYear(season.name);
+    if (!y||y>end) return;
+    const up=(season.endData.moves||[]).find(m=>m&&m.id===id&&m.type==='auf'&&L[m.to]&&L[m.from]&&L[m.to].level<L[m.from].level);
+    if (up){ found.push({season:season.name, to:L[up.to].level}); seen[season.name]=1; return; }
+    const picks=season.endData.picks||{};
+    Object.keys(picks).forEach(lid=>{
+      if (seen[season.name]||!L[lid]) return;
+      if ((picks[lid]||[]).indexOf(id)>=0){ found.push({season:season.name, to:L[lid].level}); seen[season.name]=1; }
+    });
+  });
+  return found;
 }
 function landAnsehenScale(ids, season, roundNames){
   const names=(roundNames||[]).filter(Boolean);
@@ -428,12 +502,11 @@ function ansehenLedger(id, endYear){
       const factor=seasonFactor(age, rechner);
       const note=age>=50?(rechner?'Rechner-Saison, dauerhafter Grundwert':'importierte Historie, älter als 50 Jahre'):(rechner?'im Rechner gespielt':'importierte Historie');
       push({season:p.season, src:rechner?'rechner':'historie', kind:'liga', label:(p.liga||'Liga')+' '+p.pl+'.'+(p.n?'/'+p.n:''), original:placePoints(level, p.n||spec.size||18, p.pl), age, factor, note});
-      if (p.pl===1){
-        const durable=meisterDurable(level);
-        push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', durable, label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age, durable), note:titleNote(durable, rechner)});
+      if (p.pl===1 && level===1 && spec.title){
+        push({season:p.season, src:rechner?'rechner':'historie', kind:'titel', durable:true, label:'Meistertitel '+(p.liga||''), original:spec.title, age, factor:titleFactor(age, true), note:titleNote(true, rechner)});
       }
       const euro=euroClaim(rechner?'rechner':'historie', level, p.pl, id, p.season);
-      if (euro) push({season:p.season, src:'rechner', kind:'euro', label:'Qualifikation '+euro.key, original:euro.pts, age, factor, note:'Rechner-Regel: Bundesliga 1–4 CL, 5–6 EL, 7 UECL. DFB-Pokalsieger EL, wenn das höher ist. Nur der höchste Wettbewerb.'});
+      if (euro) push({season:p.season, src:'rechner', kind:'euro', label:'Qualifikation '+euro.key, original:euro.pts, age, factor, note:'Rechner-Regel: Bundesliga 1–4 CL, 5–6 EL, 7 UECL. Platz 8 UECL, wenn der Pokalsieger in den Top 7 steht. Sonst bekommt der Sieger selbst UECL. Nur der höchste Wettbewerb.'});
     });
     let runs=[];
     try{ runs=runsById(id)||[]; }catch(e){ runs=[]; }
@@ -464,9 +537,10 @@ function ansehenLedger(id, endYear){
       const age=end-seasonYear(r.season);
       const scale=landScaleOf(r.season, r.bl);
       const reached=landRoundPoints(scale, r.round);
+      const title=landTitleOf(scale);
       const note=scale.missing?(scale.reason||'Teilnehmerfeld nicht gespeichert'):('Feld '+scale.n+' Vereine, '+((scale.rounds||[]).length)+' Runden, Feldwert '+deNum(scale.field,1)+(scale.unknown?' · '+scale.unknown+' ohne Liga':''));
       push({season:r.season, src:'rechner', kind:'land', label:'Landespokal '+(r.bl||'')+' '+r.round, original:reached, age, factor:scale.missing?0:seasonFactor(age, true), note});
-      if (r.won&&!scale.missing) push({season:r.season, src:'rechner', kind:'titel', durable:true, label:'Landespokal-Titel '+(r.bl||''), original:scale.title||0, age, factor:titleFactor(age, true), note:titleNote(true, true)});
+      if (r.won&&!scale.missing) push({season:r.season, src:'rechner', kind:'titel', durable:true, label:'Landespokal-Titel '+(r.bl||''), original:title, age, factor:titleFactor(age, true), note:titleNote(true, true)});
     });
     (S.seasons||[]).forEach(season=>{
       if (!season||season.status!=='done'||!season.name||!season.supercup||seasonYear(season.name)>end) return;
@@ -475,6 +549,13 @@ function ansehenLedger(id, endYear){
       if (winner!==id) return;
       const age=end-seasonYear(season.name);
       push({season:season.name, src:'rechner', kind:'titel', durable:true, label:'Supercup-Titel', original:ANSEHEN.supercup.title, age, factor:titleFactor(age, true), note:titleNote(true, true)});
+    });
+    promotionsOf(id, end).forEach(p=>{
+      const original=ANSEHEN.promotionTo[p.to]||0;
+      if (!original) return;
+      const age=end-seasonYear(p.season);
+      const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga'};
+      push({season:p.season, src:'historie', kind:'aufstieg', durable:false, label:'Aufstieg '+(names[p.to]||''), original, age, factor:titleFactor(age, false), note:'Einmalig für den tatsächlich vollzogenen Aufstieg. 1 % des Ursprungswerts pro Jahr, ohne Boden, ab Alter 100 bei 0. Kein Meistertitel daneben.'});
     });
     applyHistoricalTitles(id, end, lines, push);
   }
@@ -679,7 +760,7 @@ function ansehenSelfTestBody(fails){
     touchAnsehen();
     const euro8=ansehenLedger('t011', 2094).lines.filter(l=>l.kind==='euro'&&l.season==='2088/89');
     const euro1=ansehenLedger('t012', 2094).lines.filter(l=>l.kind==='euro'&&l.season==='2088/89');
-    check('DFB-Sieger ohne Ligaplatz Europa bekommt nur EL', euro8.length===1 && euro8[0].label.indexOf('EL')>=0 && euro8[0].label.indexOf('UECL')<0, euro8.map(l=>l.label).join(','));
+    check('DFB-Sieger auf Platz 8 bekommt UECL', euro8.length===1 && euro8[0].label.indexOf('UECL')>=0, euro8.map(l=>l.label).join(','));
     check('DFB-Sieger mit CL behält nur CL', euro1.length===1 && euro1[0].label.indexOf('CL')>=0 && euro1[0].label.indexOf('EL')<0, euro1.map(l=>l.label).join(','));
     const atEarly=ansehenInfo(id, 2088).value;
     const atMid=ansehenInfo(id, 2094);
@@ -740,7 +821,7 @@ function ansehenSelfTestBody(fails){
     touchAnsehen();
     const low=ansehenLedger('t090', 2000).lines.filter(l=>l.kind==='titel')[0];
     const big=ansehenLedger('t091', 2000).lines.filter(l=>l.kind==='titel')[0];
-    check('historischer Zweitliga-Titel ohne Boden', low && low.durable===false && low.age===100 && low.factor===0 && low.today===0, low&&low.factor);
+    check('Zweitliga-Meister ist kein Titel', !low);
     check('historischer Bundesliga-Titel behält 40 %', big && big.durable===true && big.age===100 && big.factor===0.4, big&&big.factor);
   }finally{
     S.seasons=keptSeasons; S.chronicle=keptChron; S.view=keptView;
@@ -751,7 +832,15 @@ function ansehenSelfTestBody(fails){
   check('Bayern-Spalten summieren sich zum Ansehen', bayernParts.sum===ansehenLedger('t001').value, bayernParts.sum+' gegen '+ansehenLedger('t001').value);
   const reg=historicalTitleRows();
   const nComp=c=>reg.filter(r=>r.comp===c).length;
-  check('Titelregister 51, 63, 83, 41 und 40', nComp('de')===51 && nComp('bl')===63 && nComp('dfb')===83 && nComp('ddr')===41 && nComp('fdgb')===40 && reg.length===278);
+  check('Titelregister 51, 63, 81, 41 und 40', nComp('de')===51 && nComp('bl')===63 && nComp('dfb')===81 && nComp('ddr')===41 && nComp('fdgb')===40 && reg.length===276);
+  check('Pokalsiege 2022 und 2023 sind ersatzlos draußen', !reg.some(r=>r.comp==='dfb' && (r.year===2022||r.year===2023)));
+  ['de','bl','ddr'].forEach(comp=>{
+    const row=reg.find(r=>r.comp===comp);
+    check(comp+' hat den Bundesliga-Titelwert', !!row && titelOriginalPoints(comp)===180 && titelOriginalPoints(comp)===ANSEHEN.levels[1].title);
+  });
+  check('DFB und FDGB haben denselben Pokalwert', titelOriginalPoints('dfb')===55 && titelOriginalPoints('fdgb')===55 && titelOriginalPoints('dfb')===ANSEHEN.dfb.title);
+  check('große Titel altern gleich bis 40 Prozent', titleFactor(0,true)===1 && titleFactor(59,true)===0.41 && titleFactor(60,true)===0.4 && titleFactor(150,true)===0.4);
+  check('volle historische Saison aus der Quelle', seasonFull('1908/09')==='1908/1909' && seasonFull('1954/55')==='1954/1955' && seasonFull('2003/04')==='2003/2004' && seasonFull('1999/00')==='1999/2000' && seasonFull('1956')==='1956');
   check('1904, 1922 und 1945 haben keinen Meister', !reg.some(r=>r.comp==='de' && (r.year===1904||r.year===1922||r.year===1945)));
   check('keine historischen Titel ab 2027', !reg.some(r=>r.year>=2027));
   check('kein Landespokal im Register', !reg.some(r=>r.comp==='land'));
@@ -1701,7 +1790,7 @@ function leagueProgress(season, lid){
   let done=0,total=0; lg.md.forEach(md=>md.forEach(m=>{total++; if(m[2]!=null&&m[3]!=null) done++;})); return {done,total};
 }
 function seasonProgress(season){ let d=0,t=0; LEAGUES.forEach(l=>{const p=leagueProgress(season,l.id); d+=p.done; t+=p.total;}); return {done:d,total:t}; }
-function zoneOf(lg, pl, n, down){
+function zoneOf(lg, pl, n, down, eighth){
   if (!lg) return '';
   const d = down==null ? (lg.down||0) : down;
   if (lg.id==='BL'){
@@ -1709,7 +1798,7 @@ function zoneOf(lg, pl, n, down){
     if (pl===1) return 'meister';
     if (pl<=4) return 'cl';
     if (pl<=6) return 'el';
-    if (pl===7) return 'ecl';
+    if (pl===7 || (pl===8 && eighth)) return 'ecl';
     return '';
   }
   if (lg.up && pl<=lg.up) return 'auf';
@@ -2229,12 +2318,21 @@ function finalizeSeason(opts){
   const mk=(id,x)=>{ (ns.markers[id]||(ns.markers[id]=[])).push(x); };
   e.moves.forEach(m=>{ if (L[m.to]) mk(m.id, m.type==='auf'?'Auf':'Ab'); });
   for (const ol in e.picks) e.picks[ol].forEach(id=>mk(id,'Auf'));
-  (e.tables.BL||[]).forEach(r=>{
+  const blTable=e.tables.BL||[];
+  const top7={};
+  blTable.forEach(r=>{ if (r.pl<=7) top7[r.id]=1; });
+  const cupWinner=dfbWinnerOf(s);
+  const cupInside=!!(cupWinner&&top7[cupWinner]);
+  blTable.forEach(r=>{
     if (r.pl===1) mk(r.id,'M');
     else if (r.pl<=4) mk(r.id,'CL');
     else if (r.pl<=6) mk(r.id,'EL');
-    else if (r.pl===7) mk(r.id,'UECL');
+    else if (r.pl===7 || (r.pl===8 && cupInside)) mk(r.id,'UECL');
   });
+  if (cupWinner){
+    if (!top7[cupWinner]) mk(cupWinner,'UECL');
+    mk(cupWinner,'P');
+  }
   e.step=3; s.status='done';
   if (!S.chronicle) S.chronicle=[];
   LEAGUES.forEach(l=>{
@@ -2786,6 +2884,35 @@ function sortCell(n, html, cls){
   const raw=(n==null||n==='')?'':String(n);
   return '<td'+(raw!==''?' data-n="'+raw+'"':'')+(cls?' class="'+cls+'"':'')+'>'+html+'</td>';
 }
+function placeCell(rank, label){
+  if (rank==null || rank==='') return '<td class="rank"><span class="nfix w-pl"><span class="rank-now">–</span></span></td>';
+  const shown=label==null?String(rank):String(label);
+  return '<td data-n="'+rank+'" data-rank="'+rank+'" data-rank-label="'+esc(shown)+'" class="rank"><span class="nfix w-pl"><span class="rank-now">'+shown+'</span></span></td>';
+}
+function paintRankView(body, sorted){
+  if (!body) return;
+  [...body.rows].filter(r=>!r.dataset.pin).forEach((r,i)=>{
+    const cell=r.querySelector('td[data-rank]');
+    if (!cell) return;
+    const orig=cell.dataset.rank;
+    const now=cell.querySelector('.rank-now');
+    if (!now) return;
+    let extra=cell.querySelector('.rank-orig');
+    if (!sorted){
+      now.textContent=cell.dataset.rankLabel||orig;
+      if (extra) extra.remove();
+      return;
+    }
+    const vis=String(i+1);
+    now.textContent=vis;
+    if (vis===orig){
+      if (extra) extra.remove();
+    } else {
+      if (!extra){ extra=document.createElement('span'); extra.className='rank-orig'; now.insertAdjacentElement('afterend', extra); }
+      extra.textContent='('+orig+')';
+    }
+  });
+}
 function formSpan(letter, game){
   const word={S:'Sieg',U:'Unentschieden',N:'Niederlage'}[letter]||'';
   if (!game || !TEAMS[game.h] || !TEAMS[game.a] || game.hg==null || game.ag==null) return '<span class="f-'+letter+'" title="'+esc(word)+'">'+letter+'</span>';
@@ -2802,9 +2929,10 @@ function tableHTML(rows, lg, opts={}){
   let pokalId='';
   if (opts.ansehen){ try{ pokalId=prevDfbWinner(season)||''; }catch(e){ pokalId=''; } }
   let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+(opts.ansehen?th('Ansehen','an'):'')+'</tr></thead><tbody>';
+  const eighth=lg&&lg.id==='BL'&&opts.zones!==false&&dfbEighthOpen(season);
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
-    let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down);
+    let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down, eighth);
     if (flag==='up') z='sure-up';
     else if (flag==='down') z='sure-down';
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
@@ -2816,15 +2944,12 @@ function tableHTML(rows, lg, opts={}){
     const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
     let an=null;
     if (opts.ansehen){ try{ const v=ansehenValue(r.id); if (v!=null && isFinite(+v)) an=+v; }catch(e){ an=null; } }
-    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+nf(r.pl, r.pl, 'w-pl')+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
+    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+placeCell(r.pl)+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
       (opts.form===false?'':'<td class="formc"><span class="form">'+form.map((f,i)=>formSpan(f, (r.formGames||[])[i])).join('')+'</span></td>')+
       (opts.ansehen?nf(an, an==null?'–':deNum(an,2), 'w-an'):'')+'</tr>';
   });
   h+='</tbody></table>';
-  if (opts.zones!==false && lg){
-    h+=legendHTML(lg, season);
-    h+=fixedPlaceHTML(season, lg, n);
-  }
+  if (opts.zones!==false && lg) h+=fixedPlaceHTML(season, lg, n);
   return h;
 }
 function fixedPlaceHTML(season, lg, n){
@@ -2909,7 +3034,7 @@ function renderNav(){
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
 
-const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie'],['rekorde','Rekorde'],['aufab','Auf/Abstiege']];
+const TABS=[['tabelle','Tabelle'],['karte','Karte'],['terminierung','Terminierung'],['heimaus','Heim/Auswärts'],['hinrueck','Hin/Rückrunde'],['ewig','Ewige Tabelle'],['historie','Historie'],['rekorde','Rekorde'],['aufab','Auf/Abstiege'],['regeln','Regeln']];
 function renderMigrate(){
   let el=$('#migrate');
   if(!S.ui.showMigrate){ if(el) el.remove(); return; }
@@ -2928,7 +3053,7 @@ function renderPokal(s){
   S.ui.cup=key;
   const cup=getCup(s, key);
   const allowed=['spiele','sieger','uebersicht','qualifikation','rekorde'];
-  if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+  if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte','regeln'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
   if (S.ui.cupView==='punkte' && (!cup || cup.kind!=='land')) S.ui.cupView='spiele';
   const view=S.ui.cupView;
   $('#title').textContent=cup?cup.name:'Pokal';
@@ -2952,7 +3077,7 @@ function viewPokal(s, cup, view){
   const ed=isEditable();
   const key=S.ui.cup;
   let h='<div class="pokal-bar">'+cupSelectHTML(key);
-  const cupTabs=[['spiele','Spielplan'],['karte','Karte'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation'],['rekorde','Rekorde']];
+  const cupTabs=[['spiele','Spielplan'],['karte','Karte'],['sieger','Sieger'],['uebersicht','Übersicht'],['qualifikation','Qualifikation'],['rekorde','Rekorde'],['regeln','Regeln']];
   if (cup && cup.kind==='land') cupTabs.splice(3, 0, ['punkte','Wertung']);
   h+='<span class="toggle" data-toggle="cupView">'+cupTabs.map(([k,n])=>'<button data-v="'+k+'" class="'+(view===k?'active':'')+'">'+n+'</button>').join('')+'</span>';
   h+='</div>';
@@ -2961,6 +3086,7 @@ function viewPokal(s, cup, view){
     const states=cup&&cup.kind==='land'&&cup.bl?[cup.bl]:null;
     return h+viewMap((cup&&cup.name)||'Pokal', cupParticipantIds(cup), states, 'cup:'+(cup&&(cup.id||cup.bl)||key));
   }
+  if (view==='regeln') return h+cupRulesHTML(cup);
   if (view==='punkte' && cup && cup.kind==='land') return h+landPointsHTML(s, cup);
   if (view==='sieger') return h+viewCupWinners(s);
   if (view==='uebersicht') return h+viewCupOverview(s, cup);
@@ -3023,7 +3149,6 @@ function viewCupRound(s, cup, ed){
   });
   flush();
   if (round.byes && round.byes.length) h+='<div class="sp-hint"><b>Freilos:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
-  h+='<div class="sp-hint">Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht.</div>';
   h+='</div>';
   return h;
 }
@@ -3354,7 +3479,8 @@ function landPointsHTML(s, cup){
   const rounds=scale.rounds||[];
   const fin=rounds[rounds.length-1];
   const finPts=fin?landRoundPoints(scale, fin):0;
-  const sum=ansehenRound2(finPts+(scale.title||0));
+  const titleNow=landTitleOf(scale);
+  const sum=ansehenRound2(finPts+titleNow);
   const levels=Object.keys(scale.byLevel||{}).map(k=>+k).sort((a,b)=>a-b);
   let mix='<table class="tbl fit"><thead><tr><th class="l">Liga</th><th>Vereine</th><th>Gewicht je Verein</th></tr></thead><tbody>';
   if (!levels.length) mix+='<tr><td class="l" colspan="3"><span class="muted">Die gespeicherte Skala dieser Saison nennt das Feld nicht mehr einzeln.</span></td></tr>';
@@ -3367,10 +3493,10 @@ function landPointsHTML(s, cup){
   mix+='</tbody></table>';
   let roundsHtml='<table class="tbl fit"><thead><tr><th class="l">Erreichte Runde</th><th>Punkte</th></tr></thead><tbody>';
   rounds.forEach(name=>{ roundsHtml+='<tr><td class="l">'+esc(name)+'</td>'+sortCell(landRoundPoints(scale, name), ansehenPts(landRoundPoints(scale, name)))+'</tr>'; });
-  roundsHtml+='<tr><td class="l">Titel, einmalig für den Sieger</td>'+sortCell(scale.title||0, ansehenPts(scale.title||0))+'</tr>';
+  roundsHtml+='<tr><td class="l">Titel, einmalig für den Sieger</td>'+sortCell(titleNow, ansehenPts(titleNow))+'</tr>';
   roundsHtml+='<tr data-pin="1"><td class="l"><b>Sieger insgesamt</b></td>'+sortCell(sum, ansehenPts(sum))+'</tr>';
   roundsHtml+='</tbody></table>';
-  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher, höchstens '+ansehenPts(ANSEHEN.land.capBudget)+'. Daraus folgt das Budget '+ansehenPts(scale.budget)+'. Der Titel ist 18 Prozent davon.</p>'+mix+roundsHtml+'</div>';
+  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher, höchstens '+ansehenPts(ANSEHEN.land.capBudget)+'. Daraus folgt das Budget '+ansehenPts(scale.budget)+'. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent dieses Budgets, auch wenn eine ältere Skala noch einen anderen Titel gespeichert hat.</p>'+mix+roundsHtml+'</div>';
 }
 function rowSeason(r){
   if (r.season) return r.season;
@@ -3398,8 +3524,8 @@ function championBoardHTML(leftComps, rightComp, leftTitle, rightTitle){
   if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
   h+='<table class="tbl fit pair-board"><thead><tr><th>Jahr</th><th class="l">'+esc(leftTitle)+'</th>'+(rightTitle?'<th class="l">'+esc(rightTitle)+'</th>':'')+'</tr></thead><tbody>';
   rows.forEach(row=>{
-    const season=row.left?rowSeason(row.left):(row.right?rowSeason(row.right):String(row.year));
-    const other=row.left&&row.right&&rowSeason(row.left)!==rowSeason(row.right)?rowSeason(row.right):'';
+    const season=row.left?titleYearLabel(row.left):(row.right?titleYearLabel(row.right):String(row.year));
+    const other=row.left&&row.right&&rowSeason(row.left)!==rowSeason(row.right)?titleYearLabel(row.right):'';
     h+='<tr><td><b>'+esc(season)+'</b>'+(other?'<div class="muted">'+esc(other)+'</div>':'')+'</td><td class="l">'+(row.left?titleWinnerHTML(row.left)+resultBit(row.left):'<span class="muted">–</span>')+'</td>';
     if (rightTitle) h+='<td class="l">'+(row.right?titleWinnerHTML(row.right):'<span class="muted">–</span>')+'</td>';
     h+='</tr>';
@@ -3416,6 +3542,32 @@ function titleRegisterHTML(comp){
   h+='</tbody></table></div>';
   return h;
 }
+function viewDfbModern(){
+  const rows=titleRowsFor('dfb').filter(r=>r.year>1991).sort((a,b)=>b.year-a.year);
+  let h='<div class="box sieger-box"><h3>DFB-Pokal seit 1992</h3><p class="muted">Gewinner, Finalgegner und Ergebnis, wenn das Finale im Rechner gespielt wurde. Historische Jahre haben keinen erfundenen Endstand. Der FDGB-Pokal endet 1991 und steht darunter.</p>';
+  if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
+  h+='<table class="tbl fit"><thead><tr><th>Jahr</th><th class="l">Sieger</th><th class="l">Finalist</th><th>Finale</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    const fin=r.finalist&&TEAMS[r.finalist]?esc(TEAMS[r.finalist].name):'<span class="muted">–</span>';
+    const score=r.score?esc(r.score):'<span class="muted">–</span>';
+    h+='<tr><td><b>'+esc(titleYearLabel(r))+'</b></td><td class="l">'+titleWinnerHTML(r)+'</td><td class="l">'+fin+'</td><td>'+score+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+function viewDfbHistoric(){
+  const rows=championRows(['dfb'],'fdgb').filter(r=>r.year<=1991);
+  let h='<div class="box"><h3>DFB-Pokal und FDGB-Pokal bis 1991</h3><p class="muted">Ein Jahr ist eine Zeile. Links der DFB-Pokal, rechts der FDGB-Pokal nur bis 1991. Der historische Name steht zuerst, der heutige Nachfolger dahinter.</p>';
+  if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
+  h+='<table class="tbl fit pair-board"><thead><tr><th>Jahr</th><th class="l">DFB-Pokal</th><th class="l">FDGB-Pokal</th></tr></thead><tbody>';
+  rows.forEach(row=>{
+    const season=row.left?titleYearLabel(row.left):(row.right?titleYearLabel(row.right):String(row.year));
+    const other=row.left&&row.right&&rowSeason(row.left)!==rowSeason(row.right)?titleYearLabel(row.right):'';
+    h+='<tr><td><b>'+esc(season)+'</b>'+(other?'<div class="muted">'+esc(other)+'</div>':'')+'</td><td class="l">'+(row.left?titleWinnerHTML(row.left)+resultBit(row.left):'<span class="muted">–</span>')+'</td><td class="l">'+(row.right?titleWinnerHTML(row.right):'<span class="muted">–</span>')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
 function viewCupWinners(){
   const key=S.ui.cup||'dfb';
   if (key!=='dfb'){
@@ -3429,7 +3581,7 @@ function viewCupWinners(){
     if (!rows.length) return '<div class="box"><h3>Sieger '+esc(key)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
     return '<div class="box sieger-box"><h3>Sieger '+esc(key)+'</h3>'+siegerHead()+rows.reverse().join('')+'</div>';
   }
-  return championBoardHTML(['dfb'], 'fdgb', 'DFB-Pokal', 'FDGB-Pokal');
+  return viewDfbModern()+viewDfbHistoric();
 }
 function touchDecide(lid, idx, fn){
   if (!isEditable()) return;
@@ -3498,7 +3650,7 @@ function maybeAutoFinal(season, cup){
   return drawCupRound(season, cup, cup.rounds.length-1);
 }
 let navIndex=0, navMax=0, navMute=0, navReady=false;
-const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx'];
+const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','ansehenGuide','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx'];
 function navVal(v){ return v===undefined?null:v; }
 function navState(){
   const u=S.ui||{};
@@ -3523,7 +3675,7 @@ function navNormalize(){
     const key=S.ui.cup && (S.ui.cup==='dfb' || (land && land[S.ui.cup])) ? S.ui.cup : 'dfb';
     S.ui.cup=key;
     const cup=getCup(s, key);
-    if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
+    if (['spiele','sieger','uebersicht','qualifikation','rekorde','karte','punkte','regeln'].indexOf(S.ui.cupView)<0) S.ui.cupView='spiele';
     if (S.ui.cupView==='punkte' && (!cup || cup.kind!=='land')) S.ui.cupView='spiele';
     if (cup && cup.rounds && cup.rounds.length){
       let ri=S.ui.cupRound;
@@ -3657,6 +3809,7 @@ function renderMain(){
     return;
   }
   if (S.ui.tab==='aufab'){ renderAufAb(); return; }
+  if (S.ui.tab==='regeln'){ renderRegeln(); return; }
   if (S.ui.tab==='supercup'){ renderSupercup(); return; }
   if (S.ui.tab==='verein'){ renderVerein(); return; }
   if (S.ui.tab==='pokal'){
@@ -3732,10 +3885,7 @@ function spielplanHTML(s,lid){
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, bl:true, ansehen:true, step, above, hin:true, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
-  if (ed){
-    h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>'+
-      '<div class="sp-hint">＋ und − ändern die Tore. Offenes Spiel: Heim-＋ wird 1:0, Gast-＋ wird 0:1, − wird 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</div>';
-  }
+  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>';
   if (lg.decide && lg.decide.length && shownMd===lg.md.length-1) h+=decideHTML(s, lid);
   return h;
 }
@@ -3801,7 +3951,7 @@ function viewEwig(lid){
   rows.sort((a,b)=>b.pkt-a.pkt||b.diff-a.diff||b.tg-a.tg||byRang(a.id,b.id));
   const loyal=lid==='BL'?blLoyalSet():null;
   let h='<div class="card"><div class="legend">Alle Spiele aller Saisons in der '+esc(L[lid].name)+' (inkl. laufender Saison), Wertung 3-Punkte-Regel.'+(loyal?' Hervorgehoben: seit dem Eintritt nie aus der Bundesliga abgestiegen. Nach dem ersten Abstieg ist die Markierung dauerhaft weg. Die Vereine der ersten Saison zählen als nie abgestiegen.':'')+'</div><table class="tbl"><thead><tr>'+sortHead('Pl.','pl')+sortHead('Verein','','l')+sortHead('Saisons','seasons')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('T/GT','tg')+sortHead('Diff.','diff')+sortHead('Pkt.','pkt')+'</tr></thead><tbody>';
-  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'>'+sortCell(i+1, i+1)+'<td class="l">'+clubHTML(r.id)+'</td>'+sortCell(seasons[r.id], seasons[r.id])+sortCell(r.sp, r.sp)+sortCell(r.s, r.s)+sortCell(r.u, r.u)+sortCell(r.n, r.n)+sortCell(r.tg, r.tg+':'+r.gt)+sortCell(r.diff, (r.diff>0?'+':'')+r.diff)+sortCell(r.pkt, r.pkt, 'pts')+'</tr>'; });
+  rows.forEach((r,i)=>{ h+='<tr'+(loyal&&loyal.has(r.id)?' class="loyal"':'')+'>'+placeCell(i+1)+'<td class="l">'+clubHTML(r.id)+'</td>'+sortCell(seasons[r.id], seasons[r.id])+sortCell(r.sp, r.sp)+sortCell(r.s, r.s)+sortCell(r.u, r.u)+sortCell(r.n, r.n)+sortCell(r.tg, r.tg+':'+r.gt)+sortCell(r.diff, (r.diff>0?'+':'')+r.diff)+sortCell(r.pkt, r.pkt, 'pts')+'</tr>'; });
   h+='</tbody></table></div>';
   return h;
 }
@@ -5335,7 +5485,7 @@ function viewTerminierung(s, lid){
     let marks=[].concat((s.markers&&s.markers[id])||[]).filter(Boolean);
     const pokal=prevDfbWinner(s);
     if (pokal===id && marks.indexOf('P')<0) marks.push('P');
-    h+='<tr>'+sortCell(placeOf[id], placeOf[id])+'<td class="l">'+clubHTML(id,{nobl:true, marker:marks.length?marks:null})+'</td>'+sortCell(c.total, c.total)+cols.map(([key])=>{
+    h+='<tr>'+placeCell(placeOf[id])+'<td class="l">'+clubHTML(id,{nobl:true, marker:marks.length?marks:null})+'</td>'+sortCell(c.total, c.total)+cols.map(([key])=>{
       const v=c[key];
       const warn=!open && (key==='konferenz'?v<total/2:v===0);
       return sortCell(v, v, warn?'bad':'');
@@ -5664,9 +5814,34 @@ function moveBoardHTML(e, s){
   h+='</div></div>';
   return h;
 }
+function inputHelpHTML(){
+  return '<div class="box"><h3>Tore eintragen</h3><p>＋ und − ändern die Tore. Ein offenes Spiel wird mit Heim-＋ zu 1:0, mit Gast-＋ zu 0:1 und mit − zu 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</p><p>Im Pokal trägt ein Sieg den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht. Ein Freilos ist keine eigene Runde.</p></div>';
+}
+function renderRegeln(){
+  const s=cur(), lid=S.ui.league;
+  const lg=L[lid];
+  $('#title').textContent='Regeln';
+  $('#subline').innerHTML='Farben, Kürzel, Gleichstand, Auf- und Abstieg, Europa';
+  $('#tabs').innerHTML=TABS.map(([k,n])=>'<a class="tab'+(k==='regeln'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  setActions(seasonActions(s));
+  let h=rulesHTML();
+  h+=inputHelpHTML();
+  if (lg) h+='<div class="box"><h3>Farben der '+esc(lg.name)+'</h3>'+legendHTML(lg, s)+'<p class="muted">Die Farben stehen an der Tabelle. Diese Erklärung bleibt hier.</p></div>';
+  h+='<div class="box"><h3>Europa</h3><p>Champions League: Plätze 1 bis 4. Europa League: Plätze 5 und 6. Conference League: Platz 7. Platz 8 bekommt dieselbe grüne Zone, sobald jeder noch mögliche DFB-Sieger dieser Saison in den aktuellen Top 7 steht. Das ist eine Vorschau und keine Garantie. Erst der abgeschlossene Endstand vergibt die Qualifikation. Steht der Pokalsieger dann in den Top 7, behält er seinen Ligaplatz und Platz 8 erhält die Conference League. Steht er außerhalb, bekommt er selbst im Folgejahr Conference League und (P), egal in welcher Liga, und Platz 8 nicht. (P) steht in der Tabelle als letztes Kürzel und im DFB-Spielplan außen. Der Ligaspielplan trägt keine Statuskürzel.</p></div>';
+  $('#view').innerHTML=h;
+}
+function cupRulesHTML(cup){
+  const dfb=cup&&cup.kind!=='land';
+  let h='<div class="box"><h3>Regeln '+(cup?esc(cup.name):'Pokal')+'</h3>';
+  h+='<p>Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen über dem Spielstand. Ein Freilos ist keine eigene Runde und gibt keine Punkte.</p>';
+  if (dfb) h+='<p>(P) steht außen neben dem Titelverteidiger. Der Sieger erhält im Folgejahr die Conference League, wenn er nicht schon über die Bundesliga-Plätze 1 bis 6 höher qualifiziert ist. Liegt er in den Top 7, geht der zusätzliche Conference-League-Platz an Bundesliga-Platz 8.</p>';
+  else h+='<p>Der Landespokal-Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Saisonbudgets. Das Budget folgt dem gespeicherten Feld und wird nicht aus den heutigen Ligen neu gerechnet.</p>';
+  h+='</div>';
+  return h;
+}
 function rulesHTML(){
   const s=cur();
-  let h='<h3>Ligensystem &amp; Regeln</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Reihenfolge bei Gleichstand: Punkte → Tordifferenz → mehr Tore → direkter Vergleich (Punkte, Tordifferenz, Tore) → historische Stärke.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
+  let h='<div class="box"><h3>Ligensystem &amp; Gleichstand</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Die Tabelle sortiert genau so: Punkte, Tordifferenz, geschossene Tore. Sind diese drei gleich, zählt der direkte Vergleich: Punkte, Tordifferenz, geschossene Tore, Auswärtstore in diesen Spielen. Danach die Auswärtstore insgesamt. Weiter gibt es kein sportliches Kriterium. Eine historische Stärke entscheidet die Tabelle nicht.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
   LEAGUES.forEach(l=>{
     const p=relegationProfile(s, l.id);
     const mark=p.down!==l.down;
@@ -5679,12 +5854,12 @@ function rulesHTML(){
     changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+p.down+' statt '+l.down+'.</b> '+esc(p.reason)+'</li>'; });
     h+='</ul>';
   } else h+='<p>In der Saison '+esc(s.name)+' hat nach dem aktuellen Stand jede Staffel die geplante Abstiegszahl.</p>';
-  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes.</p>';
+  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger aus der Amateurliga desselben Gebiets; Oberliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Den Bonus gibt es einmalig für den tatsächlich vollzogenen Aufstieg, auch für Nichtmeister und Relegationssieger, nicht für den Verlierer und nicht für einen Staffelsieger ohne Aufstieg.</p></div>';
   return h;
 }
 function ansehenParts(info){
-  const keys=['liga','dfb','land','titel','euro'];
-  const raw={liga:0,dfb:0,land:0,titel:0,euro:0};
+  const keys=['liga','dfb','land','titel','aufstieg','euro'];
+  const raw={liga:0,dfb:0,land:0,titel:0,aufstieg:0,euro:0};
   (info&&info.lines||[]).forEach(l=>{ if (raw[l.kind]!=null) raw[l.kind]+=l.today||0; });
   const parts={};
   keys.forEach(k=>{ parts[k]=ansehenRound2(raw[k]); });
@@ -5732,11 +5907,11 @@ function viewAnsehen(){
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
   let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln und Europa. Der Supercup steckt in der Titelspalte. Der Rang ist der Platz nach dem Gesamtansehen und bleibt stehen, wenn eine Spalte sortiert wird. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
-  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
+  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Aufstieg','aufstieg')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
   list.forEach(r=>{
     const name=TEAMS[r.id].name;
     const p=r.parts;
-    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer">'+sortCell(nowRank[r.id], nowRank[r.id]||'–')+'<td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id)+'</td>'+sortCell(p.liga, deNum(p.liga,2))+sortCell(p.dfb, deNum(p.dfb,2))+sortCell(p.land, deNum(p.land,2))+sortCell(p.titel, deNum(p.titel,2))+sortCell(p.euro, deNum(p.euro,2))+sortCell(p.sum, deNum(p.sum,2), 'pts')+'<td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
+    h+='<tr data-ansehen="'+r.id+'" data-name="'+esc(name.toLowerCase())+'" style="cursor:pointer">'+placeCell(nowRank[r.id])+'<td>'+rankDeltaHTML(nowRank[r.id], prevRank[r.id])+'</td><td class="l">'+clubHTML(r.id)+'</td>'+sortCell(p.liga, deNum(p.liga,2))+sortCell(p.dfb, deNum(p.dfb,2))+sortCell(p.land, deNum(p.land,2))+sortCell(p.titel, deNum(p.titel,2))+sortCell(p.aufstieg, deNum(p.aufstieg,2))+sortCell(p.euro, deNum(p.euro,2))+sortCell(p.sum, deNum(p.sum,2), 'pts')+'<td class="l">'+esc(leagueLabel(r.lid))+'</td></tr>';
   });
   h+='</tbody></table></div></div>';
   return h;
@@ -5773,44 +5948,44 @@ function ageScaleHTML(){
     const band=ageBand(age);
     rows+='<tr class="band-'+band.id+'"><td class="l">'+esc(band.label)+'</td><td>'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age, true),2)+'</td><td>'+deNum(titleFactor(age, false),2)+'</td></tr>';
   });
-  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Alter 5 ist die sechste Saison davor. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Bundesliga-Meistertitel, DFB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Meistertitel darunter verlieren ebenfalls 1 % pro Jahr, haben keinen Boden und sind ab Alter 100 bei 0.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>Unterer Meistertitel</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Deutsche Meisterschaft, Bundesliga, DDR-Meisterschaft, DFB-Pokal, FDGB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Der Aufstiegsbonus hat denselben Jahresabzug, aber keinen Boden, und ist ab Alter 100 bei 0.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>Aufstieg</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function ansehenGuideHTML(){
-  const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga',7:'Amateurliga'};
+  const names={1:'Bundesliga',2:'2. Bundesliga',3:'3. Liga',4:'4. Liga',5:'Regionalliga',6:'Oberliga',7:'Amateurliga', dfb:'DFB-Pokal', land:'Landespokal', alter:'Alter'};
+  const guide=S.ui.ansehenGuide||'1';
+  const tabs=[['1','Bundesliga'],['2','2. Bundesliga'],['3','3. Liga'],['4','4. Liga'],['5','Regionalliga'],['6','Oberliga'],['7','Amateurliga'],['dfb','DFB-Pokal'],['land','Landespokal'],['alter','Alter']];
+  const bar='<div class="toggle">'+tabs.map(([k,n])=>'<button type="button" data-act="ansehenGuide" data-v="'+k+'" class="'+(guide===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
   const sizeOf=level=>{
-    const found=LEAGUES.filter(l=>l.level===level);
-    return found.length?found[0].size:18;
+    const found=LEAGUES.filter(l=>l.level===+level);
+    return found.length?found[0].size:(+level===7?18:18);
   };
-  let liga='';
-  for (let level=1; level<=6; level++){
-    const n=sizeOf(level);
-    let body='';
+  let body='';
+  if (guide==='dfb'){
+    let dfb='';
+    ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{ dfb+='<tr><td class="l">'+r+'</td><td>'+ansehenPts(ANSEHEN.dfb[r])+'</td></tr>'; });
+    dfb+='<tr><td class="l">Titel extra</td><td>'+ansehenPts(ANSEHEN.dfb.title)+'</td></tr>';
+    body='<div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel hat den Grundwert '+ansehenPts(ANSEHEN.dfb.title)+', gleich dem FDGB-Pokal, und altert wie die großen Titel. Europa: Plätze 1–4 CL '+ansehenPts(ANSEHEN.euro.CL)+', 5–6 EL '+ansehenPts(ANSEHEN.euro.EL)+', 7 und gegebenenfalls 8 UECL '+ansehenPts(ANSEHEN.euro.UECL)+'. Der Pokalsieger erhält UECL, wenn das höher ist als sein Ligaplatz. Supercup: '+ansehenPts(ANSEHEN.supercup.title)+'.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div>';
+  } else if (guide==='land'){
+    const weights=Object.keys(ANSEHEN.land.levelW).map(k=>'<tr><td>'+names[k]+'</td><td>'+ansehenPts(ANSEHEN.land.levelW[k])+'</td></tr>').join('');
+    body='<div class="ansehen-card"><h3>Landespokal</h3><p>Das Feldgewicht und die Runden bleiben. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des gespeicherten Budgets. Ein altes Budget wird nicht aus den heutigen Ligen neu gerechnet.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Gewicht</th></tr></thead><tbody>'+weights+'</tbody></table></div>';
+  } else if (guide==='alter'){
+    body=ageScaleHTML();
+  } else {
+    const level=+guide||1;
+    const n=level===7?((cur()&&cur().pools&&POOLS[0]&&cur().pools[POOLS[0].id]||[]).length||18):sizeOf(level);
+    let rows='';
     for (let pl=1; pl<=n; pl++){
-      const euro=euroOf(level, pl);
-      body+='<tr><td>'+pl+'</td><td>'+ansehenPts(placePoints(level, n, pl))+'</td><td>'+(pl===1?ansehenPts(ANSEHEN.levels[level].title):'–')+'</td><td>'+(euro?euro.key+' '+ansehenPts(euro.pts):'–')+'</td></tr>';
+      const euro=euroOf(level, pl, pl===8);
+      const title=pl===1&&level===1?ansehenPts(ANSEHEN.levels[1].title):'–';
+      const up=ANSEHEN.promotionTo[level]&&pl===1?'Aufstieg nach hier '+ansehenPts(ANSEHEN.promotionTo[level]):'';
+      rows+='<tr><td>'+pl+'</td><td>'+ansehenPts(placePoints(level, n, pl))+'</td><td>'+title+'</td><td>'+(euro?euro.key+' '+ansehenPts(euro.pts)+(pl===8?' nur wenn der Pokal in die Top 7 geht':''):'–')+'</td><td>'+(up||'–')+'</td></tr>';
     }
-    liga+='<div class="ansehen-card"><h3>'+names[level]+'</h3><p>'+n+' Plätze. Der Titel steht nur in der eigenen Spalte, nicht noch einmal im Platzwert.</p><table class="tbl"><thead><tr><th>Platz</th><th>Liga</th><th>Titel extra</th><th>Europa</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+    const note=level===1
+      ? 'Die Europaplätze liegen weiter auseinander. Die Plätze 8 bis 17 liegen eng. Platz 18 bleibt der letzte der Liga. Der Meistertitel ist 180 und altert wie die deutsche Meisterschaft vor 1963 und die DDR-Meisterschaft.'
+      : 'Kein Meistertitel. Wer tatsächlich in die nächste Liga aufsteigt, bekommt einmal den Aufstiegsbonus '+ansehenPts(ANSEHEN.promotionTo[level]||0)+' der Zielliga. Der verliert 1 % pro Jahr und ist ab Alter 100 bei 0.';
+    body='<div class="ansehen-card"><h3>'+names[level]+'</h3><p>'+n+' Plätze. '+note+'</p><table class="tbl"><thead><tr><th>Platz</th><th>Liga</th><th>Titel extra</th><th>Europa</th><th>Aufstieg</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
-  const pool=POOLS[0];
-  const livePool=pool&&cur()&&cur().pools?cur().pools[pool.id]:null;
-  const amN=(livePool&&livePool.length)||18;
-  let am='<tr><td>1</td><td>'+ansehenPts(placePoints(7, amN, 1))+'</td><td>'+ansehenPts(ANSEHEN.levels[7].title)+'</td></tr>';
-  am+='<tr><td>'+amN+'</td><td>'+ansehenPts(placePoints(7, amN, amN))+'</td><td>–</td></tr>';
-  let dfb='';
-  ['1. Runde','2. Runde','Achtelfinale','Viertelfinale','Halbfinale','Finale'].forEach(r=>{
-    dfb+='<tr><td class="l">'+r+'</td><td>'+ansehenPts(ANSEHEN.dfb[r])+'</td></tr>';
-  });
-  dfb+='<tr><td class="l">Titel extra</td><td>'+ansehenPts(ANSEHEN.dfb.title)+'</td></tr>';
-  const weights=Object.keys(ANSEHEN.land.levelW).map(k=>'<tr><td>'+names[k]+'</td><td>'+ansehenPts(ANSEHEN.land.levelW[k])+'</td></tr>').join('');
-  let example='';
-  try{
-    const s=cur();
-    const ids=(s.leagues.L3&&s.leagues.L3.teams||[]).slice(0,8).concat((s.pools&&s.pools[POOLS[0].id]||[]).slice(0,8));
-    const rounds=['Achtelfinale','Viertelfinale','Halbfinale','Finale'];
-    const scale=landAnsehenScale(ids, s, rounds);
-    example='<p>Beispiel aus der laufenden Saison, '+ids.length+' Vereine, '+rounds.length+' Runden. Feldwert '+ansehenPts(scale.field)+', Budget '+ansehenPts(scale.budget)+', Titel '+ansehenPts(scale.title)+'.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+rounds.map(r=>'<tr><td class="l">'+r+'</td><td>'+ansehenPts(landRoundPoints(scale, r))+'</td></tr>').join('')+'</tbody></table>';
-  }catch(e){ example=''; }
-  return '<div class="box ansehen-guide"><h3>So wird Ansehen gezählt</h3><p>Alle Zahlen kommen aus der bestehenden Rechnung. Ein Titel ist immer ein eigener Posten. Europa gibt es nur im Rechner und nur für den höchsten Wettbewerb.</p>'+liga+'<div class="ansehen-card"><h3>Amateurliga</h3><p>Dieselbe Formel. Gezeigt ist Platz 1 und der letzte Platz bei '+amN+' Vereinen, der Staffelgröße '+esc(pool?pool.name:'der Amateurliga')+'.</p><table class="tbl"><thead><tr><th>Platz</th><th>Liga</th><th>Titel extra</th></tr></thead><tbody>'+am+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table><p>Europa: Plätze 1–4 CL '+ansehenPts(ANSEHEN.euro.CL)+', 5–6 EL '+ansehenPts(ANSEHEN.euro.EL)+', Platz 7 UECL '+ansehenPts(ANSEHEN.euro.UECL)+'. Der DFB-Pokalsieger erhält EL, wenn das höher ist als der Ligaplatz.</p><p>Supercup-Titel: '+ansehenPts(ANSEHEN.supercup.title)+', einmal pro gewonnenem Spiel, erst wenn die Saison abgeschlossen ist.</p></div><div class="ansehen-card"><h3>Landespokal</h3><p>Jeder Verein bringt ein Gewicht seiner Ligastufe. Das Feld wird durch 8 geteilt und wächst je zusätzlicher Runde um '+ansehenPts(ANSEHEN.land.roundK*100)+' %. Das Budget ist bei '+ansehenPts(ANSEHEN.land.capBudget)+' gedeckelt. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' % des Budgets. Eine erreichte Runde bekommt den entsprechenden Anteil des Budgets, nicht die Summe aller Runden.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Gewicht</th></tr></thead><tbody>'+weights+'</tbody></table>'+example+'</div>'+ageScaleHTML()+'</div>';
+  return '<div class="box ansehen-guide"><h3>So wird Ansehen gezählt</h3>'+bar+body+'</div>';
 }
 function weightClass(factor){ return factor>=0.96?'w-hot':factor>0?'w-on':'w-off'; }
 function ansehenDonut(parts){
@@ -5830,11 +6005,27 @@ function seasonShort(name){
   const m=String(name||'').match(/^(\d{4})\/(\d{2})$/);
   return m ? m[1].slice(2)+'/'+m[2] : String(name||'');
 }
+function seasonFull(name){
+  const s=String(name||'');
+  const pair=s.match(/^(\d{4})\/(\d{2})$/);
+  if (!pair) return s;
+  const start=+pair[1];
+  let end=Math.floor(start/100)*100+(+pair[2]);
+  if (end<=start) end+=100;
+  return start+'/'+end;
+}
+function histTitleSeason(line){
+  return !!(line && line.kind==='titel' && (line.histKey || line.src==='historie'));
+}
+function titleYearLabel(r){
+  const label=rowSeason(r);
+  return r && r.map==='simulation' ? label : seasonFull(label);
+}
 function ansehenSeasonRows(info){
-  const keys=['liga','dfb','land','titel','euro'];
+  const keys=['liga','dfb','land','titel','aufstieg','euro'];
   const by={};
   (info.lines||[]).forEach(l=>{
-    const row=by[l.season]||(by[l.season]={season:l.season, liga:0, dfb:0, land:0, titel:0, euro:0, lines:[]});
+    const row=by[l.season]||(by[l.season]={season:l.season, liga:0, dfb:0, land:0, titel:0, aufstieg:0, euro:0, lines:[]});
     if (keys.indexOf(l.kind)>=0) row[l.kind]=ansehenRound2(row[l.kind]+(l.today||0));
     row.lines.push(l);
   });
@@ -5882,18 +6073,20 @@ function viewAnsehenDetail(id, embedded){
   if (!embedded) h+='<div class="an-hero-name"><img src="'+esc(t.crest)+'" alt=""><div><h3>'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+'</div></div></div>';
   h+='<div class="an-hero"><div><div class="an-kicker">Ansehen bis '+info.end+'</div><div class="an-total">'+deNum(info.value,2)+'</div>';
   h+='<p class="an-aging">Eine Zeile ist eine Saison. Liga, DFB-Pokal und Landespokal sind die Runden- und Platzpunkte. Titel stehen extra und nicht noch einmal in der Pokalspalte. Der Supercup ist ein kleiner Titel von '+deNum(ANSEHEN.supercup.title,2)+'.</p></div>'+ansehenDonut(parts)+'</div>';
-  h+='<table class="tbl an-season"><thead><tr><th class="l">Saison</th><th>Liga</th><th>DFB</th><th>Land</th><th>Titel</th><th>Europa</th><th>Summe</th></tr></thead><tbody>';
-  if (!rows.length) h+='<tr><td class="l" colspan="7"><span class="muted">Keine gespeicherten Erfolge bis zu dieser Saison.</span></td></tr>';
+  h+='<table class="tbl an-season"><thead><tr><th class="l">Saison</th><th>Liga</th><th>DFB</th><th>Land</th><th>Titel</th><th>Aufstieg</th><th>Europa</th><th>Summe</th></tr></thead><tbody>';
+  if (!rows.length) h+='<tr><td class="l" colspan="8"><span class="muted">Keine gespeicherten Erfolge bis zu dieser Saison.</span></td></tr>';
   rows.forEach(r=>{
-    h+='<tr><td class="l">'+esc(seasonShort(r.season))+'</td><td>'+deNum(r.liga,2)+'</td><td>'+deNum(r.dfb,2)+'</td><td>'+deNum(r.land,2)+'</td><td>'+deNum(r.titel,2)+'</td><td>'+deNum(r.euro,2)+'</td><td><b>'+deNum(r.sum,2)+'</b></td></tr>';
+    const hist=(info.lines||[]).some(l=>l.season===r.season && histTitleSeason(l));
+    h+='<tr><td class="l">'+esc(hist?seasonFull(r.season):seasonShort(r.season))+'</td><td>'+deNum(r.liga,2)+'</td><td>'+deNum(r.dfb,2)+'</td><td>'+deNum(r.land,2)+'</td><td>'+deNum(r.titel,2)+'</td><td>'+deNum(r.aufstieg||0,2)+'</td><td>'+deNum(r.euro,2)+'</td><td><b>'+deNum(r.sum,2)+'</b></td></tr>';
   });
-  h+='<tr data-pin="1"><td class="l"><b>Summe</b></td><td colspan="5"></td><td><b>'+deNum(rowSum,2)+'</b></td></tr>';
+  h+='<tr data-pin="1"><td class="l"><b>Summe</b></td><td colspan="6"></td><td><b>'+deNum(rowSum,2)+'</b></td></tr>';
   h+='</tbody></table>';
   h+='<h3>Verlauf</h3>'+ansehenCourseSVG(id);
   h+='<details class="an-fold"><summary>Einzelposten</summary><p class="muted">Grün die letzten fünf Saisons, dann die Abschnitte bis Alter 50. Ab Alter 50 bleibt der Rechner bei 12 %, importierte Platzierungen fallen weg.</p><table class="tbl fit age-lines"><thead><tr><th class="l">Saison</th><th class="l">Quelle</th><th class="l">Erfolg</th><th>Ursprung</th><th>Alter</th><th>Faktor</th><th>Beitrag</th></tr></thead><tbody>';
   (info.lines||[]).forEach(l=>{
     const band=ageBand(l.age);
-    h+='<tr class="band-'+band.id+'" title="'+esc(band.detail)+'"><td class="l">'+esc(seasonShort(l.season))+'</td><td class="l">'+(l.src==='rechner'?'Rechner':'Import')+'</td><td class="l">'+esc(l.label)+'</td><td>'+deNum(l.original,2)+'</td><td>'+l.age+'</td><td>'+deNum(l.factor,2)+'</td><td>'+deNum(l.today,2)+'</td></tr>';
+    const when=histTitleSeason(l)?seasonFull(l.season):seasonShort(l.season);
+    h+='<tr class="band-'+band.id+'" title="'+esc(band.detail)+'"><td class="l">'+esc(when)+'</td><td class="l">'+(l.src==='rechner'?'Rechner':'Import')+'</td><td class="l">'+esc(l.label)+'</td><td>'+deNum(l.original,2)+'</td><td>'+l.age+'</td><td>'+deNum(l.factor,2)+'</td><td>'+deNum(l.today,2)+'</td></tr>';
   });
   h+='</tbody></table></details>';
   h+='<details class="an-fold"><summary>Punkteskala und Alter</summary>'+ansehenLegendHTML()+'</details></div>';
@@ -6730,7 +6923,7 @@ function renderInfo(){
     (S.chronicle||[]).forEach(c=>{ if (c.id===id && c.pl===1) addTitle(c.liga, c.season, c.ebene||99); });
     (S.pokalRuns||[]).forEach(r=>{ if (r.id===id && r.won) addTitle(r.comp==='dfb'?'DFB-Pokal':'Landespokal'+(r.bl?' '+r.bl:''), r.season, r.comp==='dfb'?0.2:0.4); });
     (S.seasons||[]).forEach(s=>{ if (s.supercup && supercupWinner(s.supercup)===id) addTitle('Supercup', s.name, 0.6); });
-    historicalTitleRows().forEach(r=>{ if (r.id===id) addTitle(titelGroup(r.comp), r.year, r.comp==='dfb'||r.comp==='fdgb'?0.2:0.1); });
+    historicalTitleRows().forEach(r=>{ if (r.id===id) addTitle(titelGroup(r.comp), seasonFull(titelSeason(r.comp, r.year)), r.comp==='dfb'||r.comp==='fdgb'?0.2:0.1); });
     if (!titles.length) h+='<p class="muted">Noch kein Titel im Rechner.</p>';
     else {
       const by={};
@@ -7178,6 +7371,7 @@ document.addEventListener('click', ev=>{
         let k=0;
         place.map(r=>r||movable[k++]).forEach(r=>body.appendChild(r));
       }
+      paintRankView(body, !!next);
     }
     return;
   }
@@ -7261,6 +7455,7 @@ document.addEventListener('click', ev=>{
     save(); render();
   }
   else if (act==='ansehenKind'){ S.ui.ansehenKind=a.dataset.v||'alle'; render(); }
+  else if (act==='ansehenGuide'){ S.ui.ansehenGuide=a.dataset.v||'1'; render(); }
   else if (act==='ansehenBack'){ S.ui.ansehenId=null; S.ui.tab='ansehen'; render(); }
   else if (act==='infoSec'){ S.ui.infoSec=a.dataset.v; render(); }
   else if (act==='infoHist'){ S.ui.infoHist=a.dataset.v; render(); }
@@ -7280,7 +7475,7 @@ document.addEventListener('click', ev=>{
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
   else if (act==='simSeason'){ const r=rollSimulatedSeason(); if(!r.rolled){ toast('Die Saison konnte nicht gewechselt werden.'); return; } toast(r.c+' Spiele simuliert.'); }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
-  else if (act==='rules'){ openModal(rulesHTML()); }
+  else if (act==='rules'){ S.ui.tab='regeln'; render(); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
   else if (act==='toEnd'){ S.view=S.seasons.length-1; S.ui.tab='aufab'; render(); }
   else if (act==='endCancel'){ cancelSeasonEnd(); }
@@ -7738,8 +7933,63 @@ function uiSelfTestBody(fails){
   check('Tooltip-Text ist dunkel und nicht auf 16px gequetscht', !!tipName && !!tipScore && !!tipDay && dark(ink(tipName)) && dark(ink(tipScore)) && dark(ink(tipDay)) && tipName.getBoundingClientRect().width>40 && tipScore.getBoundingClientRect().width>12, ink(tipName)+' '+Math.round(tipName?tipName.getBoundingClientRect().width:0));
   tipHost.remove();
   check('Alter 4 bleibt voll, Alter 5 beginnt den nächsten Abschnitt', ageBand(4).id==='full' && ageBand(5).id==='mid' && ageBand(10).id==='mid' && ageBand(11).id==='gentle' && ageBand(20).id==='gentle' && ageBand(21).id==='late' && ageBand(49).id==='late' && ageBand(50).id==='floor');
-  const guide=ansehenGuideHTML();
-  check('Wertungsreiter nutzt die Ligafunktion', guide.indexOf(String(placePoints(1,20,1)))>=0 && guide.indexOf(String(ANSEHEN.dfb['2. Runde']))>=0 && guide.indexOf(ansehenPts(ANSEHEN.supercup.title))>=0 && guide.indexOf('Landespokal')>=0);
+  const guideWas=S.ui.ansehenGuide;
+  S.ui.ansehenGuide='1';
+  const guideBl=ansehenGuideHTML();
+  S.ui.ansehenGuide='dfb';
+  const guideDfb=ansehenGuideHTML();
+  S.ui.ansehenGuide=guideWas;
+  check('Wertungsreiter nutzt die Ligafunktion', guideBl.indexOf(String(placePoints(1,20,1)))>=0 && guideDfb.indexOf(String(ANSEHEN.dfb['2. Runde']))>=0 && guideDfb.indexOf(ansehenPts(ANSEHEN.supercup.title))>=0 && guideBl.indexOf('Landespokal')>=0);
+  const sortTab=S.ui.tab, sortLeague=S.ui.league, sortSec=S.ui.ansehenSec, sortId=S.ui.ansehenId;
+  const rankText=table=>{
+    const row=table.tBodies[0].rows[0];
+    const cell=row.querySelector('td[data-rank]');
+    return {now:row.querySelector('.rank-now').textContent, orig:cell.dataset.rank, paren:row.querySelector('.rank-orig')?row.querySelector('.rank-orig').textContent:'', klass:row.className};
+  };
+  S.ui.tab='tabelle'; S.ui.league='BL';
+  render();
+  const liga=document.querySelector('#tableCard table');
+  const pl1=liga.querySelector('tr.z-meister');
+  const pl1Class=pl1.className;
+  check('Liga zeigt den Platz ohne Klammer', !liga.querySelector('.rank-orig') && liga.tBodies[0].rows[0].querySelector('.rank-now').textContent==='1');
+  liga.querySelector('th[data-sort="an"]').click();
+  const ligaSort=rankText(liga);
+  check('Liga sortiert sichtbar ab 1', ligaSort.now==='1');
+  check('Liga nennt den ursprünglichen Rang klein', ligaSort.orig==='1' || ligaSort.paren==='('+ligaSort.orig+')');
+  check('Meisterfarbe bleibt am echten Platz 1', pl1.className===pl1Class && pl1.querySelector('td[data-rank]').dataset.rank==='1');
+  liga.querySelector('th[data-sort="an"]').click();
+  liga.querySelector('th[data-sort="an"]').click();
+  check('Liga-Sortierung setzt auf den Tabellenrang zurück', !liga.querySelector('.rank-orig') && liga.tBodies[0].rows[0].querySelector('.rank-now').textContent==='1');
+  S.ui.tab='ewig';
+  render();
+  const ewig=document.querySelector('#view table');
+  check('Ewige Tabelle startet bei 1', ewig.tBodies[0].rows[0].querySelector('.rank-now').textContent==='1' && !ewig.querySelector('.rank-orig'));
+  ewig.querySelector('th[data-sort="pkt"]').click();
+  ewig.querySelector('th[data-sort="pkt"]').click();
+  const ewigAsc=rankText(ewig);
+  check('Ewige Tabelle aufsteigend zählt neu', ewigAsc.now==='1' && (ewigAsc.orig==='1' || ewigAsc.paren==='('+ewigAsc.orig+')'));
+  ewig.querySelector('th[data-sort="pkt"]').click();
+  check('Ewige Tabelle kehrt zum Punktestand zurück', !ewig.querySelector('.rank-orig') && ewig.tBodies[0].rows[0].querySelector('td[data-rank]').dataset.rank==='1');
+  S.ui.tab='heimaus';
+  render();
+  const heim=document.querySelector('#view table');
+  const heimTop=heim.querySelector('td[data-rank="1"]').closest('tr');
+  const heimClass=heimTop.className;
+  heim.querySelector('th[data-sort="pkt"]').click();
+  check('Heimtabelle zählt die sichtbare Reihenfolge', rankText(heim).now==='1');
+  check('Heimfarbe bleibt am Heimtabellenplatz', heimTop.className===heimClass && heimTop.querySelector('td[data-rank]').dataset.rank==='1');
+  S.ui.tab='ansehen'; S.ui.ansehenSec='liste'; S.ui.ansehenId='';
+  render();
+  const an=document.querySelector('#ansehenList');
+  check('Ansehen startet beim Gesamtrang', !an.querySelector('.rank-orig') && an.tBodies[0].rows[0].querySelector('.rank-now').textContent===an.tBodies[0].rows[0].querySelector('td[data-rank]').dataset.rank);
+  an.querySelector('th[data-sort="titel"]').click();
+  const anSort=rankText(an);
+  check('Ansehen nach Titel zählt ab 1', anSort.now==='1' && (anSort.orig==='1' || anSort.paren==='('+anSort.orig+')'));
+  an.querySelector('th[data-sort="titel"]').click();
+  an.querySelector('th[data-sort="titel"]').click();
+  check('Ansehen setzt den Gesamtrang zurück', !an.querySelector('.rank-orig') && an.tBodies[0].rows[0].querySelector('.rank-now').textContent===an.tBodies[0].rows[0].querySelector('td[data-rank]').dataset.rank);
+  S.ui.tab=sortTab; S.ui.league=sortLeague; S.ui.ansehenSec=sortSec; S.ui.ansehenId=sortId;
+  render();
   [18,20,22,38].forEach(n=>{
     const md=makeSchedule(n);
     const half=n-1;
@@ -7845,10 +8095,10 @@ function uiSelfTestBody(fails){
   const dfbReg=titleRegisterHTML('dfb');
   check('DFB-Siegerliste nennt Jahr und Sieger', dfbReg.indexOf('Jahr')>=0 && dfbReg.indexOf('Sieger')>=0 && dfbReg.indexOf('Finalist')<0 && dfbReg.indexOf('2026')>=0);
   const lok57=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='fdgb'&&r.year===1957));
-  const rb22=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='dfb'&&r.year===2022));
+  const frei=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='de'&&r.year===1907));
   const bay26=titleWinnerHTML(historicalTitleRows().find(r=>r.comp==='bl'&&r.year===2026));
   check('1957 nennt zuerst SC Lokomotive Leipzig und dann Lok', lok57.indexOf('SC Lokomotive Leipzig')>=0 && lok57.indexOf('SC Lokomotive Leipzig')<lok57.indexOf('1. FC Lokomotive Leipzig') && lok57.indexOf('heute')>=0);
-  check('fehlender Verein bleibt nur der Name', rb22.indexOf('RB Leipzig')>=0 && rb22.indexOf('<img')<0);
+  check('fehlender Verein bleibt nur der Name', frei.indexOf('Freiburger FC')>=0 && frei.indexOf('<img')<0);
   check('gleicher Name wird nicht doppelt genannt', bay26.indexOf('heute')<0 && bay26.indexOf('FC Bayern München')>=0 && bay26.indexOf('<img')>=0);
   const cupWas=S.ui.cup;
   S.ui.cup='Bayern';
@@ -7957,7 +8207,7 @@ function uiSelfTestBody(fails){
   check('1903 hat keinen DDR-Meister daneben', !!(y1903 && y1903.left && !y1903.right));
   check('1945 ist kein Meisterjahr', !master.some(r=>r.year===1945 || r.year===1904 || r.year===1922));
   const board=championBoardHTML(['bl','de'],'ddr','Bundesliga und deutsche Meisterschaft','DDR-Meister');
-  check('1961/62 steht in der Meisterliste', board.indexOf('1961/62')>=0 && board.indexOf('DDR-Meister')>=0);
+  check('1961/1962 steht in der Meisterliste', board.indexOf('1961/1962')>=0 && board.indexOf('DDR-Meister')>=0 && board.indexOf('08/09')<0);
   const cups=championRows(['dfb'],'fdgb');
   const y1957=cups.find(r=>r.year===1957);
   const histDfb=cups.filter(r=>r.left && r.left.map!=='simulation' && r.left.year<=1943);
@@ -7969,7 +8219,7 @@ function uiSelfTestBody(fails){
   hist.forEach(r=>{ const k=r.comp+'|'+r.year; if (keys[k]) dupKey=true; keys[k]=1; });
   const badId=hist.filter(r=>r.id && !TEAMS[r.id]);
   const openId=hist.filter(r=>!r.id);
-  check('278 Titel, jede ID gültig, fehlende Vereine leer', hist.length===278 && !dupKey && !badId.length && openId.length===7);
+  check('276 Titel, jede ID gültig, fehlende Vereine leer', hist.length===276 && !dupKey && !badId.length && openId.length===5);
   check('1957 geht nicht an Chemie', !hist.some(r=>r.comp==='fdgb' && r.year===1957 && r.id==='t139'));
   const kiel=hist.find(r=>r.comp==='de' && r.year===1912);
   const dessau=hist.find(r=>r.comp==='fdgb' && r.year===1949);
