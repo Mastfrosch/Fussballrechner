@@ -2654,7 +2654,7 @@ function sortCell(n, html, cls){
 function formSpan(letter, game){
   const word={S:'Sieg',U:'Unentschieden',N:'Niederlage'}[letter]||'';
   if (!game || !TEAMS[game.h] || !TEAMS[game.a] || game.hg==null || game.ag==null) return '<span class="f-'+letter+'" title="'+esc(word)+'">'+letter+'</span>';
-  const tip='<span class="ov-tip form-pop"><b>'+(game.md+1)+'. Spieltag</b><span class="ft-pair"><img src="'+esc(TEAMS[game.h].crest)+'" alt=""><span>'+esc(TEAMS[game.h].name)+'</span><b>'+game.hg+':'+game.ag+'</b><img src="'+esc(TEAMS[game.a].crest)+'" alt=""><span>'+esc(TEAMS[game.a].name)+'</span></span></span>';
+  const tip='<span class="ov-tip form-pop"><span class="ft-day">'+(game.md+1)+'. Spieltag</span><span class="ft-pair"><span class="ft-name">'+esc(TEAMS[game.h].name)+'</span><img src="'+esc(TEAMS[game.h].crest)+'" alt=""><span class="ft-score">'+game.hg+':'+game.ag+'</span><img src="'+esc(TEAMS[game.a].crest)+'" alt=""><span class="ft-name">'+esc(TEAMS[game.a].name)+'</span></span></span>';
   return '<span class="form-wrap"><span class="form-bit f-'+letter+'">'+letter+'</span>'+tip+'</span>';
 }
 function zoneCut(lg, pl, n, down){
@@ -7167,6 +7167,18 @@ function uiSelfTest(){
   check('Form merkt das echte Spiel', homeRow.form.join('')==='S' && homeRow.formGames[0].h==='t010' && homeRow.formGames[0].hg===3 && homeRow.formGames[0].ag===1);
   const formHtml=formSpan('S', homeRow.formGames[0]);
   check('Tooltip nennt Spieltag und Paarung', formHtml.indexOf('1. Spieltag')>=0 && formHtml.indexOf('3:1')>=0 && formHtml.indexOf(TEAMS.t010.name)>=0 && formHtml.indexOf(TEAMS.t011.name)>=0);
+  const tipHost=document.createElement('div');
+  tipHost.innerHTML='<span class="form">'+formHtml+'</span>';
+  document.body.appendChild(tipHost);
+  const tipPop=tipHost.querySelector('.form-pop');
+  if (tipPop) tipPop.style.display='block';
+  const tipName=tipHost.querySelector('.ft-name');
+  const tipScore=tipHost.querySelector('.ft-score');
+  const tipDay=tipHost.querySelector('.ft-day');
+  const ink=el=>getComputedStyle(el).color;
+  const dark=c=>c && c!=='rgb(255, 255, 255)' && c!=='rgba(255, 255, 255, 1)';
+  check('Tooltip-Text ist dunkel und nicht auf 16px gequetscht', !!tipName && !!tipScore && !!tipDay && dark(ink(tipName)) && dark(ink(tipScore)) && dark(ink(tipDay)) && tipName.getBoundingClientRect().width>40 && tipScore.getBoundingClientRect().width>12, ink(tipName)+' '+Math.round(tipName?tipName.getBoundingClientRect().width:0));
+  tipHost.remove();
   check('Alter 4 bleibt voll, Alter 5 beginnt den nächsten Abschnitt', ageBand(4).id==='full' && ageBand(5).id==='mid' && ageBand(10).id==='mid' && ageBand(11).id==='gentle' && ageBand(20).id==='gentle' && ageBand(21).id==='late' && ageBand(49).id==='late' && ageBand(50).id==='floor');
   const guide=ansehenGuideHTML();
   check('Wertungsreiter nutzt die Ligafunktion', guide.indexOf(String(placePoints(1,20,1)))>=0 && guide.indexOf(String(ANSEHEN.dfb['2. Runde']))>=0 && guide.indexOf(ansehenPts(ANSEHEN.supercup.title))>=0 && guide.indexOf('Landespokal')>=0);
