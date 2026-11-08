@@ -651,7 +651,15 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .land-matrix th,.land-matrix td{white-space:nowrap}
 .land-matrix th.l,.land-matrix thead th.l{position:sticky;left:0;z-index:1;background:var(--head)}
 .land-matrix tbody th.l{background:var(--card)}
+.chart-frame{display:flex;align-items:flex-start;max-width:100%;background:#f7faf8;border:1px solid var(--line);overflow:hidden}
+.chart-y{position:relative;flex:0 0 108px;background:#f7faf8;border-right:1px solid var(--line)}
+.chart-y span{position:absolute;left:6px;right:4px;font-size:11px;line-height:1.1;color:#5d6b64;white-space:nowrap;overflow:hidden}
+.chart-frame .hscroll{flex:1 1 auto;min-width:0;border:0}
 .hscroll{overflow-x:scroll;overflow-y:hidden;max-width:100%;padding-bottom:2px;scrollbar-color:#7d9a88 #e7eee9}
+@media (max-width:720px){
+  .chart-y{flex-basis:92px}
+  .chart-y span{font-size:10px}
+}
 .hscroll::-webkit-scrollbar{height:12px}
 .hscroll::-webkit-scrollbar-track{background:#e7eee9}
 .hscroll::-webkit-scrollbar-thumb{background:#6f8f7e}
