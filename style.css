@@ -46,15 +46,6 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .subline{color:var(--muted);margin:3px 0 0;font-size:12px}
 .subline a{color:var(--ink);cursor:pointer;border-bottom:1px solid #c5cad0}
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 12px;flex-wrap:wrap}
-.ein-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:0 0 12px}
-.ein-card{border:1px solid var(--line);background:#fff;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
-.ein-card.on{border-color:var(--green);background:#f3f7f4}
-.ein-card b{font-weight:650}
-.ein-card .muted,.ein-card .ein-miss{white-space:nowrap}
-.ein-note{padding:8px 10px 0}
-.ein-scroll{overflow-x:auto}
-.ein-miss{color:var(--muted)}
-@media (max-width:720px){.ein-grid{grid-template-columns:1fr}.ein-card .muted,.ein-card .ein-miss{white-space:normal}}
 .tab{padding:7px 12px;cursor:pointer;color:#5c6570;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--ink);font-weight:650;border-bottom-color:var(--green)}
