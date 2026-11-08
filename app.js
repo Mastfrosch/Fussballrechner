@@ -4692,7 +4692,17 @@ function maybeAutoFinal(season, cup){
   return drawCupRound(season, cup, cup.rounds.length-1);
 }
 let navIndex=0, navMax=0, navMute=0, navReady=false;
-const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','ansehenGuide','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx'];
+const NAV_KEYS=['league','tab','cup','cupView','titleList','infoId','infoSec','infoHist','amateurBl','amateurView','ansehenSec','ansehenId','ansehenLiga','ansehenBl','ansehenKind','ansehenGuide','scView','vereinId','vereinFrom','allPools','infoOpp','infoH2H','infoFx','infoTermin'];
+const CMP_FILTERS={all:1, liga:1, dfb:1, land:1, sc:1};
+function normalizeInfoUi(){
+  if (!S || !S.ui) return;
+  const fx=S.ui.infoFx;
+  const numeric=fx!=null && fx!=='' && isFinite(+fx) && String(+fx)===String(fx).trim();
+  if (numeric){
+    if (S.ui.infoTermin==null || S.ui.infoTermin==='') S.ui.infoTermin=+fx;
+    S.ui.infoFx='all';
+  } else if (!CMP_FILTERS[fx]) S.ui.infoFx='all';
+}
 function navVal(v){ return v===undefined?null:v; }
 function navState(){
   const u=S.ui||{};
@@ -4736,6 +4746,7 @@ function navNormalize(){
     if (['historie','bilanz','gegner','vergleich','termin','erfolge','ansehen'].indexOf(S.ui.infoSec)<0) S.ui.infoSec='historie';
     if (S.ui.infoSec==='historie' && ['liga','dfb','land'].indexOf(S.ui.infoHist)<0) S.ui.infoHist='liga';
   }
+  normalizeInfoUi();
   const lid=S.ui.league;
   if (S.ui.tab==='tabelle' && L[lid]){
     const s=cur();
@@ -8833,11 +8844,11 @@ function fxMatchRow(id, it, roundLabel, season){
 }
 function renderTerminplan(id){
   const seasons=S.seasons||[];
-  let idx=S.ui.infoFx!=null?+S.ui.infoFx:S.view;
-  if (!(idx>=0 && idx<seasons.length)) idx=seasons.length-1;
-  S.ui.infoFx=idx;
+  let idx=S.ui.infoTermin!=null && S.ui.infoTermin!=='' ? +S.ui.infoTermin : S.view;
+  if (!(idx>=0 && idx<seasons.length)) idx=seasons.length?seasons.length-1:0;
+  S.ui.infoTermin=idx;
   const season=seasons[idx];
-  let h='<div class="fx-bar"><label>Saison <select id="infoFxSeason">'+seasons.map((s,i)=>'<option value="'+i+'"'+(i===idx?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></label></div>';
+  let h='<div class="fx-bar"><label>Saison <select id="infoTermin">'+seasons.map((s,i)=>'<option value="'+i+'"'+(i===idx?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></label></div>';
   const stored=typeof season.fx==='string' && !!season.fx;
   const items=clubFixtureItems(season, id);
   if (!items || !items.length) return h+'<p class="muted">'+(stored?'Keine Spiele in dieser Saison.':'Der Spielplan dieser Saison ist nicht mehr gespeichert.')+'</p>';
@@ -9241,7 +9252,8 @@ function compareTally(matches, id){
 }
 function directCompareHTML(id){
   const opp=S.ui.infoOpp;
-  const fx=S.ui.infoFx||'all';
+  normalizeInfoUi();
+  const fx=CMP_FILTERS[S.ui.infoFx]?S.ui.infoFx:'all';
   const filters=[['all','Alle Wettbewerbe'],['liga','Liga'],['dfb','DFB-Pokal'],['land','Landespokal'],['sc','Supercup']];
   const crest=cid=>TEAMS[cid]?'<img class="cmp-crest" src="'+esc(TEAMS[cid].crest)+'" alt="" data-club="'+cid+'">':'<span class="cmp-crest cmp-empty"></span>';
   let h='<div class="cmp">';
@@ -9646,14 +9658,15 @@ function viewVerein(id){
   const t=TEAMS[id];
   const stad=stadionName(id);
   const info=ansehenInfo(id);
+  const parts=ansehenParts(info);
   const hist=leagueHistoryPoints(id);
   let h='<div class="box"><button class="btn small" data-act="vereinBack">← Zurück</button><div class="verein-head"><img src="'+esc(t.crest)+'" alt=""><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+(stad?' · '+esc(stad):' · Stadionname nicht hinterlegt')+'</div></div></div>';
   h+='<h3>Liga-Verlauf</h3>'+placementChart(hist);
   h+='<h3>Ansehen</h3><div class="ansehen-break">'+
-    '<div><span>Liga</span><b>'+(info.liga==null?'–':deNum(info.liga,2))+'</b></div>'+
-    '<div><span>DFB-Pokal</span><b>'+deNum(info.dfb.value,2)+'</b></div>'+
-    '<div><span>Landespokal</span><b>'+deNum(info.land.value,2)+'</b></div>'+
-    '<div class="tot"><span>Ansehen</span><b>'+(info.value==null?'–':deNum(info.value,2))+'</b></div></div>';
+    '<div><span>Liga</span><b>'+deNum(parts.liga,2)+'</b></div>'+
+    '<div><span>DFB-Pokal</span><b>'+deNum(parts.dfb,2)+'</b></div>'+
+    '<div><span>Landespokal</span><b>'+deNum(parts.land,2)+'</b></div>'+
+    '<div class="tot"><span>Ansehen</span><b>'+deNum(info.value,2)+'</b></div></div>';
   const runs=vereinPokalRuns(id);
   h+='<h3>Pokal</h3><table class="tbl fit"><thead><tr><th class="l">Saison</th><th class="l">Wettbewerb</th><th class="l">Runde</th></tr></thead><tbody>';
   if (!runs.length) h+='<tr><td class="l" colspan="3"><span class="muted">Noch keine Pokalrunde im Rechner.</span></td></tr>';
@@ -9951,7 +9964,7 @@ document.addEventListener('change', ev=>{
   else if (t.dataset.cupEt){ mutateCup(t.dataset.cup, +t.dataset.ri, +t.dataset.mi, m=>{ m.et=t.checked; }); }
   else if (t.dataset.scEt!=null){ touchSupercup(m=>{ m.et=t.checked; }); }
   else if (t.dataset.decideEt!=null){ touchDecide(S.ui.league, +t.dataset.decideEt, m=>{ m.et=t.checked; }); }
-  else if (t.id==='infoFxSeason'){ S.ui.infoFx=+t.value; render(); }
+  else if (t.id==='infoTermin'){ S.ui.infoTermin=+t.value; render(); }
   else if (t.id==='ansehenBl'){ S.ui.ansehenBl=t.value; save(); render(); }
   else if (t.id==='optSupercup'){ S.ui.supercup=t.checked; if(!t.checked && S.ui.tab==='supercup') S.ui.tab='tabelle'; save(); render(); }
   else if (t.dataset.pick){ const e=latest().endData, ol=t.dataset.pick; const arr=e.picks[ol]||(e.picks[ol]=[]);
@@ -10343,6 +10356,85 @@ function uiSelfTestBody(fails){
     check('DFB-Pokal 2021/22 und 2022/23 bleibt draußen', !ownTitles.some(t=>t.k==='DFB-Pokal' && /2021\/2022|2022\/2023|^2022$|^2023$/.test(String(t.y))));
   }finally{
     S.ui.infoOpp=cmpKeep.opp; S.ui.infoFx=cmpKeep.fx; S.ui.infoH2H=cmpKeep.h2h; S.seasons=cmpKeep.seasons;
+  }
+  const fxKeep={tab:S.ui.tab, sec:S.ui.infoSec, id:S.ui.infoId, opp:S.ui.infoOpp, fx:S.ui.infoFx, termin:S.ui.infoTermin, h2h:S.ui.infoH2H, seasons:S.seasons, view:S.view, verein:S.ui.vereinId, runs:S.pokalRuns, anId:S.ui.ansehenId, anSec:S.ui.ansehenSec, hold:saveHold};
+  try{
+    saveHold=1;
+    S.seasons=[
+      {name:'2090/91', status:'done', leagues:{}, pools:{}, cups:{dfb:{rounds:[{name:'Finale', matches:[{h:'t001', a:'t002', hg:2, ag:1}]}]}}},
+      {name:'2091/92', status:'running', leagues:{}, pools:{}}
+    ];
+    S.view=1;
+    S.ui.infoId='t001'; S.ui.infoOpp='t002'; S.ui.infoH2H=0; S.ui.infoTermin=0; S.ui.infoFx='dfb'; S.ui.infoSec='vergleich'; S.ui.tab='info';
+    render();
+    let cmpHtml=$('#view').innerHTML;
+    check('DFB-Filter übersteht die Saison 0', S.ui.infoFx==='dfb' && S.ui.infoTermin===0 && cmpHtml.indexOf('data-v="dfb" class="active"')>=0 && cmpHtml.indexOf('keine Begegnung gespeichert')<0 && cmpHtml.indexOf('2:1')>=0);
+    S.ui.infoSec='termin';
+    render();
+    check('Terminplan liest den eigenen Saisonindex 0', S.ui.infoFx==='dfb' && $('#infoTermin') && $('#infoTermin').value==='0' && $('#view').innerHTML.indexOf('2090/91')>=0);
+    S.ui.infoTermin=1;
+    render();
+    check('Terminplan hält einen Index über 0', S.ui.infoFx==='dfb' && $('#infoTermin').value==='1');
+    S.ui.infoSec='vergleich';
+    render();
+    cmpHtml=$('#view').innerHTML;
+    check('Rückkehr zum Vergleich behält den DFB-Filter', S.ui.infoFx==='dfb' && S.ui.infoTermin===1 && cmpHtml.indexOf('data-v="dfb" class="active"')>=0 && cmpHtml.indexOf('keine Begegnung gespeichert')<0);
+    ['all','liga','dfb','land','sc'].forEach(key=>{
+      S.ui.infoFx=key;
+      render();
+      const on=document.querySelector('.cmp-filters button.active');
+      check('Wettbewerbsfilter '+key+' bleibt aktiv', on && on.dataset.v===key && S.ui.infoTermin===1);
+    });
+    S.ui.infoFx='liga';
+    render();
+    check('Ligafilter ohne Spiel nennt keine Begegnung', $('#view').innerHTML.indexOf('keine Begegnung gespeichert')>=0 && S.ui.infoFx==='liga');
+    S.ui.infoFx='dfb';
+    document.querySelector('[data-act="infoSwap"]').click();
+    check('Tausch lässt Filter und Terminplan stehen', S.ui.infoId==='t002' && S.ui.infoOpp==='t001' && S.ui.infoFx==='dfb' && S.ui.infoTermin===1);
+    S.ui.infoFx='land'; S.ui.infoTermin=1;
+    const packed=unpackState(JSON.parse(JSON.stringify(packForDisk(S))));
+    check('Speichern behält Filter und Saisonindex', packed.ui.infoFx==='land' && packed.ui.infoTermin===1);
+    S.ui.infoFx=1; S.ui.infoTermin=null;
+    normalizeInfoUi();
+    check('alter Saisonindex wird nicht zum Filter', S.ui.infoFx==='all' && S.ui.infoTermin===1);
+    S.ui.infoFx=0; delete S.ui.infoTermin;
+    normalizeInfoUi();
+    check('Saisonindex 0 bleibt eine Saison', S.ui.infoFx==='all' && S.ui.infoTermin===0);
+    S.ui.infoFx='dfb'; S.ui.infoTermin=0;
+    normalizeInfoUi();
+    check('gesetzter Filter bleibt neben Saison 0', S.ui.infoFx==='dfb' && S.ui.infoTermin===0);
+    const snapFx=navState();
+    S.ui.infoFx='sc'; S.ui.infoTermin=1;
+    navApply(snapFx);
+    check('Zurücknavigieren trennt Filter und Saison', S.ui.infoFx==='dfb' && S.ui.infoTermin===0);
+    const shape=ansehenInfo('t001');
+    const shapeParts=ansehenParts(shape);
+    check('Ansehen-Ledger hat Linien und Summe, keine verschachtelten Pokalfelder', shape && Array.isArray(shape.lines) && shape.value!=null && shape.dfb==null && shape.land==null && typeof shapeParts.liga==='number' && typeof shapeParts.dfb==='number' && typeof shapeParts.land==='number');
+    S.pokalRuns=(S.pokalRuns||[]).concat([{id:'t001', comp:'dfb', season:'2090/91', round:'Finale', won:true}]);
+    S.ui.tab='verein'; S.ui.vereinId='t001';
+    render();
+    const vereinCup=$('#view').innerHTML;
+    check('Vereinsseite mit Pokal zeigt das Ledger', $('#title').textContent===TEAMS.t001.name && vereinCup.indexOf('DFB-Pokal')>=0 && vereinCup.indexOf(deNum(shapeParts.dfb,2))>=0 && vereinCup.indexOf(deNum(shape.value,2))>=0 && vereinCup.indexOf('2090/91')>=0);
+    const quietId=Object.keys(TEAMS).filter(id=>id>='t800').find(id=>!(S.pokalRuns||[]).some(r=>r.id===id && r.won) && ansehenParts(ansehenInfo(id)).dfb===0);
+    if (!quietId) check('Vereinsseite ohne Pokalsieg rendert das Ledger', false, 'kein Verein');
+    else {
+      S.ui.vereinId=quietId;
+      render();
+      const vereinQuiet=$('#view').innerHTML;
+      const quietParts=ansehenParts(ansehenInfo(quietId));
+      check('Vereinsseite ohne Pokalsieg rendert das Ledger', $('#title').textContent===TEAMS[quietId].name && vereinQuiet.indexOf('Pokalsiege')>=0 && vereinQuiet.indexOf('keine')>=0 && vereinQuiet.indexOf(deNum(quietParts.dfb,2))>=0 && vereinQuiet.indexOf(deNum(ansehenInfo(quietId).value,2))>=0, quietId);
+    }
+    S.ui.tab='ansehen'; S.ui.ansehenId=null; S.ui.ansehenSec='liste';
+    render();
+    check('Ansehen-Ansicht bleibt offen', $('#title').textContent==='Ansehen' && $('#view').innerHTML.indexOf('Ansehen aller Vereine')>=0 && $('#view').innerHTML.indexOf('DFB-Pokal')>=0);
+    S.ui.tab='info'; S.ui.infoId='t001'; S.ui.infoSec='gegner';
+    render();
+    check('Gegnertabellen rendern auf der Seite', $('#view').innerHTML.indexOf('opp-row')>=0 && $('#view').innerHTML.indexOf('Häufigste Gegner')>=0);
+    S.ui.infoSec='vergleich'; S.ui.infoOpp='t002'; S.ui.infoFx='dfb';
+    render();
+    check('Vergleich rendert nach der Vereinsseite', $('#view').innerHTML.indexOf('data-v="dfb" class="active"')>=0);
+  }finally{
+    S.ui.tab=fxKeep.tab; S.ui.infoSec=fxKeep.sec; S.ui.infoId=fxKeep.id; S.ui.infoOpp=fxKeep.opp; S.ui.infoFx=fxKeep.fx; S.ui.infoTermin=fxKeep.termin; S.ui.infoH2H=fxKeep.h2h; S.seasons=fxKeep.seasons; S.view=fxKeep.view; S.ui.vereinId=fxKeep.verein; S.pokalRuns=fxKeep.runs; S.ui.ansehenId=fxKeep.anId; S.ui.ansehenSec=fxKeep.anSec; saveHold=fxKeep.hold;
   }
   const sizes={};
   LEAGUES.forEach(l=>{ sizes[l.id]=squads.leagues[l.id].length+'/'+l.size; });
