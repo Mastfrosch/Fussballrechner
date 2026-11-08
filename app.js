@@ -711,6 +711,7 @@ function ansehenSelfTest(){
 }
 function ansehenSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  let geoProof=null;
   let worstLeague={gap:Infinity, age:-1, lv:0, champ:0, last:0};
   const sizeOfLevel=lv=>{ const s=leagueSample(lv); return s?s.size:18; };
   for (let age=0; age<=150; age++){
@@ -986,6 +987,39 @@ function ansehenSelfTestBody(fails){
   const rlN=RL_IDS.reduce((s,id)=>s+squad.leagues[id].length,0);
   const olN=OL_IDS.reduce((s,id)=>s+squad.leagues[id].length,0);
   check('Startaufteilung setzt 919 Vereine einmal in die richtigen Größen', squad.used===919 && squad.total===919 && squadOk && rlN===72 && olN===144 && squad.geo.rlCost<=squad.geo.rlBase+1e-6 && squad.geo.olCost<=squad.geo.olBase+1e-6, squad.used+'/'+rlN+'/'+olN);
+  const sameIds=(map, ids)=>{
+    const got=[];
+    Object.keys(map||{}).forEach(k=>{ (map[k]||[]).forEach(id=>got.push(id)); });
+    got.sort();
+    const want=ids.slice().sort();
+    return got.length===want.length && got.every((id,i)=>id===want[i]) && got.every((id,i)=>got.indexOf(id)===i);
+  };
+  // Dieselbe historische 216er-Menge, nur als Startkandidat. Sie legt die neuen Ansehen-Pools nicht fest.
+  const HIST_RL={"RLN":["t083","t081","t091","t079","t089","t090","t100","t120","t119","t121","t094","t125","t123","t127","t129","t132","t095","t206"],"RLO":["t088","t087","t086","t093","t492","t098","t097","t137","t141","t139","t140","t096","t142","t144","t149","t148","t138","t136"],"RLS":["t110","t082","t111","t108","t152","t151","t103","t153","t112","t105","t155","t156","t160","t158","t159","t264","t164","t263"],"RLW":["t109","t107","t113","t116","t118","t168","t167","t106","t170","t169","t080","t172","t102","t178","t173","t179","t174","t176"]};
+  const HIST_OL={"OLNS":["t133","t126","t183","t187","t189","t192","t184","t311","t185","t186","t092","t124","t316","t314","t198","t195","t134","t197"],"OLNN":["t205","t130","t203","t213","t208","t199","t200","t396","t207","t122","t398","t394","t128","t400","t405","t404","t211","t212"],"OLON":["t147","t146","t217","t221","t228","t150","t219","t220","t218","t227","t216","t229","t223","t224","t493","t226","t215","t230"],"OLOS":["t236","t231","t145","t238","t232","t243","t135","t235","t556","t242","t240","t244","t241","t233","t237","t245","t568","t563"],"OLBY":["t249","t154","t157","t114","t115","t250","t247","t165","t251","t253","t166","t163","t117","t162","t161","t252","t607","t256"],"OLBW":["t270","t266","t268","t265","t272","t267","t269","t274","t275","t271","t704","t273","t705","t278","t702","t708","t703","t719"],"OLNRW":["t279","t282","t284","t283","t286","t292","t294","t285","t749","t280","t291","t287","t754","t741","t293","t746","t747","t289"],"OLSW":["t181","t175","t296","t299","t302","t298","t300","t180","t295","t182","t305","t177","t818","t817","t306","t297","t814","t823"]};
+  const histRlIds=RL_IDS.flatMap(id=>HIST_RL[id]), histOlIds=OL_IDS.flatMap(id=>HIST_OL[id]);
+  const histRl=clusterLevel(histRlIds, RL_IDS, HIST_RL), histOl=clusterLevel(histOlIds, OL_IDS, HIST_OL);
+  check('derselbe historische Regionalliga-Pool bleibt unter der alten Einteilung', histRl.cost<=histRl.incumbent+1e-6 && sameIds(histRl.map, histRlIds) && RL_IDS.every(id=>histRl.map[id]) && histRl.sizes.every(n=>n>=16&&n<=20), histRl.cost.toFixed(2)+'<='+histRl.incumbent.toFixed(2)+' '+histRl.sizes.join('/'));
+  check('derselbe historische Oberliga-Pool bleibt unter der alten Einteilung', histOl.cost<=histOl.incumbent+1e-6 && sameIds(histOl.map, histOlIds) && OL_IDS.every(id=>histOl.map[id]) && histOl.sizes.every(n=>n>=16&&n<=20), histOl.cost.toFixed(2)+'<='+histOl.incumbent.toFixed(2)+' '+histOl.sizes.join('/'));
+  const olStay={};
+  OL_IDS.forEach(id=>{ olStay[id]=HIST_OL[id].slice(2); });
+  const olSet={}; histOlIds.forEach(id=>{ olSet[id]=1; });
+  const incoming=Object.keys(TEAMS).filter(id=>!olSet[id] && coordPoint(id)).sort().slice(0,16);
+  const swapIds=OL_IDS.flatMap(id=>olStay[id]).concat(incoming);
+  const swap=clusterLevel(swapIds, OL_IDS, olStay);
+  check('16 Abgänge und 16 Zugänge bleiben unter der nächsten zulässigen Saat', incoming.length===16 && swap.cost<=swap.incumbent+1e-6 && sameIds(swap.map, swapIds) && OL_IDS.every(id=>swap.map[id]) && swap.sizes.every(n=>n>=16&&n<=20), swap.cost.toFixed(2)+'<='+swap.incumbent.toFixed(2)+' '+swap.sizes.join('/'));
+  const rlStay={};
+  RL_IDS.forEach(id=>{ const t=squad.leagues[id].slice(); rlStay[id]=t.slice(0, t.length-2); });
+  const am=[]; POOLS.forEach(p=>{ (squad.pools[p.id]||[]).forEach(id=>am.push(id)); });
+  am.sort();
+  const departed=RL_IDS.reduce((n,id)=>n+squad.leagues[id].length-rlStay[id].length,0);
+  const join=am.slice(0, departed);
+  const nextRl=RL_IDS.flatMap(id=>rlStay[id]).concat(join);
+  const change=clusterLevel(nextRl, RL_IDS, rlStay);
+  check('Saisonwechsel hält Verbleibende und setzt Zugänge unter die bisherige Staffel', join.length===departed && change.cost<=change.incumbent+1e-6 && sameIds(change.map, nextRl) && RL_IDS.every(id=>change.map[id]) && change.sizes.every(n=>n>=16&&n<=20), change.cost.toFixed(2)+'<='+change.incumbent.toFixed(2)+' '+change.sizes.join('/'));
+  const newRlSet={}; RL_IDS.forEach(id=>squad.leagues[id].forEach(x=>{ newRlSet[x]=1; }));
+  const newOlSet={}; OL_IDS.forEach(id=>squad.leagues[id].forEach(x=>{ newOlSet[x]=1; }));
+  geoProof={histRl, histOl, swap, change, reset:squad.geo, rlOverlap:histRlIds.filter(id=>newRlSet[id]).length, olOverlap:histOlIds.filter(id=>newOlSet[id]).length};
   let reformFalse=0;
   Object.keys(TEAMS).forEach(id=>{
     const rows=historyEntries(id);
@@ -1240,7 +1274,7 @@ function ansehenSelfTestBody(fails){
   const frozenOnly=landScaleFromStored({budget:99, title:40, rounds:['Finale'], n:2, field:12, unknown:0, byLevel:{3:2}});
   check('eingefrorene Ligazahlen werden neu gerechnet und nicht geraten', frozenOnly.byLevel[3]===2 && frozenOnly.field===ansehenRound2(2*ANSEHEN.land.levelW[3]) && frozenOnly.budget!==99 && landWinnerSum(frozenOnly)<=35);
   check('unterer Meistertitel bleibt ohne Boden', titleFactor(99, false)===0.01 && titleFactor(100, false)===0 && titleFactor(60, true)===0.4);
-  return {ok:!fails.length, fails, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
+  return {ok:!fails.length, fails, geoProof, sample:{bayern:bScale.budget, bremen:rScale.budget, neunkirchen:ansehenLedger('t181').value, bayernAnsehen:ansehenLedger('t001').value, historie:histBefore, worstLeague, worstBl:{age:worstBl.age, meister:worstBl.meister, platz2:worstBl.p2, ratio:ansehenRound2(worstBl.ratio)}, curve:{a49:seasonFactor(49,true), a50:seasonFactor(50,true), slopeEarly, slopeLate}}};
 }
 // Pokalpunkte: der Rundenwert zählt voll. Über 15 Saisons ist es ein gewichteter
 // Schnitt wie bei der Liga (jüngste 5 ×1,5). Jahre ohne Teilnahme zählen 0 und
@@ -1796,15 +1830,127 @@ function labelByAnchor(groups, pts, slotIds){
   assign.forEach((slot, gi)=>{ out[slotIds[slot]]=groups[gi].map(i=>pts[i].id); });
   return out;
 }
-function clusterLevel(idList, slotIds){
+function labelByOverlap(groups, priorGroups, pts, slotIds){
+  const cost=groups.map(g=>priorGroups.map(p=>{
+    const set={};
+    p.forEach(i=>{ set[i]=1; });
+    let ov=0;
+    g.forEach(i=>{ if (set[i]) ov++; });
+    return -ov;
+  }));
+  const assign=hungarian(cost);
+  const out={};
+  assign.forEach((slot, gi)=>{ out[slotIds[slot]]=groups[gi].map(i=>pts[i].id); });
+  return out;
+}
+function regionalSeed(idList, level, slotIds){
+  const map={};
+  slotIds.forEach(id=>{ map[id]=[]; });
+  idList.forEach(id=>{
+    const lid=homeLeague(id, level);
+    if (map[lid]) map[lid].push(id);
+  });
+  return map;
+}
+function keptPrior(season, slotIds, nextList){
+  const want={};
+  (nextList||[]).forEach(id=>{ want[id]=1; });
+  const map={};
+  slotIds.forEach(sid=>{
+    const prev=season&&season.leagues&&season.leagues[sid]&&season.leagues[sid].teams||[];
+    map[sid]=prev.filter(id=>want[id]);
+  });
+  return map;
+}
+function clusterLevel(idList, slotIds, prior){
   const k=slotIds.length, lo=16, hi=20;
-  const pts=idList.map(coordPoint).filter(Boolean);
+  const seenId={}, uniq=[];
+  (idList||[]).forEach(id=>{ if (!seenId[id] && coordPoint(id)){ seenId[id]=1; uniq.push(id); } });
+  const pts=uniq.map(coordPoint);
   const n=pts.length;
+  const indexOf={};
+  pts.forEach((p,i)=>{ indexOf[p.id]=i; });
   const dist=pts.map(()=>Array(n).fill(0));
   for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){ const d=airKm(pts[i], pts[j]); dist[i][j]=dist[j][i]=d; }
+  const legal=groups=>{
+    if (!groups || groups.length!==k) return false;
+    const got={};
+    for (let g=0;g<groups.length;g++){
+      if (groups[g].length<lo || groups[g].length>hi) return false;
+      for (let i=0;i<groups[g].length;i++){
+        const idx=groups[g][i];
+        if (idx==null || got[idx]) return false;
+        got[idx]=1;
+      }
+    }
+    return Object.keys(got).length===n;
+  };
+  let best=null;
+  const consider=groups=>{
+    if (!legal(groups)) return;
+    const cost=geoPairSum(groups, dist);
+    if (!best || cost<best.cost-1e-9) best={cost:cost, groups:groups.map(g=>g.slice())};
+  };
+  const meanAdd=(group, idx)=>group.length?linkCost(group, idx, dist)/group.length:1e15;
+  const fitSizes=groups=>{
+    for (let guard=0; guard<n*4; guard++){
+      if (groups.every(g=>g.length>=lo && g.length<=hi)) return;
+      let move=null;
+      for (let a=0;a<k;a++){
+        const tooBig=groups[a].length>hi, canGive=groups[a].length>lo;
+        if (!tooBig && !canGive) continue;
+        for (let b=0;b<k;b++) if (a!==b){
+          if (tooBig && groups[b].length>=hi) continue;
+          if (!tooBig && !(canGive && groups[b].length<lo)) continue;
+          for (let i=0;i<groups[a].length;i++){
+            const idx=groups[a][i];
+            const delta=-linkCost(groups[a], idx, dist)+linkCost(groups[b], idx, dist);
+            if (!move || delta<move.delta-1e-12 || (Math.abs(delta-move.delta)<=1e-12 && (b<move.b || (b===move.b && i<move.i)))) move={a:a, b:b, i:i, delta:delta};
+          }
+        }
+      }
+      if (!move) return;
+      groups[move.b].push(groups[move.a].splice(move.i,1)[0]);
+    }
+  };
+  let anchorGroups=null, incumbent=null;
+  if (prior){
+    const groups=slotIds.map(sid=>{
+      const got={};
+      return ((prior[sid]||[])).map(id=>indexOf[id]).filter(i=>{ if (i==null || got[i]) return false; got[i]=1; return true; });
+    });
+    const placed={};
+    groups.forEach(g=>g.forEach(i=>{ placed[i]=1; }));
+    const fresh=[];
+    for (let i=0;i<n;i++) if (!placed[i]) fresh.push(i);
+    fresh.sort((a,b)=>pts[a].id<pts[b].id?-1:1);
+    fresh.forEach(idx=>{
+      let bestG=-1, bestC=Infinity;
+      for (let g=0;g<k;g++){
+        if (groups[g].length>=hi) continue;
+        const c=meanAdd(groups[g], idx);
+        if (c<bestC-1e-12 || (Math.abs(c-bestC)<=1e-12 && (bestG<0 || g<bestG))){ bestC=c; bestG=g; }
+      }
+      if (bestG<0){
+        for (let g=0;g<k;g++){
+          const c=meanAdd(groups[g], idx);
+          if (bestG<0 || c<bestC-1e-12){ bestC=c; bestG=g; }
+        }
+      }
+      groups[bestG<0?0:bestG].push(idx);
+    });
+    fitSizes(groups);
+    if (legal(groups)){
+      anchorGroups=groups.map(g=>g.slice());
+      incumbent=geoPairSum(groups, dist);
+      consider(groups);
+      const improved=groups.map(g=>g.slice());
+      improveGroups(improved, dist, lo, hi);
+      consider(improved);
+    }
+  }
   const patterns=sizePatterns(n, k, lo, hi);
   const angles=[0, Math.PI/6, Math.PI/3, Math.PI/2, 2*Math.PI/3, 5*Math.PI/6];
-  let best=null, baseline=null, baseGroups=null;
   angles.forEach(ang=>{
     const dx=Math.cos(ang), dy=Math.sin(ang);
     const order=pts.map((_,i)=>i).sort((a,b)=>{
@@ -1812,18 +1958,18 @@ function clusterLevel(idList, slotIds){
       if (pa!==pb) return pa-pb;
       return pts[a].id<pts[b].id?-1:pts[a].id>pts[b].id?1:0;
     });
-    patterns.forEach((sizes, si)=>{
+    patterns.forEach(sizes=>{
       const groups=[]; let at=0;
       sizes.forEach(sz=>{ groups.push(order.slice(at, at+sz)); at+=sz; });
-      const seed=geoPairSum(groups, dist);
-      if (ang===0 && si===0){ baseline=seed; baseGroups=groups.map(g=>g.slice()); }
+      consider(groups.map(g=>g.slice()));
       improveGroups(groups, dist, lo, hi);
-      const cost=geoPairSum(groups, dist);
-      if (!best || cost<best.cost-1e-6) best={cost:cost, groups:groups.map(g=>g.slice())};
+      consider(groups);
     });
   });
-  if (baseline!=null && best && best.cost>baseline+1e-6) best={cost:baseline, groups:baseGroups};
-  return {map:labelByAnchor(best.groups, pts, slotIds), cost:best.cost, baseline:baseline==null?best.cost:baseline, sizes:best.groups.map(g=>g.length)};
+  if (!best) return {map:{}, cost:Infinity, baseline:incumbent==null?Infinity:incumbent, incumbent:incumbent==null?Infinity:incumbent, sizes:[]};
+  const map=anchorGroups?labelByOverlap(best.groups, anchorGroups, pts, slotIds):labelByAnchor(best.groups, pts, slotIds);
+  const base=incumbent==null?best.cost:incumbent;
+  return {map:map, cost:best.cost, baseline:base, incumbent:base, sizes:best.groups.map(g=>g.length)};
 }
 function amateurPoolId(id){
   const area=AREA_BY_BL[TEAMS[id].bl]||'NRW';
@@ -1868,7 +2014,7 @@ function buildInitialSquads(){
     const leagues={};
     ['BL','BL2','L3','L4'].forEach(id=>{ leagues[id]=take(L[id].size); });
     const rlPool=take(72), olPool=take(144);
-    const rl=clusterLevel(rlPool, RL_IDS), ol=clusterLevel(olPool, OL_IDS);
+    const rl=clusterLevel(rlPool, RL_IDS, regionalSeed(rlPool, 5, RL_IDS)), ol=clusterLevel(olPool, OL_IDS, regionalSeed(olPool, 6, OL_IDS));
     RL_IDS.forEach(id=>{ leagues[id]=rl.map[id].slice(); });
     OL_IDS.forEach(id=>{ leagues[id]=ol.map[id].slice(); });
     const pools={};
@@ -3082,7 +3228,7 @@ function finalizeSeason(opts){
   }
   const rlPool=RL_IDS.flatMap(id=>newT[id]||[]).concat(extra.rl);
   const olPool=OL_IDS.flatMap(id=>newT[id]||[]).concat(extra.ol);
-  const rlCut=clusterLevel(rlPool, RL_IDS), olCut=clusterLevel(olPool, OL_IDS);
+  const rlCut=clusterLevel(rlPool, RL_IDS, keptPrior(s, RL_IDS, rlPool)), olCut=clusterLevel(olPool, OL_IDS, keptPrior(s, OL_IDS, olPool));
   RL_IDS.forEach(id=>{ newT[id]=rlCut.map[id].slice(); });
   OL_IDS.forEach(id=>{ newT[id]=olCut.map[id].slice(); });
   const downs=quotaDown(newT);
@@ -4810,8 +4956,12 @@ function viewEwig(lid){
       let rows=[];
       if (lg.tables && !lg.md && lg.tables.all) rows=lg.tables.all;
       else if (lg.md && lg.teams) rows=computeTable(lg.teams, matchesOf(s,key), 'all');
+      const rowSeen={};
       rows.forEach(r=>{
         if (!r || !r.id) return;
+        const mark=s.name+'|'+key+'|'+r.id;
+        if (rowSeen[mark]) return;
+        rowSeen[mark]=1;
         const a=agg[r.id]||(agg[r.id]=emptyRow(r.id));
         ['sp','s','u','n','tg','gt','pkt'].forEach(k=>{ a[k]+=(r[k]||0); });
       });
@@ -10300,11 +10450,12 @@ function uiSelfTestBody(fails){
     e.moves.filter(m=>m.type==='auf' && OL_IDS.indexOf(m.from)>=0).forEach(m=>{ olFrom[m.from]++; });
     const olCounts=OL_IDS.map(id=>olFrom[id]);
     check('Oberliga-Aufstieg kann 0 sein', olCounts.reduce((a,b)=>a+b,0)===16 && olCounts.indexOf(0)>=0, olCounts.join(','));
-    const one={name:'2090/91', status:'done', leagues:{RLN:{teams:['t010'], tables:{all:[{id:'t010',sp:10,s:6,u:2,n:2,tg:20,gt:10,pkt:20}]}}, RLS:{teams:['t010'], tables:{all:[{id:'t010',sp:8,s:4,u:0,n:4,tg:12,gt:12,pkt:12}]}}}};
-    S.seasons=[one];
+    const one={name:'2090/91', status:'done', leagues:{RLN:{teams:['t010'], tables:{all:[{id:'t010',sp:10,s:6,u:2,n:2,tg:20,gt:10,pkt:20},{id:'t010',sp:10,s:6,u:2,n:2,tg:20,gt:10,pkt:20}]}}, RLS:{teams:['t010'], tables:{all:[{id:'t010',sp:8,s:4,u:0,n:4,tg:12,gt:12,pkt:12}]}}}};
+    S.seasons=[one, {name:'2091/92', status:'done', leagues:{RLN:{teams:['t010'], tables:{all:[{id:'t010',sp:4,s:1,u:0,n:3,tg:4,gt:6,pkt:3}]}}}}];
     const ew=viewEwig('RLN');
     check('Ewige Tabelle heißt Regionalliga', ew.indexOf('<h3>Regionalliga</h3>')>=0 && ew.indexOf('Regionalliga Nord')<0);
-    check('Ewige Regionalliga addiert beide Staffeln einmal', ew.indexOf('>32<')>=0 && ew.indexOf('>18<')>=0);
+    check('Ewige Regionalliga addiert beide Staffeln einmal', ew.indexOf('>35<')>=0 && ew.indexOf('>22<')>=0);
+    check('dieselbe Staffel-Saison wird nicht doppelt gezählt', ew.indexOf('>55<')<0);
     check('Ewige Tabelle heißt Oberliga', viewEwig('OLBY').indexOf('<h3>Oberliga</h3>')>=0);
   }finally{ S.seasons=keptForGeo; S.view=keptViewGeo; }
   const master=championRows(['bl','de'],'ddr');
@@ -12402,5 +12553,5 @@ function terminSelfTest(){
   return {ok:!fails.length, fails, report};
 
 }
-window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, clusterLevel, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
