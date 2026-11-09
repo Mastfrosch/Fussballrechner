@@ -26,15 +26,14 @@ const LEAGUES = [
   {id:'RLO', name:'Regionalliga Ost',      short:'RL Ost',  level:5, size:18, up:1, down:2, upTo:'L4'},
   {id:'RLS', name:'Regionalliga Süd',      short:'RL Süd',  level:5, size:18, up:1, down:2, upTo:'L4'},
   {id:'RLW', name:'Regionalliga West',     short:'RL West', level:5, size:18, up:1, down:2, upTo:'L4'},
-  // Oberliga-Namen nach der Lage der Startstaffeln, nicht nach der alten Gebietsbezeichnung. IDs bleiben.
-  {id:'OLNS',name:'Oberliga Nordwest',            short:'OL Nordwest', level:6, size:18, up:2, down:0, upTo:'RLN', area:'NS'},
-  {id:'OLNN',name:'Oberliga Nordost',             short:'OL Nordost',  level:6, size:18, up:2, down:0, upTo:'RLN', area:'NN'},
-  {id:'OLON',name:'Oberliga Ost',                 short:'OL Ost',      level:6, size:18, up:2, down:0, upTo:'RLO', area:'ON'},
-  {id:'OLOS',name:'Oberliga Mitte',               short:'OL Mitte',    level:6, size:18, up:2, down:0, upTo:'RLO', area:'OS'},
-  {id:'OLBY',name:'Oberliga Südost',              short:'OL Südost',   level:6, size:18, up:2, down:0, upTo:'RLS', area:'BY'},
-  {id:'OLBW',name:'Oberliga Süd',                 short:'OL Süd',      level:6, size:18, up:2, down:0, upTo:'RLS', area:'BW'},
-  {id:'OLNRW',name:'Oberliga West',               short:'OL West',     level:6, size:18, up:2, down:0, upTo:'RLW', area:'NRW'},
-  {id:'OLSW',name:'Oberliga Südwest',             short:'OL Südwest',  level:6, size:18, up:2, down:0, upTo:'RLW', area:'SW'}
+  {id:'OLNS',name:'Oberliga Nord – Staffel Süd',  short:'OL Nord-S', level:6, size:18, up:2, down:0, upTo:'RLN', area:'NS'},
+  {id:'OLNN',name:'Oberliga Nord – Staffel Nord', short:'OL Nord-N', level:6, size:18, up:2, down:0, upTo:'RLN', area:'NN'},
+  {id:'OLON',name:'Oberliga Ost – Staffel Nord',  short:'OL Ost-N',  level:6, size:18, up:2, down:0, upTo:'RLO', area:'ON'},
+  {id:'OLOS',name:'Oberliga Ost – Staffel Süd',   short:'OL Ost-S',  level:6, size:18, up:2, down:0, upTo:'RLO', area:'OS'},
+  {id:'OLBY',name:'Oberliga Bayern',              short:'OL BY',     level:6, size:18, up:2, down:0, upTo:'RLS', area:'BY'},
+  {id:'OLBW',name:'Oberliga Baden-Württemberg',   short:'OL BW',     level:6, size:18, up:2, down:0, upTo:'RLS', area:'BW'},
+  {id:'OLNRW',name:'Oberliga Nordrhein-Westfalen',short:'OL NRW',    level:6, size:18, up:2, down:0, upTo:'RLW', area:'NRW'},
+  {id:'OLSW',name:'Oberliga Südwest',             short:'OL SW',     level:6, size:18, up:2, down:0, upTo:'RLW', area:'SW'}
 ];
 const POOLS = [
   {id:'AMNS', name:'Amateurliga Nord – Staffel Süd', area:'NS', ol:'OLNS', desc:'Bremen, Niedersachsen'},
@@ -987,65 +986,25 @@ function ansehenSelfTestBody(fails){
   });
   const rlN=RL_IDS.reduce((s,id)=>s+squad.leagues[id].length,0);
   const olN=OL_IDS.reduce((s,id)=>s+squad.leagues[id].length,0);
-  check('Startaufteilung setzt 919 Vereine einmal in die richtigen Größen', squad.used===919 && squad.total===919 && squadOk && rlN===72 && olN===144 && squad.geo.rlCost<=squad.geo.rlBase+1e-6 && squad.geo.olCost<=squad.geo.olBase+1e-6, squad.used+'/'+rlN+'/'+olN);
-  const olNames={OLNN:'Oberliga Nordost', OLNS:'Oberliga Nordwest', OLON:'Oberliga Ost', OLOS:'Oberliga Mitte', OLBY:'Oberliga Südost', OLBW:'Oberliga Süd', OLSW:'Oberliga Südwest', OLNRW:'Oberliga West'};
-  const nameSet={};
-  OL_IDS.forEach(id=>{ nameSet[L[id].name]=1; });
-  check('acht Oberliga-Namen sind Nordwest bis Mitte', OL_IDS.every(id=>L[id].name===olNames[id] && L[id].short==='OL '+olNames[id].replace('Oberliga ','')) && Object.keys(nameSet).length===8 && !OL_IDS.some(id=>L[id].name==='Oberliga Nord'));
+  check('Startaufteilung setzt 919 Vereine einmal in die richtigen Größen', squad.used===919 && squad.total===919 && LEAGUES.every(l=>squad.leagues[l.id].length===l.size), squad.used+'/'+RL_IDS.map(id=>squad.leagues[id].length).join(',')+'/'+OL_IDS.map(id=>squad.leagues[id].length).join(','));
+  check('Oberliga trägt wieder die Gebietsnamen', L.OLNN.name==='Oberliga Nord – Staffel Nord' && L.OLNS.name==='Oberliga Nord – Staffel Süd' && L.OLON.name==='Oberliga Ost – Staffel Nord' && L.OLOS.name==='Oberliga Ost – Staffel Süd' && L.OLBY.name==='Oberliga Bayern' && L.OLBW.name==='Oberliga Baden-Württemberg' && L.OLNRW.name==='Oberliga Nordrhein-Westfalen' && L.OLSW.name==='Oberliga Südwest');
   check('Regionalliga-Namen bleiben', L.RLN.name==='Regionalliga Nord' && L.RLO.name==='Regionalliga Ost' && L.RLS.name==='Regionalliga Süd' && L.RLW.name==='Regionalliga West');
-  check('Amateurliga behält ihre Gebietsnamen', P.AMBY.name==='Amateurliga Bayern' && P.OLBY==null);
-  const cen=id=>{ let lat=0, lon=0, n=0; squad.leagues[id].forEach(tid=>{ const p=coordPoint(tid); if(!p) return; lat+=p.lat; lon+=p.lon; n++; }); return {lat:lat/n, lon:lon/n}; };
-  const north=OL_IDS.slice().sort((a,b)=>cen(b).lat-cen(a).lat)[0];
-  const west=OL_IDS.slice().sort((a,b)=>cen(a).lon-cen(b).lon)[0];
-  const east=OL_IDS.slice().sort((a,b)=>cen(b).lon-cen(a).lon)[0];
-  const midLat=OL_IDS.reduce((s,id)=>s+cen(id).lat,0)/OL_IDS.length, midLon=OL_IDS.reduce((s,id)=>s+cen(id).lon,0)/OL_IDS.length;
-  const mitte=OL_IDS.slice().sort((a,b)=>{
-    const da=(cen(a).lat-midLat)**2+(cen(a).lon-midLon)**2, db=(cen(b).lat-midLat)**2+(cen(b).lon-midLon)**2;
-    return da-db;
-  })[0];
-  const south=OL_IDS.slice().sort((a,b)=>cen(a).lat-cen(b).lat)[0];
-  const span=id=>{ const c=cen(id); return (c.lat-midLat)**2+(c.lon-midLon)**2; };
-  check('nördlichste Oberliga heißt Nordost, Nord gibt es nicht', north==='OLNN' && L.OLNN.name==='Oberliga Nordost');
-  check('Mitte ist nicht die nördlichste Staffel', L.OLOS.name==='Oberliga Mitte' && north!=='OLOS');
-  check('der Schwerpunkt liegt näher bei Südost als bei Mitte', mitte==='OLBY' && L[mitte].name!=='Oberliga Mitte' && span('OLBY')<span('OLOS') && L.OLBY.name==='Oberliga Südost');
-  check('östlichste Oberliga heißt Ost', east==='OLON' && L.OLON.name==='Oberliga Ost');
-  check('westlichste Oberliga heißt West', west==='OLNRW' && L.OLNRW.name==='Oberliga West');
-  check('Süd ist die südlichste Staffel', south==='OLBW' && L.OLBW.name==='Oberliga Süd' && cen('OLBY').lon>cen('OLBW').lon);
-  check('Nordwest liegt westlich der nördlichsten Staffel', cen('OLNS').lon<cen('OLNN').lon && cen('OLNS').lat>52 && L.OLNS.name==='Oberliga Nordwest');
-  check('Südwest liegt südlich von West', cen('OLSW').lat<cen('OLNRW').lat && L.OLSW.name==='Oberliga Südwest');
-  const sameIds=(map, ids)=>{
-    const got=[];
-    Object.keys(map||{}).forEach(k=>{ (map[k]||[]).forEach(id=>got.push(id)); });
-    got.sort();
-    const want=ids.slice().sort();
-    return got.length===want.length && got.every((id,i)=>id===want[i]) && got.every((id,i)=>got.indexOf(id)===i);
-  };
-  // Dieselbe historische 216er-Menge, nur als Startkandidat. Sie legt die neuen Ansehen-Pools nicht fest.
-  const HIST_RL={"RLN":["t083","t081","t091","t079","t089","t090","t100","t120","t119","t121","t094","t125","t123","t127","t129","t132","t095","t206"],"RLO":["t088","t087","t086","t093","t492","t098","t097","t137","t141","t139","t140","t096","t142","t144","t149","t148","t138","t136"],"RLS":["t110","t082","t111","t108","t152","t151","t103","t153","t112","t105","t155","t156","t160","t158","t159","t264","t164","t263"],"RLW":["t109","t107","t113","t116","t118","t168","t167","t106","t170","t169","t080","t172","t102","t178","t173","t179","t174","t176"]};
-  const HIST_OL={"OLNS":["t133","t126","t183","t187","t189","t192","t184","t311","t185","t186","t092","t124","t316","t314","t198","t195","t134","t197"],"OLNN":["t205","t130","t203","t213","t208","t199","t200","t396","t207","t122","t398","t394","t128","t400","t405","t404","t211","t212"],"OLON":["t147","t146","t217","t221","t228","t150","t219","t220","t218","t227","t216","t229","t223","t224","t493","t226","t215","t230"],"OLOS":["t236","t231","t145","t238","t232","t243","t135","t235","t556","t242","t240","t244","t241","t233","t237","t245","t568","t563"],"OLBY":["t249","t154","t157","t114","t115","t250","t247","t165","t251","t253","t166","t163","t117","t162","t161","t252","t607","t256"],"OLBW":["t270","t266","t268","t265","t272","t267","t269","t274","t275","t271","t704","t273","t705","t278","t702","t708","t703","t719"],"OLNRW":["t279","t282","t284","t283","t286","t292","t294","t285","t749","t280","t291","t287","t754","t741","t293","t746","t747","t289"],"OLSW":["t181","t175","t296","t299","t302","t298","t300","t180","t295","t182","t305","t177","t818","t817","t306","t297","t814","t823"]};
-  const histRlIds=RL_IDS.flatMap(id=>HIST_RL[id]), histOlIds=OL_IDS.flatMap(id=>HIST_OL[id]);
-  const histRl=clusterLevel(histRlIds, RL_IDS, HIST_RL), histOl=clusterLevel(histOlIds, OL_IDS, HIST_OL);
-  check('derselbe historische Regionalliga-Pool bleibt unter der alten Einteilung', histRl.cost<=histRl.legacy+1e-6 && histRl.legacy<=histRl.incumbent+1e-6 && sameIds(histRl.map, histRlIds) && RL_IDS.every(id=>histRl.map[id]) && histRl.sizes.every(n=>n>=16&&n<=20), histRl.cost.toFixed(2)+'<='+histRl.legacy.toFixed(2)+'<='+histRl.incumbent.toFixed(2));
-  check('derselbe historische Oberliga-Pool bleibt unter der alten Einteilung', histOl.cost<=histOl.legacy+1e-6 && histOl.legacy<=histOl.incumbent+1e-6 && sameIds(histOl.map, histOlIds) && OL_IDS.every(id=>histOl.map[id]) && histOl.sizes.every(n=>n>=16&&n<=20), histOl.cost.toFixed(2)+'<='+histOl.legacy.toFixed(2)+'<='+histOl.incumbent.toFixed(2));
-  const olStay={};
-  OL_IDS.forEach(id=>{ olStay[id]=HIST_OL[id].slice(2); });
-  const olSet={}; histOlIds.forEach(id=>{ olSet[id]=1; });
-  const incoming=Object.keys(TEAMS).filter(id=>!olSet[id] && coordPoint(id)).sort().slice(0,16);
-  const swapIds=OL_IDS.flatMap(id=>olStay[id]).concat(incoming);
-  const swap=clusterLevel(swapIds, OL_IDS, olStay);
-  check('16 Abgänge und 16 Zugänge bleiben unter der nächsten zulässigen Saat', incoming.length===16 && swap.cost<=swap.incumbent+1e-6 && sameIds(swap.map, swapIds) && OL_IDS.every(id=>swap.map[id]) && swap.sizes.every(n=>n>=16&&n<=20), swap.cost.toFixed(2)+'<='+swap.incumbent.toFixed(2)+' '+swap.sizes.join('/'));
-  const rlStay={};
-  RL_IDS.forEach(id=>{ const t=squad.leagues[id].slice(); rlStay[id]=t.slice(0, t.length-2); });
-  const am=[]; POOLS.forEach(p=>{ (squad.pools[p.id]||[]).forEach(id=>am.push(id)); });
-  am.sort();
-  const departed=RL_IDS.reduce((n,id)=>n+squad.leagues[id].length-rlStay[id].length,0);
-  const join=am.slice(0, departed);
-  const nextRl=RL_IDS.flatMap(id=>rlStay[id]).concat(join);
-  const change=clusterLevel(nextRl, RL_IDS, rlStay);
-  check('Saisonwechsel hält Verbleibende und setzt Zugänge unter die bisherige Staffel', join.length===departed && change.cost<=change.incumbent+1e-6 && sameIds(change.map, nextRl) && RL_IDS.every(id=>change.map[id]) && change.sizes.every(n=>n>=16&&n<=20), change.cost.toFixed(2)+'<='+change.incumbent.toFixed(2)+' '+change.sizes.join('/'));
-  const newRlSet={}; RL_IDS.forEach(id=>squad.leagues[id].forEach(x=>{ newRlSet[x]=1; }));
-  const newOlSet={}; OL_IDS.forEach(id=>squad.leagues[id].forEach(x=>{ newOlSet[x]=1; }));
-  geoProof={histRl, histOl, swap, change, reset:squad.geo, rlOverlap:histRlIds.filter(id=>newRlSet[id]).length, olOverlap:histOlIds.filter(id=>newOlSet[id]).length};
+  check('Startstaffeln folgen dem Bundesland', squad.leagues.RLN.every(id=>RL_BY_AREA[AREA_BY_BL[TEAMS[id].bl]]==='RLN') && squad.leagues.OLBY.every(id=>AREA_BY_BL[TEAMS[id].bl]==='BY') && squad.leagues.OLNRW.every(id=>AREA_BY_BL[TEAMS[id].bl]==='NRW'));
+  check('kein Geocluster und kein Einteilungsreiter', leagueTabs().every(t=>t[0]!=='einteilung') && typeof clusterLevel==='undefined');
+  const navWas={league:S.ui.league, tab:S.ui.tab, sec:S.ui.ansehenSec};
+  S.ui.league='BL'; S.ui.tab='tabelle';
+  renderNav();
+  const nav=$('#leagueNav').innerHTML;
+  const mob=$('#mobileLeague').innerHTML;
+  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Regionalliga<')<0 && nav.indexOf('data-league="BL"')>=0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0));
+  check('Oberliga listet die acht alten Staffeln', nav.indexOf('>Oberliga<')>=0 && ['Oberliga Nord – Staffel Nord','Oberliga Nord – Staffel Süd','Oberliga Ost – Staffel Nord','Oberliga Ost – Staffel Süd','Oberliga Bayern','Oberliga Baden-Württemberg','Oberliga Nordrhein-Westfalen','Oberliga Südwest'].every(n=>nav.indexOf(n)>=0) && nav.indexOf('Oberliga Mitte')<0);
+  check('Pokal steht direkt oben', nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>Wettbewerbe<')<0 && nav.indexOf('>Pokal<')>=0);
+  check('schmale Auswahl enthält alle Staffeln und den Pokal', ['RLN','OLBY','OLNRW','pokal','ansehen','info'].every(v=>mob.indexOf('value="'+v+'"')>=0) && mob.indexOf('Oberliga Bayern')>=0);
+  S.ui.league='OLBY'; S.ui.tab='tabelle'; renderNav();
+  check('aktive Oberliga', $('#leagueNav .nav-menu-btn.active') && $('#leagueNav .nav-menu-btn.active').textContent==='Oberliga');
+  S.ui.tab='pokal'; renderNav();
+  check('aktiver Pokal', !!$('#leagueNav a.nav-link.active[data-tab="pokal"]'));
+  S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; renderNav();
   let reformFalse=0;
   Object.keys(TEAMS).forEach(id=>{
     const rows=historyEntries(id);
@@ -1431,7 +1390,7 @@ function certaintyMap(season, lid){
       if (rel!=='behind') worst++;
       if (rel==='ahead') certain++;
     });
-    const upSure=(season && season.geo && spec.level>=5)?0:(spec.up||0);
+    const upSure=spec.up||0;
     if (upSure && worst<upSure) res[t.id]='up';
     else if (down && certain>=n-down) res[t.id]='down';
   });
@@ -1445,14 +1404,6 @@ function certaintyMap(season, lid){
 function relegationProfile(season, lid){
   const lg=L[lid];
   if (!lg) return {down:0, nominal:0, incoming:[], reason:''};
-  if (season && season.geo && lg.level>=5){
-    const live=season.leagues&&season.leagues[lid];
-    const down=live&&live.downN!=null?live.downN:0;
-    const reason=lg.level===5
-      ? 'Vier Regionalligen, jede mit 16 bis 20 Vereinen, jedes Jahr neu nach der Luftlinie. Vier steigen in die 4. Liga auf: die besten nach Punkten pro Spiel aus Platz 1 und 2 aller Staffeln. Eine Staffel kann null, eine oder zwei stellen. In dieser Staffel steigen die letzten '+down+' ab.'
-      : 'Acht Oberligen, jede mit 16 bis 20 Vereinen, jedes Jahr neu nach der Luftlinie und ohne feste Regionalliga. 16 steigen auf: die besten nach Punkten pro Spiel aus Platz 1 bis 3. In dieser Staffel steigen die letzten '+down+' ab.';
-    return {down:down, nominal:down, incoming:[], reason:reason};
-  }
   const nominal=lg.down||0;
   if (lg.level<=4) return {down:nominal, nominal, incoming:[], reason:''};
   const parent = lg.level===5 ? 'L4' : lg.upTo;
@@ -1778,284 +1729,6 @@ function withHistoryOnly(fn){
 }
 const RL_IDS=['RLN','RLO','RLS','RLW'];
 const OL_IDS=['OLNN','OLNS','OLON','OLOS','OLNRW','OLSW','OLBW','OLBY'];
-const GEO_ANCHOR={
-  RLN:[53.6,10.0], RLO:[51.6,12.8], RLW:[51.2,7.2], RLS:[48.8,10.2],
-  OLNN:[54.3,9.6], OLNS:[52.6,9.2], OLON:[52.5,13.2], OLOS:[50.9,12.8],
-  OLNRW:[51.5,7.4], OLSW:[50.1,8.0], OLBW:[48.6,9.0], OLBY:[48.9,11.6]
-};
-function airKm(a,b){
-  const R=6371.0088, rad=Math.PI/180;
-  const dLat=(b.lat-a.lat)*rad, dLon=(b.lon-a.lon)*rad;
-  const s=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.min(1, Math.sqrt(Math.max(0,s))));
-}
-function coordPoint(id){
-  const c=window.FR_COORDS&&window.FR_COORDS[id];
-  return c?{id:id, lat:+c[0], lon:+c[1]}:null;
-}
-function geoPairSum(groups, dist){
-  let s=0;
-  groups.forEach(g=>{ for (let i=0;i<g.length;i++) for (let j=i+1;j<g.length;j++) s+=dist[g[i]][g[j]]; });
-  return s;
-}
-function linkCost(group, idx, dist){
-  let s=0;
-  for (let i=0;i<group.length;i++) if (group[i]!==idx) s+=dist[group[i]][idx];
-  return s;
-}
-function improveGroups(groups, dist, lo, hi){
-  for (let pass=0; pass<24; pass++){
-    let best=null;
-    for (let a=0;a<groups.length;a++) for (let b=0;b<groups.length;b++) if (a!==b && groups[a].length>lo && groups[b].length<hi){
-      for (let i=0;i<groups[a].length;i++){
-        const idx=groups[a][i];
-        const delta=-linkCost(groups[a], idx, dist)+linkCost(groups[b], idx, dist);
-        if (delta<-1e-7 && (!best || delta<best.delta)) best={kind:'move', a:a, b:b, i:i, delta:delta};
-      }
-    }
-    for (let a=0;a<groups.length;a++) for (let b=a+1;b<groups.length;b++){
-      for (let i=0;i<groups[a].length;i++) for (let j=0;j<groups[b].length;j++){
-        const x=groups[a][i], y=groups[b][j], dxy=dist[x][y];
-        const delta=-linkCost(groups[a], x, dist)-linkCost(groups[b], y, dist)+(linkCost(groups[a], y, dist)-dxy)+(linkCost(groups[b], x, dist)-dxy);
-        if (delta<-1e-7 && (!best || delta<best.delta)) best={kind:'swap', a:a, b:b, i:i, j:j, delta:delta};
-      }
-    }
-    if (!best) break;
-    if (best.kind==='move') groups[best.b].push(groups[best.a].splice(best.i,1)[0]);
-    else { const x=groups[best.a][best.i]; groups[best.a][best.i]=groups[best.b][best.j]; groups[best.b][best.j]=x; }
-  }
-  return groups;
-}
-function sizePatterns(n, k, lo, hi){
-  const base=Math.floor(n/k), rem=n-base*k;
-  const eq=Array(k).fill(base);
-  for (let i=0;i<rem;i++) eq[i]++;
-  const legal=s=>s.length===k && s.reduce((a,b)=>a+b,0)===n && s.every(x=>x>=lo && x<=hi);
-  const out=[];
-  if (legal(eq)) out.push(eq);
-  if (legal(eq) && k>=2){
-    const a=eq.slice();
-    if (a[0]>lo && a[k-1]<hi){ a[0]--; a[k-1]++; if (legal(a)) out.push(a); }
-    const b=eq.slice();
-    if (b[0]>lo+1 && b[k-1]<hi-1){ b[0]-=2; b[k-1]+=2; if (legal(b)) out.push(b); }
-  }
-  return out.length?out:[eq];
-}
-function labelByAnchor(groups, pts, slotIds){
-  const cents=groups.map(g=>{
-    let lat=0, lon=0;
-    g.forEach(i=>{ lat+=pts[i].lat; lon+=pts[i].lon; });
-    return {lat:lat/g.length, lon:lon/g.length};
-  });
-  const cost=cents.map(c=>slotIds.map(id=>{
-    const a=GEO_ANCHOR[id];
-    return airKm(c, {lat:a[0], lon:a[1]});
-  }));
-  const assign=hungarian(cost);
-  const out={};
-  assign.forEach((slot, gi)=>{ out[slotIds[slot]]=groups[gi].map(i=>pts[i].id); });
-  return out;
-}
-function labelByOverlap(groups, priorGroups, pts, slotIds){
-  const cost=groups.map(g=>priorGroups.map(p=>{
-    const set={};
-    p.forEach(i=>{ set[i]=1; });
-    let ov=0;
-    g.forEach(i=>{ if (set[i]) ov++; });
-    return -ov;
-  }));
-  const assign=hungarian(cost);
-  const out={};
-  assign.forEach((slot, gi)=>{ out[slotIds[slot]]=groups[gi].map(i=>pts[i].id); });
-  return out;
-}
-function regionalSeed(idList, level, slotIds){
-  const map={};
-  slotIds.forEach(id=>{ map[id]=[]; });
-  idList.forEach(id=>{
-    const lid=homeLeague(id, level);
-    if (map[lid]) map[lid].push(id);
-  });
-  return map;
-}
-function keptPrior(season, slotIds, nextList){
-  const want={};
-  (nextList||[]).forEach(id=>{ want[id]=1; });
-  const map={};
-  slotIds.forEach(sid=>{
-    const prev=season&&season.leagues&&season.leagues[sid]&&season.leagues[sid].teams||[];
-    map[sid]=prev.filter(id=>want[id]);
-  });
-  return map;
-}
-function clusterLevel(idList, slotIds, prior){
-  const k=slotIds.length, lo=16, hi=20;
-  const seenId={}, uniq=[];
-  (idList||[]).forEach(id=>{ if (!seenId[id] && coordPoint(id)){ seenId[id]=1; uniq.push(id); } });
-  const pts=uniq.map(coordPoint);
-  const n=pts.length;
-  const indexOf={};
-  pts.forEach((p,i)=>{ indexOf[p.id]=i; });
-  const dist=pts.map(()=>Array(n).fill(0));
-  for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){ const d=airKm(pts[i], pts[j]); dist[i][j]=dist[j][i]=d; }
-  const legal=groups=>{
-    if (!groups || groups.length!==k) return false;
-    const got={};
-    for (let g=0;g<groups.length;g++){
-      if (groups[g].length<lo || groups[g].length>hi) return false;
-      for (let i=0;i<groups[g].length;i++){
-        const idx=groups[g][i];
-        if (idx==null || got[idx]) return false;
-        got[idx]=1;
-      }
-    }
-    return Object.keys(got).length===n;
-  };
-  let best=null;
-  const consider=groups=>{
-    if (!legal(groups)) return;
-    const cost=geoPairSum(groups, dist);
-    if (!best || cost<best.cost-1e-9) best={cost:cost, groups:groups.map(g=>g.slice())};
-  };
-  const meanAdd=(group, idx)=>group.length?linkCost(group, idx, dist)/group.length:1e15;
-  const fitSizes=groups=>{
-    for (let guard=0; guard<n*4; guard++){
-      if (groups.every(g=>g.length>=lo && g.length<=hi)) return;
-      let move=null;
-      for (let a=0;a<k;a++){
-        const tooBig=groups[a].length>hi, canGive=groups[a].length>lo;
-        if (!tooBig && !canGive) continue;
-        for (let b=0;b<k;b++) if (a!==b){
-          if (tooBig && groups[b].length>=hi) continue;
-          if (!tooBig && !(canGive && groups[b].length<lo)) continue;
-          for (let i=0;i<groups[a].length;i++){
-            const idx=groups[a][i];
-            const delta=-linkCost(groups[a], idx, dist)+linkCost(groups[b], idx, dist);
-            if (!move || delta<move.delta-1e-12 || (Math.abs(delta-move.delta)<=1e-12 && (b<move.b || (b===move.b && i<move.i)))) move={a:a, b:b, i:i, delta:delta};
-          }
-        }
-      }
-      if (!move) return;
-      groups[move.b].push(groups[move.a].splice(move.i,1)[0]);
-    }
-  };
-  let anchorGroups=null, incumbent=null;
-  if (prior){
-    const groups=slotIds.map(sid=>{
-      const got={};
-      return ((prior[sid]||[])).map(id=>indexOf[id]).filter(i=>{ if (i==null || got[i]) return false; got[i]=1; return true; });
-    });
-    const placed={};
-    groups.forEach(g=>g.forEach(i=>{ placed[i]=1; }));
-    const fresh=[];
-    for (let i=0;i<n;i++) if (!placed[i]) fresh.push(i);
-    fresh.sort((a,b)=>pts[a].id<pts[b].id?-1:1);
-    fresh.forEach(idx=>{
-      let bestG=-1, bestC=Infinity;
-      for (let g=0;g<k;g++){
-        if (groups[g].length>=hi) continue;
-        const c=meanAdd(groups[g], idx);
-        if (c<bestC-1e-12 || (Math.abs(c-bestC)<=1e-12 && (bestG<0 || g<bestG))){ bestC=c; bestG=g; }
-      }
-      if (bestG<0){
-        for (let g=0;g<k;g++){
-          const c=meanAdd(groups[g], idx);
-          if (bestG<0 || c<bestC-1e-12){ bestC=c; bestG=g; }
-        }
-      }
-      groups[bestG<0?0:bestG].push(idx);
-    });
-    fitSizes(groups);
-    if (legal(groups)){
-      anchorGroups=groups.map(g=>g.slice());
-      incumbent=geoPairSum(groups, dist);
-      consider(groups);
-      const improved=groups.map(g=>g.slice());
-      improveGroups(improved, dist, lo, hi);
-      consider(improved);
-    }
-  }
-  const patterns=sizePatterns(n, k, lo, hi);
-  const project=ang=>{
-    const dx=Math.cos(ang), dy=Math.sin(ang);
-    const order=pts.map((_,i)=>i).sort((a,b)=>{
-      const pa=pts[a].lon*dx+pts[a].lat*dy, pb=pts[b].lon*dx+pts[b].lat*dy;
-      if (pa!==pb) return pa-pb;
-      return pts[a].id<pts[b].id?-1:pts[a].id>pts[b].id?1:0;
-    });
-    patterns.forEach(sizes=>{
-      const groups=[]; let at=0;
-      sizes.forEach(sz=>{ groups.push(order.slice(at, at+sz)); at+=sz; });
-      consider(groups.map(g=>g.slice()));
-      improveGroups(groups, dist, lo, hi);
-      consider(groups);
-    });
-  };
-  [0, Math.PI/6, Math.PI/3, Math.PI/2, 2*Math.PI/3, 5*Math.PI/6].forEach(project);
-  const legacy=best?best.cost:null;
-  [Math.PI/12, Math.PI/4, 5*Math.PI/12, 7*Math.PI/12, 3*Math.PI/4, 11*Math.PI/12].forEach(project);
-  if (n && k){
-    const clat=pts.reduce((s,p)=>s+p.lat,0)/n, clon=pts.reduce((s,p)=>s+p.lon,0)/n;
-    for (let turn=0; turn<4; turn++){
-      const centers=[];
-      for (let i=0;i<k;i++){
-        const a=turn*Math.PI/4+i*2*Math.PI/k;
-        centers.push({lat:clat+Math.cos(a)*2.4, lon:clon+Math.sin(a)*3.4});
-      }
-      const groups=centers.map(()=>[]);
-      const order=pts.map((_,i)=>i).sort((a,b)=>pts[a].id<pts[b].id?-1:1);
-      order.forEach(idx=>{
-        let pick=-1, pickD=Infinity;
-        for (let g=0;g<k;g++){
-          if (groups[g].length>=hi) continue;
-          const d=airKm(pts[idx], centers[g]);
-          if (d<pickD-1e-12 || (Math.abs(d-pickD)<=1e-12 && (pick<0 || g<pick))){ pickD=d; pick=g; }
-        }
-        groups[pick<0?0:pick].push(idx);
-      });
-      fitSizes(groups);
-      consider(groups.map(g=>g.slice()));
-      const improved=groups.map(g=>g.slice());
-      improveGroups(improved, dist, lo, hi);
-      consider(improved);
-    }
-  }
-  if (!best) return {map:{}, cost:Infinity, baseline:incumbent==null?Infinity:incumbent, incumbent:incumbent==null?Infinity:incumbent, legacy:Infinity, sizes:[]};
-  const map=anchorGroups?labelByOverlap(best.groups, anchorGroups, pts, slotIds):labelByAnchor(best.groups, pts, slotIds);
-  const base=incumbent==null?best.cost:incumbent;
-  return {map:map, cost:best.cost, baseline:base, incumbent:base, legacy:legacy==null?best.cost:legacy, sizes:best.groups.map(g=>g.length)};
-}
-function amateurPoolId(id){
-  const area=AREA_BY_BL[TEAMS[id].bl]||'NRW';
-  const p=POOLS.find(x=>x.area===area);
-  return p?p.id:POOLS[0].id;
-}
-function quotaDown(leagues){
-  const dist=(ids, total)=>{
-    const rows=ids.map(id=>({id:id, n:(leagues[id]||[]).length}));
-    const sum=rows.reduce((s,r)=>s+r.n,0)||1;
-    const parts=rows.map(r=>({id:r.id, exact:total*r.n/sum, n:0}));
-    let used=0;
-    parts.forEach(p=>{ p.n=Math.floor(p.exact); used+=p.n; });
-    const order=parts.slice().sort((a,b)=>(b.exact-b.n)-(a.exact-a.n) || a.id.localeCompare(b.id));
-    for (let i=0;i<total-used;i++) order[i].n++;
-    const out={};
-    parts.forEach(p=>{ out[p.id]=p.n; });
-    return out;
-  };
-  return Object.assign(dist(RL_IDS, 16), dist(OL_IDS, 16));
-}
-function sportRank(a,b){
-  if (b.ppg!==a.ppg) return b.ppg-a.ppg;
-  if (b.dpg!==a.dpg) return b.dpg-a.dpg;
-  if (b.gpg!==a.gpg) return b.gpg-a.gpg;
-  if ((b.pkt||0)!==(a.pkt||0)) return (b.pkt||0)-(a.pkt||0);
-  return TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de');
-}
-function rateRow(r){
-  const sp=r.sp||0;
-  return {id:r.id, pl:r.pl, pkt:r.pkt||0, ppg:sp?r.pkt/sp:0, dpg:sp?(r.tg-r.gt)/sp:0, gpg:sp?r.tg/sp:0};
-}
 function buildInitialSquads(){
   return withHistoryOnly(()=>{
     const ids=Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
@@ -2067,27 +1740,32 @@ function buildInitialSquads(){
     };
     const leagues={};
     ['BL','BL2','L3','L4'].forEach(id=>{ leagues[id]=take(L[id].size); });
-    const rlPool=take(72), olPool=take(144);
-    const rl=clusterLevel(rlPool, RL_IDS, regionalSeed(rlPool, 5, RL_IDS)), ol=clusterLevel(olPool, OL_IDS, regionalSeed(olPool, 6, OL_IDS));
-    RL_IDS.forEach(id=>{ leagues[id]=rl.map[id].slice(); });
-    OL_IDS.forEach(id=>{ leagues[id]=ol.map[id].slice(); });
+    RL_IDS.forEach(lid=>{
+      const pool=ids.filter(id=>!used.has(id) && RL_BY_AREA[AREA_BY_BL[TEAMS[id].bl]]===lid);
+      leagues[lid]=pool.slice(0, L[lid].size);
+      leagues[lid].forEach(id=>used.add(id));
+    });
+    LEAGUES.filter(l=>l.level===6).forEach(l=>{
+      const pool=ids.filter(id=>!used.has(id) && AREA_BY_BL[TEAMS[id].bl]===l.area);
+      leagues[l.id]=pool.slice(0, l.size);
+      leagues[l.id].forEach(id=>used.add(id));
+    });
     const pools={};
-    POOLS.forEach(p=>{ pools[p.id]=[]; });
-    ids.forEach(id=>{ if (!used.has(id)){ pools[amateurPoolId(id)].push(id); used.add(id); } });
-    return {leagues, pools, used:used.size, total:ids.length, geo:{rlCost:rl.cost, rlBase:rl.baseline, olCost:ol.cost, olBase:ol.baseline, rlSizes:rl.sizes, olSizes:ol.sizes}};
+    POOLS.forEach(pp=>{
+      pools[pp.id]=ids.filter(id=>!used.has(id) && AREA_BY_BL[TEAMS[id].bl]===pp.area);
+      pools[pp.id].forEach(id=>used.add(id));
+    });
+    return {leagues, pools, used:used.size, total:ids.length};
   });
 }
 function newGame(){
   const squads=buildInitialSquads();
-  const season={name:'2026/27', status:'running', leagues:{}, pools:{}, markers:{}, seed:'ansehen', geo:true};
-  const downs=quotaDown(squads.leagues);
+  const season={name:'2026/27', status:'running', leagues:{}, pools:{}, markers:{}, seed:'ansehen'};
   LEAGUES.forEach(l=>{
     const teams=squads.leagues[l.id].slice();
-    const lg={teams, md:makeSchedule(teams.length)};
-    if (l.level>=5) lg.downN=downs[l.id]||0;
-    season.leagues[l.id]=lg;
+    season.leagues[l.id]={teams, md:makeSchedule(teams.length)};
   });
-  POOLS.forEach(p=>{ season.pools[p.id]=squads.pools[p.id].slice(); });
+  POOLS.forEach(pp=>{ season.pools[pp.id]=squads.pools[pp.id].slice(); });
   season.cups=withHistoryOnly(()=>buildCups(season, null));
   return {v:1, created:new Date().toISOString(), seasons:[season], view:0, ui:{league:'BL', tab:'tabelle', md:{}, autoNext:true, supercup:true}};
 }
@@ -2156,7 +1834,6 @@ function packSeason(s){
   let end=null;
   if (s.endData) end={moves:s.endData.moves, notes:s.endData.notes, need:s.endData.need, picks:s.endData.picks, step:s.endData.step, downOf:s.endData.downOf, pending:s.endData.pending};
   const out={name:s.name, status:s.status, compact:true, absorbed:!!s.absorbed, leagues, pools:s.pools, markers:s.markers, endData:end, cups:packCups(s.cups), supercup:s.supercup};
-  if (s.geo) out.geo=true;
   if (s.slim) out.slim=s.slim;
   if (s.lgStat) out.lgStat=1;
   if (s.h2h && s.h2h.length) out.h2h=s.h2h;
@@ -2397,19 +2074,10 @@ function whenSaved(){ return saveChain; }
 function load(){
   try { return parseSave(localStorage.getItem(KEY)); } catch(e){ return null; }
 }
-function staffelSizeOk(level, n){
-  if (level>=5) return n>=16 && n<=20;
-  const lg=LEAGUES.find(l=>l.level===level && l.level<5);
-  return lg ? n===lg.size : n>=16 && n<=20;
-}
 function structureOk(d){
   const s=d&&d.seasons&&d.seasons[d.seasons.length-1];
   if(!s||!s.leagues||s.leagues.L5NO||s.leagues.L5SW) return false;
-  return LEAGUES.every(l=>{
-    const n=s.leagues[l.id]&&s.leagues[l.id].teams&&s.leagues[l.id].teams.length;
-    if (l.level>=5) return n>=16 && n<=20;
-    return n===l.size;
-  });
+  return LEAGUES.every(l=>s.leagues[l.id]&&s.leagues[l.id].teams&&s.leagues[l.id].teams.length===l.size);
 }
 const cur = () => S.seasons[S.view];
 const latest = () => S.seasons[S.seasons.length-1];
@@ -2784,63 +2452,7 @@ function simBlock(season, lid){
 }
 
 // ---------- Saisonabschluss ----------
-function computeGeoTransition(season){
-  const tables={}, moves=[], notes=[], newT={}, downOf={};
-  LEAGUES.forEach(l=>{ newT[l.id]=[]; });
-  const pools={}; POOLS.forEach(p=>{ pools[p.id]=[...(season.pools[p.id]||[])]; });
-  const pending={rl:[], ol:[]};
-  const snap=t=>t.map(r=>({id:r.id,pl:r.pl,sp:r.sp,s:r.s,u:r.u,n:r.n,tg:r.tg,gt:r.gt,pkt:r.pkt}));
-  LEAGUES.filter(l=>l.level<=4).forEach(l=>{
-    const t=leagueTable(season, l.id, 'all');
-    tables[l.id]=snap(t);
-    const down=l.down||0;
-    downOf[l.id]=down;
-    t.forEach(r=>{
-      if (l.up && r.pl<=l.up){ newT[l.upTo].push(r.id); moves.push({id:r.id,from:l.id,to:l.upTo,type:'auf',pl:r.pl}); }
-      else if (down && r.pl>t.length-down){
-        if (l.id==='L4') pending.rl.push(r.id);
-        else newT[homeLeague(r.id, l.level+1)].push(r.id);
-        moves.push({id:r.id,from:l.id,to:l.id==='L4'?'RL':homeLeague(r.id, l.level+1),type:'ab',pl:r.pl});
-      } else newT[l.id].push(r.id);
-    });
-  });
-  const rlCands=[];
-  RL_IDS.forEach(lid=>{
-    const t=leagueTable(season, lid, 'all');
-    tables[lid]=snap(t);
-    downOf[lid]=relegationProfile(season, lid).down||0;
-    t.forEach(r=>{ if (r.pl<=2) rlCands.push(Object.assign(rateRow(r), {from:lid})); });
-  });
-  const rlUp=new Set(rlCands.slice().sort(sportRank).slice(0,4).map(r=>r.id));
-  RL_IDS.forEach(lid=>{
-    const t=tables[lid], down=downOf[lid];
-    t.forEach(r=>{
-      if (rlUp.has(r.id)){ newT.L4.push(r.id); moves.push({id:r.id,from:lid,to:'L4',type:'auf',pl:r.pl}); }
-      else if (r.pl>t.length-down){ pending.ol.push(r.id); moves.push({id:r.id,from:lid,to:'OL',type:'ab',pl:r.pl}); }
-      else newT[lid].push(r.id);
-    });
-  });
-  const olCands=[];
-  OL_IDS.forEach(lid=>{
-    const t=leagueTable(season, lid, 'all');
-    tables[lid]=snap(t);
-    downOf[lid]=relegationProfile(season, lid).down||0;
-    t.forEach(r=>{ if (r.pl<=3) olCands.push(Object.assign(rateRow(r), {from:lid})); });
-  });
-  const olUp=new Set(olCands.slice().sort(sportRank).slice(0,16).map(r=>r.id));
-  OL_IDS.forEach(lid=>{
-    const t=tables[lid], down=downOf[lid];
-    t.forEach(r=>{
-      if (olUp.has(r.id)){ pending.rl.push(r.id); moves.push({id:r.id,from:lid,to:'RL',type:'auf',pl:r.pl}); }
-      else if (r.pl>t.length-down){ pools[amateurPoolId(r.id)].push(r.id); moves.push({id:r.id,from:lid,to:amateurPoolId(r.id),type:'ab',pl:r.pl}); }
-      else newT[lid].push(r.id);
-    });
-  });
-  notes.push('Regionalliga und Oberliga werden zur neuen Saison nach der Luftlinie neu eingeteilt. Jede Staffel hat 16 bis 20 Vereine.');
-  return {tables, moves, notes, newT, pools, need:{AM:16}, picks:{}, step:1, downOf, pending};
-}
 function computeTransition(season){
-  if (season && season.geo) return computeGeoTransition(season);
   const tables={}, moves=[], notes=[], newT={}, prof={}, downOf={};
   LEAGUES.forEach(l => { newT[l.id]=[]; prof[l.id]=relegationProfile(season, l.id); downOf[l.id]=prof[l.id].down; });
   const pools={}; POOLS.forEach(p=>pools[p.id]=[...season.pools[p.id]]);
@@ -2882,12 +2494,6 @@ function startSeasonEnd(){
 function cancelSeasonEnd(){ const s=latest(); delete s.endData; s.status='running'; S.ui.tab='tabelle'; save(); render(); }
 function suggestPicks(e){
   const blocked=id=>e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6);
-  if (e.need && e.need.AM!=null){
-    const all=[];
-    POOLS.forEach(p=>e.pools[p.id].forEach(id=>{ if (!blocked(id)) all.push(id); }));
-    e.picks.AM=all.sort(byRang).slice(0, e.need.AM);
-    return;
-  }
   POOLS.forEach(p=>{ const need=e.need[p.ol]; e.picks[p.ol]=[...e.pools[p.id]].filter(id=>!blocked(id)).sort(byRang).slice(0,need); });
 }
 function snapRows(rows){
@@ -3268,40 +2874,18 @@ function rollSimulatedSeason(){
 function finalizeSeason(opts){
   const quiet=!!(opts && opts.quiet);
   const s=latest(), e=s.endData;
-  if (e.need && e.need.AM!=null){
-    if ((e.picks.AM||[]).length!==e.need.AM){ if (!quiet) alert('Bitte genau '+e.need.AM+' Aufsteiger aus der Amateurliga wählen.'); return; }
-  } else {
-    for (const ol in e.need){ if ((e.picks[ol]||[]).length!==e.need[ol]) { if (!quiet) alert('Bitte für '+L[ol].name+' genau '+e.need[ol]+' Aufsteiger wählen.'); return; } }
-  }
-  const ns={name:nextSeasonName(s.name), status:'running', leagues:{}, pools:{}, markers:{}, geo:true};
+  for (const ol in e.need){ if ((e.picks[ol]||[]).length!==e.need[ol]) { if (!quiet) alert('Bitte für '+L[ol].name+' genau '+e.need[ol]+' Aufsteiger wählen.'); return; } }
+  const ns={name:nextSeasonName(s.name), status:'running', leagues:{}, pools:{}, markers:{}};
   const pools={}; POOLS.forEach(p=>pools[p.id]=[...e.pools[p.id]]);
   const newT={}; for (const k in e.newT) newT[k]=[...e.newT[k]];
-  const extra={rl:(e.pending&&e.pending.rl)||[], ol:(e.pending&&e.pending.ol)||[]};
-  for (const ol in e.picks){
-    e.picks[ol].forEach(id=>{ for(const pid in pools){ const i=pools[pid].indexOf(id); if(i>=0) pools[pid].splice(i,1);} if (ol==='AM') extra.ol.push(id); else newT[ol].push(id); });
-  }
-  const rlPool=RL_IDS.flatMap(id=>newT[id]||[]).concat(extra.rl);
-  const olPool=OL_IDS.flatMap(id=>newT[id]||[]).concat(extra.ol);
-  const rlCut=clusterLevel(rlPool, RL_IDS, keptPrior(s, RL_IDS, rlPool)), olCut=clusterLevel(olPool, OL_IDS, keptPrior(s, OL_IDS, olPool));
-  RL_IDS.forEach(id=>{ newT[id]=rlCut.map[id].slice(); });
-  OL_IDS.forEach(id=>{ newT[id]=olCut.map[id].slice(); });
-  const downs=quotaDown(newT);
-  const bad = LEAGUES.filter(l=>{
-    const n=newT[l.id].length;
-    if (l.level>=5) return n<16 || n>20;
-    return n!==l.size;
-  });
+  for (const ol in e.picks){ e.picks[ol].forEach(id=>{ for(const pid in pools){ const i=pools[pid].indexOf(id); if(i>=0) pools[pid].splice(i,1);} newT[ol].push(id); }); }
+  const bad = LEAGUES.filter(l=>newT[l.id].length!==l.size);
   if (bad.length){ if (!quiet) alert('Fehler: falsche Teamzahl in '+bad.map(l=>l.name+' ('+newT[l.id].length+')').join(', ')); return; }
-  LEAGUES.forEach(l=>{
-    const teams=newT[l.id].sort(byRang);
-    const lg={teams, md:makeSchedule(teams.length)};
-    if (l.level>=5) lg.downN=downs[l.id]||0;
-    ns.leagues[l.id]=lg;
-  });
+  LEAGUES.forEach(l=>{ const teams=newT[l.id].sort(byRang); ns.leagues[l.id]={teams, md:makeSchedule(teams.length)}; });
   POOLS.forEach(p=>ns.pools[p.id]=pools[p.id].sort(byRang));
   // Markierungen: (Auf) Aufsteiger, (Ab) Absteiger, (M) Vorjahresmeister
   const mk=(id,x)=>{ (ns.markers[id]||(ns.markers[id]=[])).push(x); };
-  e.moves.forEach(m=>{ if (L[m.to] || m.to==='RL' || m.to==='OL') mk(m.id, m.type==='auf'?'Auf':'Ab'); });
+  e.moves.forEach(m=>{ if (L[m.to]) mk(m.id, m.type==='auf'?'Auf':'Ab'); });
   for (const ol in e.picks) e.picks[ol].forEach(id=>mk(id,'Auf'));
   const euroMarks=seasonEuroMarks(e.tables.BL||[], dfbWinnerOf(s));
   Object.keys(euroMarks).forEach(id=>euroMarks[id].forEach(x=>mk(id, x)));
@@ -3969,9 +3553,7 @@ function tableHTML(rows, lg, opts={}){
   const eighth=lg&&lg.id==='BL'&&opts.zones!==false&&dfbEighthOpen(season);
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
-    if (lg && season && season.geo && lg.level>=5) lg.upShow=lg.level===5?2:3;
     let z = opts.zones===false ? '' : zoneOf(lg, r.pl, n, down, eighth);
-    if (lg) delete lg.upShow;
     if (flag==='up') z='sure-up';
     else if (flag==='down') z='sure-down';
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
@@ -4014,9 +3596,7 @@ function legendHTML(lg, season){
     it.push(legendSwatch('ecl','Conference League'));
     it.push(legendSwatch('ab','Abstiegszone, noch offen'));
   } else {
-    if (season && season.geo && lg.level===5) it.push(legendSwatch('auf','Platz 1–2 im Aufstiegsrennen der Regionalliga'));
-    else if (season && season.geo && lg.level===6) it.push(legendSwatch('auf','Platz 1–3 im Aufstiegsrennen der Oberliga'));
-    else if (lg.level===6) it.push(legendSwatch('auf','Zwei Aufsteiger → '+leagueName(lg.upTo)));
+    if (lg.level===6) it.push(legendSwatch('auf','Zwei Aufsteiger → '+leagueName(lg.upTo)));
     else if (lg.up===1) it.push(legendSwatch('auf','Meister &amp; Aufstieg → '+leagueName(lg.upTo)));
     else if (lg.up>1) it.push(legendSwatch('auf','Aufstieg → '+leagueName(lg.upTo)));
     if (lg.up) it.push(legendSwatch('sure-up','Aufstieg rechnerisch sicher'));
@@ -4050,27 +3630,28 @@ function renderNav(){
   const tab=S.ui.tab, pokal=tab==='pokal', ansehen=tab==='ansehen', amateur=S.ui.league==='AM'||!!P[S.ui.league];
   const special=pokal||ansehen||tab==='verein'||tab==='supercup'||tab==='info';
   let amN=0; POOLS.forEach(p=>amN+=(cur().pools[p.id]||[]).length);
-  const link=(label, active, attrs, title)=>'<a class="nav-item'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
-  const menu=(id, title, on, body)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop">'+body+'</div></div>';
+  const item=(label, active, attrs, title)=>'<a class="nav-item'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
+  const top=(label, active, attrs, title)=>'<a class="nav-link'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
+  const menu=(id, title, on, body, wide)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop'+(wide?' wide':'')+'">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
   const lv=L[S.ui.league];
-  const profi=LEAGUES.filter(l=>l.level<=4).map(l=>link(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"')).join('');
-  const rl=LEAGUES.filter(l=>l.level===5).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
-  const ol=LEAGUES.filter(l=>l.level===6).map(l=>link(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name)).join('');
-  let h=menu('ligen','Ligen', !!(lv&&lv.level<=4&&!special&&!amateur), profi);
-  h+=menu('rl','Regionalliga', !!(lv&&lv.level===5&&!special&&!amateur), rl);
-  h+=menu('ol','Oberliga', !!(lv&&lv.level===6&&!special&&!amateur), ol);
-  h+=menu('breit','Breitensport', !special && amateur, link('Amateurliga<span class="cnt">'+amN+'</span>', !special && amateur, 'data-league="AM"'));
-  let comp=link('Pokal', pokal, 'data-tab="pokal"');
-  if (featOn('supercup')) comp+=link('Supercup', tab==='supercup', 'data-tab="supercup"');
-  h+=menu('wett','Wettbewerbe', pokal||tab==='supercup', comp);
-  h+=menu('ansehen','Ansehen', ansehen, link('Wertungsübersicht', ansehen && S.ui.ansehenSec!=='liste', 'data-tab="ansehen" data-sec="wertung"')+link('Rangliste', ansehen && S.ui.ansehenSec==='liste', 'data-tab="ansehen" data-sec="liste"'));
-  h+=menu('verein','Verein', tab==='info', link('Vereinsinfo', tab==='info', 'data-tab="info"'));
+  let h='';
+  LEAGUES.filter(l=>l.level<=4).forEach(l=>{ h+=top(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"'); });
+  LEAGUES.filter(l=>l.level===5).forEach(l=>{ h+=top(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
+  const ol=LEAGUES.filter(l=>l.level===6).map(l=>item(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"')).join('');
+  h+=menu('ol','Oberliga', !!(lv&&lv.level===6&&!special&&!amateur), ol, true);
+  h+=top('Amateurliga'+(amN?'<span class="nav-cnt">'+amN+'</span>':''), !special && amateur, 'data-league="AM"');
+  h+=top('Pokal', pokal, 'data-tab="pokal"');
+  if (featOn('supercup')) h+=top('Supercup', tab==='supercup', 'data-tab="supercup"');
+  h+=menu('ansehen','Ansehen', ansehen, item('Wertungsübersicht', ansehen && S.ui.ansehenSec!=='liste', 'data-tab="ansehen" data-sec="wertung"')+item('Rangliste', ansehen && S.ui.ansehenSec==='liste', 'data-tab="ansehen" data-sec="liste"'));
+  h+=top('Verein', tab==='info', 'data-tab="info"');
   $('#leagueNav').innerHTML=h;
-  const sel=id=>!pokal && S.ui.league===id?' selected':'';
-  let o=LEAGUES.map(l=>'<option value="'+l.id+'"'+sel(l.id)+'>'+esc(l.name)+'</option>').join('');
-  o+='<option value="AM"'+(amateur&&!pokal?' selected':'')+'>Amateurliga</option>';
-  o+='<option value="pokal"'+(pokal?' selected':'')+'>Pokal</option>';
+  const opt=(value, label, on)=>'<option value="'+value+'"'+(on?' selected':'')+'>'+esc(label)+'</option>';
+  const group=(label, body)=>'<optgroup label="'+esc(label)+'">'+body+'</optgroup>';
+  let o=group('Ligen', LEAGUES.filter(l=>l.level<=4).map(l=>opt(l.id, l.name, !pokal && S.ui.league===l.id)).join(''));
+  o+=group('Regionalliga', LEAGUES.filter(l=>l.level===5).map(l=>opt(l.id, l.name, !pokal && S.ui.league===l.id)).join(''));
+  o+=group('Oberliga', LEAGUES.filter(l=>l.level===6).map(l=>opt(l.id, l.name, !pokal && S.ui.league===l.id)).join(''));
+  o+=group('Weiteres', opt('AM','Amateurliga', amateur&&!pokal)+opt('pokal','Pokal', pokal)+(featOn('supercup')?opt('supercup','Supercup', tab==='supercup'):'')+opt('ansehen','Ansehen', ansehen)+opt('info','Verein', tab==='info'));
   $('#mobileLeague').innerHTML=o;
   $('#seasonSelect').innerHTML=S.seasons.map((s,i)=>'<option value="'+i+'"'+(i===S.view?' selected':'')+'>'+s.name+(s.status==='done'?' (abgeschlossen)':s.status==='ending'?' (Abschluss)':'')+'</option>').join('');
 }
@@ -4715,14 +4296,18 @@ function navState(){
   o.termBlock=u.termBlock && u.termBlock[tbKey]!=null ? u.termBlock[tbKey] : null;
   return JSON.stringify(o);
 }
-function navNormalize(){
+function knownViewTab(tab){
+  return TABS.some(t=>t[0]===tab) || tab==='info' || tab==='ansehen' || tab==='supercup' || tab==='verein' || tab==='pokal';
+}
+function normalizeRemovedTab(){
   if (!S || !S.ui) return;
   if (S.ui.tab==='abschluss') S.ui.tab='aufab';
   if (S.ui.tab==='derbys') S.ui.tab='tabelle';
-  if (S.ui.tab==='einteilung'){
-    const lv=L[S.ui.league];
-    if (!lv || (lv.level!==5 && lv.level!==6)) S.ui.tab='tabelle';
-  }
+  if (!knownViewTab(S.ui.tab)) S.ui.tab='tabelle';
+}
+function navNormalize(){
+  if (!S || !S.ui) return;
+  normalizeRemovedTab();
   if (S.ui.tab==='ansehen') S.ui.ansehenSec=S.ui.ansehenSec==='liste'?'liste':'wertung';
   if (S.ui.tab==='pokal'){
     const s=cur();
@@ -4848,12 +4433,7 @@ function render(){
   finally{ navRemember(); }
 }
 function renderMain(){
-  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
-  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
-  if (S.ui.tab==='einteilung'){
-    const lv=L[S.ui.league];
-    if (!lv || (lv.level!==5 && lv.level!==6)) S.ui.tab='tabelle';
-  }
+  normalizeRemovedTab();
   renderMigrate();
   renderSettings();
   renderNav();
@@ -4879,7 +4459,7 @@ function renderMain(){
   }
   if (lid==='AM' || P[lid]){ renderAmateur(); return; }
   const lg=L[lid];
-  $('#title').textContent=(S.ui.tab==='ewig' && lg.level>=5) ? ewigName(lid) : lg.name;
+  $('#title').textContent=lg.name;
   const pr=seasonProgress(s), lp=leagueProgress(s,lid);
   let sub = '<a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · Liga '+lp.done+'/'+lp.total+' · alle Ligen '+pr.done+'/'+pr.total;
   if (s.status==='done') sub+=' · abgeschlossene Saison';
@@ -4888,7 +4468,6 @@ function renderMain(){
   $('#tabs').innerHTML=leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
   if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); }
-  else if (S.ui.tab==='einteilung') v.innerHTML=viewEinteilung(s,lid);
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
   else if (S.ui.tab==='terminierung') v.innerHTML=viewTerminierung(s,lid);
   else if (S.ui.tab==='heimaus') v.innerHTML=viewToggle(s,lid,'ha');
@@ -4898,118 +4477,8 @@ function renderMain(){
   else if (S.ui.tab==='rekorde') v.innerHTML=viewRekorde(lid);
   if (S.ui.tab==='karte') bindMap();
 }
-function leagueTabs(lid){
-  const lg=L[lid];
-  const tabs=TABS.slice();
-  if (lg && (lg.level===5 || lg.level===6)){
-    const at=tabs.findIndex(t=>t[0]==='karte');
-    tabs.splice(at<0?1:at+1, 0, ['einteilung','Einteilung']);
-  }
-  return tabs;
-}
-function einteilungStats(season, lid){
-  const lg=L[lid];
-  if (!season || !lg || (lg.level!==5 && lg.level!==6)) return null;
-  const slotIds=lg.level===5?RL_IDS:OL_IDS;
-  const point=id=>{
-    const p=coordPoint(id);
-    return p && isFinite(p.lat) && isFinite(p.lon)?p:null;
-  };
-  const dist={};
-  const km=(a,b)=>{
-    const key=a<b?a+'|'+b:b+'|'+a;
-    if (dist[key]!=null) return dist[key];
-    const pa=point(a), pb=point(b);
-    if (!pa || !pb) return null;
-    return dist[key]=airKm(pa, pb);
-  };
-  const staffeln=slotIds.map(id=>{
-    const raw=(season.leagues&&season.leagues[id]&&season.leagues[id].teams)||[];
-    const seen={}, teams=[];
-    raw.forEach(tid=>{ if (tid && !seen[tid]){ seen[tid]=1; teams.push(tid); } });
-    const located=[], missing=[];
-    teams.forEach(tid=>{ if (point(tid)) located.push(tid); else missing.push(tid); });
-    let sum=0, pairs=0;
-    for (let i=0;i<located.length;i++) for (let j=i+1;j<located.length;j++){
-      const d=km(located[i], located[j]);
-      if (d==null) continue;
-      sum+=d; pairs++;
-    }
-    return {id, name:L[id].name, short:L[id].short, n:teams.length, located:located.length, missing, sum:pairs?sum:null, pairs, mean:pairs?sum/pairs:null, teams};
-  });
-  const by={};
-  staffeln.forEach(s=>{ by[s.id]=s; });
-  const clubs=(by[lid]?by[lid].teams:[]).map(id=>{
-    if (!point(id)) return {id, missing:true};
-    const means=staffeln.map(s=>{
-      const others=s.teams.filter(x=>x!==id && point(x));
-      if (!others.length) return {id:s.id, name:s.name, n:0, sum:null, mean:null};
-      let sum=0;
-      others.forEach(x=>{ sum+=km(id, x); });
-      return {id:s.id, name:s.name, n:others.length, sum, mean:sum/others.length};
-    });
-    const own=means.find(m=>m.id===lid);
-    let nearest=null;
-    means.forEach(m=>{
-      if (m.id===lid || m.mean==null) return;
-      if (!nearest || m.mean<nearest.mean-1e-9) nearest=m;
-    });
-    return {id, missing:false, own, nearest, ownIsNearest:!nearest || (own && own.mean<=nearest.mean+1e-9)};
-  });
-  const levelPairs=staffeln.reduce((s,g)=>s+g.pairs, 0);
-  const levelSum=staffeln.reduce((s,g)=>s+(g.sum||0), 0);
-  return {geo:!!season.geo, level:lg.level, lid, staffeln, clubs, levelSum:levelPairs?levelSum:null, levelPairs, levelMean:levelPairs?levelSum/levelPairs:null};
-}
-function viewEinteilung(season, lid){
-  const st=einteilungStats(season, lid);
-  if (!st) return '<div class="box"><p>Die Einteilung gibt es für Regionalliga und Oberliga.</p></div>';
-  const km1=x=>x==null||!isFinite(x)?'–':deNum(x,1)+' km';
-  const levelName=st.level===5?'Regionalliga':'Oberliga';
-  const sizes=st.staffeln.map(s=>s.short.replace(/^OL |^RL /,'')+' '+s.n).join(', ');
-  const outside=st.staffeln.filter(s=>s.n<16 || s.n>20);
-  let lead;
-  if (st.geo){
-    lead='Diese Saison ist nach der Luftlinie zwischen den Stadien eingeteilt. Die Zahlen sind die heutigen Abstände dieser Zuordnung. Ein Protokoll der damaligen Kandidaten liegt nicht vor.';
-  } else {
-    lead='Diese Saison behält die gespeicherte Zuordnung. Sie ist nicht neu nach der Luftlinie gelegt. Das passiert erst beim Saisonwechsel oder beim Zurücksetzen. Die Zahlen sind die heutigen Abstände dieser bestehenden Zuordnung.';
-  }
-  let h='<div class="box"><h3>Einteilung</h3><p>'+lead+'</p>';
-  h+='<p>Ziel ist eine möglichst kleine Summe der Luftlinien aller Vereins paare in den Staffeln der '+levelName+'. Jedes Paar zählt einmal, nicht als Hin- und Rückweg. Regionalliga und Oberliga werden getrennt. Wer in der Ebene spielt, kommt aus Auf- und Abstieg. Die Größe darf zwischen 16 und 20 liegen und wird nicht auf 18 gezogen. Bundeslandgrenzen teilen die Staffeln nicht. Die Summe aller Paare dieser Ebene beträgt jetzt '+km1(st.levelSum)+' aus '+st.levelPairs+' Paaren, im Durchschnitt '+km1(st.levelMean)+' pro Paar.</p>';
-  h+='<p>Gewählt sind '+esc(sizes)+'. '+(outside.length?'Diese gespeicherten Größen liegen außerhalb von 16 bis 20. ':'')+'Ein Verein kann in einer anderen Staffel den kürzeren Durchschnitt haben, weil sonst die Größe aus dem Rahmen läuft oder die Wege der anderen länger würden. Das ist keine kürzeste Lösung der ganzen Ebene und nicht der kürzeste Weg für jeden Verein einzeln.</p></div>';
-  h+='<div class="ein-grid">';
-  st.staffeln.forEach(s=>{
-    h+='<div class="ein-card'+(s.id===lid?' on':'')+'"><b>'+esc(s.name)+'</b><span>'+s.n+(s.n===1?' Verein':' Vereine')+'</span>';
-    h+='<span class="muted">Paarsumme '+km1(s.sum)+'</span>';
-    h+='<span class="muted">'+s.pairs+' Paare, einmal</span>';
-    h+='<span class="muted">Durchschnitt '+km1(s.mean)+'</span>';
-    if (s.missing.length) h+='<span class="ein-miss">'+s.missing.length+' ohne Standort</span>';
-    h+='</div>';
-  });
-  h+='</div>';
-  const sel=st.staffeln.find(s=>s.id===lid);
-  const shown=st.clubs.filter(c=>!c.missing && c.own && c.own.n);
-  const farther=shown.filter(c=>!c.ownIsNearest).length;
-  h+='<div class="card"><div class="card-title"><span>'+esc(sel?sel.name:lid)+'</span><span>'+(sel?sel.n:0)+' Vereine</span></div>';
-  h+='<p class="muted ein-note">Der Weg eines Vereins ist die Summe der Luftlinien zu den anderen Vereinen der Staffel, jeder Gegner einmal. Der Durchschnitt teilt diese Summe durch die Zahl der Gegner mit Standort. Die Paarsumme der Staffel teilt sich durch die Anzahl der Paare. '+farther+' von '+shown.length+' Vereinen mit Standort haben in einer anderen Staffel den kürzeren Durchschnitt. Das ist die heutige Messung.</p>';
-  h+='<div class="ein-scroll"><table class="tbl"><thead><tr><th class="l">Verein</th><th>Gegner</th><th>Summe</th><th>Ø je Gegner</th><th class="l">kürzere Staffel</th><th>deren Ø</th><th>eigene länger</th></tr></thead><tbody>';
-  const rows=st.clubs.slice().sort((a,b)=>{
-    if (a.missing!==b.missing) return a.missing?1:-1;
-    const am=a.own&&a.own.mean!=null?a.own.mean:-1, bm=b.own&&b.own.mean!=null?b.own.mean:-1;
-    if (bm!==am) return bm-am;
-    const an=TEAMS[a.id]?TEAMS[a.id].name:a.id, bn=TEAMS[b.id]?TEAMS[b.id].name:b.id;
-    return an.localeCompare(bn, 'de');
-  });
-  rows.forEach(c=>{
-    if (c.missing){
-      const label=TEAMS[c.id]?clubHTML(c.id,{nobl:true}):esc(c.id);
-      h+='<tr><td class="l">'+label+'</td><td class="ein-miss" colspan="6">kein Standort</td></tr>';
-      return;
-    }
-    const other=c.ownIsNearest?null:c.nearest;
-    h+='<tr><td class="l">'+clubHTML(c.id,{nobl:true})+'</td><td>'+c.own.n+'</td><td>'+km1(c.own.sum)+'</td><td>'+km1(c.own.mean)+'</td><td class="l">'+(other?esc(other.name):'eigene')+'</td><td>'+(other?km1(other.mean):'–')+'</td><td>'+(other?km1(c.own.mean-other.mean):'–')+'</td></tr>';
-  });
-  h+='</tbody></table></div></div>';
-  return h;
+function leagueTabs(){
+  return TABS.slice();
 }
 function currentMd(s,lid){
   const key=S.view+':'+lid;
@@ -5114,23 +4583,12 @@ function blLoyalSet(){
   });
   return marked;
 }
-function ewigIds(lid){
-  const lg=L[lid];
-  if (lg && lg.level===5) return RL_IDS.slice();
-  if (lg && lg.level===6) return OL_IDS.slice();
-  return [lid];
-}
-function ewigName(lid){
-  const lg=L[lid];
-  if (lg && lg.level===5) return 'Regionalliga';
-  if (lg && lg.level===6) return 'Oberliga';
-  return L[lid]?L[lid].name:String(lid||'');
-}
 function viewEwig(lid){
-  const keys=ewigIds(lid), title=ewigName(lid);
+  const title=L[lid]?L[lid].name:String(lid||'');
   const agg={}, seasons={};
   S.seasons.forEach(s=>{
-    keys.forEach(key=>{
+    const key=lid;
+    {
       const lg=s.leagues&&s.leagues[key];
       if (!lg) return;
       const seen={};
@@ -5152,7 +4610,7 @@ function viewEwig(lid){
         const a=agg[r.id]||(agg[r.id]=emptyRow(r.id));
         ['sp','s','u','n','tg','gt','pkt'].forEach(k=>{ a[k]+=(r[k]||0); });
       });
-    });
+    }
   });
   const rows=Object.values(agg); rows.forEach(r=>r.diff=r.tg-r.gt);
   rows.sort((a,b)=>b.pkt-a.pkt||b.diff-a.diff||b.tg-a.tg||byRang(a.id,b.id));
@@ -5716,10 +5174,6 @@ function phaseWeights(total, mi){
 function downFromKnown(season, lid, mi){
   const spec=L[lid];
   if (!spec) return 0;
-  if (season && season.geo && spec.level>=5){
-    const live=season.leagues&&season.leagues[lid];
-    return live&&live.downN!=null?live.downN:0;
-  }
   if (spec.level<=4) return spec.down||0;
   const parent=spec.level===5?'L4':spec.upTo;
   const parentSpec=L[parent];
@@ -7855,7 +7309,7 @@ function cupParticipantIds(cup){
 let mapView={lid:null,z:1,cx:320,cy:380};
 function viewKarte(s, lid){
   const name=L[lid]?L[lid].name:(P[lid]?P[lid].name:String(lid||''));
-  const allow=(s && s.geo && L[lid] && L[lid].level>=5) ? null : leagueStateNames(lid);
+  const allow=leagueStateNames(lid);
   return viewMap(name+' – Vereine', seasonClubIds(s, lid), allow, lid);
 }
 function viewMap(title, ids, allow, key){
@@ -7973,32 +7427,13 @@ function moveReasonHTML(s, e){
       : 'Es bleiben '+l.up+' Aufsteiger und '+l.down+' Absteiger. Diese Zahlen sind fest.';
     h+='<p><b>'+esc(l.name)+'.</b> '+text+'</p>';
   });
-  if (s && s.geo){
-    h+='<p><b>Regionalliga.</b> Vier steigen zusammen in die 4. Liga auf, verglichen nach Punkten pro Spiel aus Platz 1 und 2. Eine Staffel kann null, eine oder zwei stellen. 16 steigen in die Oberliga ab, verteilt nach der Staffelgröße. Die nächste Einteilung folgt der Luftlinie, nicht dem Bundesland.</p>';
-    h+='<p><b>Oberliga.</b> 16 steigen zusammen in die Regionalliga auf, verglichen nach Punkten pro Spiel aus Platz 1 bis 3. 16 steigen in die Amateurliga ihres gespeicherten Bundeslandes ab. Die Staffeln werden danach neu nach der Entfernung gelegt, mit 16 bis 20 Vereinen.</p>';
-    h+='<p><b>Amateurliga.</b> 16 Vereine steigen in die Oberliga auf, unabhängig vom Gebiet. Die Auswahl steht oben.</p>';
-  } else {
-    h+='<p><b>Regionalliga.</b> Zwei Absteiger sind fest. Dazu kommt der Ausgleich: einer, weil vier Vereine aus den Oberligen nachrücken und nur der Meister aufsteigt, plus einer je Absteiger aus der 4. Liga. Das gilt für alle vier Regionalligen.</p>';
-    h+='<p><b>Oberliga.</b> Die Plätze 1 und 2 steigen fest auf, zwei Vereine kommen aus der Amateurliga nach. Die Abstiegszahl ist genau die Zahl der Absteiger aus der eigenen Regionalliga. Das gilt für alle acht Oberligen.</p>';
-    h+='<p><b>Amateurliga.</b> Aus jedem der acht Gebiete steigen zwei Vereine in die zugehörige Oberliga auf, 16 insgesamt. Die Absteiger aus den Oberligen kommen in die Amateurliga ihres Gebiets.</p>';
-  }
+  h+='<p><b>Regionalliga.</b> Zwei Absteiger sind fest. Dazu kommt der Ausgleich: einer, weil vier Vereine aus den Oberligen nachrücken und nur der Meister aufsteigt, plus einer je Absteiger aus der 4. Liga. Das gilt für alle vier Regionalligen.</p>';
+  h+='<p><b>Oberliga.</b> Die Plätze 1 und 2 steigen fest auf, zwei Vereine kommen aus der Amateurliga nach. Die Abstiegszahl ist genau die Zahl der Absteiger aus der eigenen Regionalliga. Das gilt für alle acht Oberligen.</p>';
+  h+='<p><b>Amateurliga.</b> Aus jedem der acht Gebiete steigen zwei Vereine in die zugehörige Oberliga auf, 16 insgesamt. Die Absteiger aus den Oberligen kommen in die Amateurliga ihres Gebiets.</p>';
   h+='</div>';
   return h;
 }
 function pickBlockHTML(s, e){
-  if (e.need && e.need.AM!=null){
-    const need=e.need.AM, picks=(e.picks&&e.picks.AM)||[];
-    const cand=[];
-    POOLS.forEach(p=>e.pools[p.id].forEach(id=>{ if (!e.moves.some(m=>m.id===id&&m.type==='ab'&&L[m.from]&&L[m.from].level===6)) cand.push(id); }));
-    cand.sort(byRang);
-    const ok=picks.length===need;
-    let h='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">'+need+' Vereine steigen in die Oberliga auf, unabhängig vom Bundesland. Die neue Staffel folgt danach der Luftlinie. Absteiger dieser Saison können nicht sofort wieder aufsteigen.</p>'+
-      '<button class="btn small" data-act="suggest">Vorschlag: die historisch stärksten übernehmen</button> <button class="btn small" data-act="clearPicks">Auswahl leeren</button></div>'+
-      '<div class="box"><div class="pick-head"><h3 style="margin:0">Oberliga</h3><span class="'+(ok?'ok':'bad')+'">'+picks.length+' / '+need+'</span></div><div class="pick-list" data-ol="AM">'+
-      cand.map(id=>'<label class="pick-row'+(picks.includes(id)?' sel':'')+'"><input type="checkbox" data-pick="AM" value="'+id+'"'+(picks.includes(id)?' checked':'')+'>'+clubHTML(id)+'<span class="r">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span></label>').join('')+
-      '</div></div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn" data-act="endCancel">Abbrechen</button><button class="btn primary" data-act="finalize"'+(ok?'':' disabled')+'>Saison '+nextSeasonName(s.name)+' starten</button></div>';
-    return h;
-  }
   let h='<div class="box"><h3>Aufsteiger aus der Amateurliga</h3><p class="muted">Wähle pro Oberliga die Aufsteiger aus der Amateurliga desselben Gebiets. Die Anzahl sind die freien Plätze. Absteiger aus der Oberliga dieser Saison können nicht sofort wieder aufsteigen.</p>'+
     '<button class="btn small" data-act="suggest">Vorschlag: jeweils die historisch stärksten übernehmen</button> <button class="btn small" data-act="clearPicks">Auswahl leeren</button> <label style="margin-left:10px"><input type="checkbox" id="allPools"'+(S.ui.allPools?' checked':'')+'> alle Amateurvereine anzeigen (auch andere Regionen)</label></div><div class="grid2">';
   let ok=true;
@@ -8191,9 +7626,7 @@ function rulesHTML(){
     const mark=p.down!==l.down;
     h+='<tr><td class="l">'+esc(l.name)+'</td>'+sortCell(l.size, l.size)+sortCell(l.up||0, l.up||'–')+sortCell(l.down, l.down)+sortCell(p.down, p.down, mark?'pts':'')+'<td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>';
   });
-  h+='</tbody></table>'+(s.geo
-    ? '<p>Bundesliga bis 4. Liga haben feste Zahlen. Die vier Absteiger der 4. Liga gehen in den Regionalliga-Pool, nicht in eine feste Staffel. Aus allen vier Regionalligen steigen zusammen vier Vereine auf: die besten nach Punkten pro Spiel unter den Plätzen 1 und 2. Eine Staffel kann dabei null, eine oder zwei Mannschaften stellen. 16 steigen aus der Regionalliga in die Oberliga ab, verteilt nach der Staffelgröße. Aus der Oberliga steigen 16 auf, die besten nach Punkten pro Spiel unter den Plätzen 1 bis 3, und 16 ab in die Amateurliga ihres gespeicherten Bundeslandes. Zur neuen Saison werden die Pools neu nach der Luftlinie in vier Regionalligen und acht Oberligen mit je 16 bis 20 Vereinen gelegt. Die Regionalliga behält die Namen Nord, Ost, Süd und West. Die Oberliga heißt Nordwest, Nordost, Ost, Südost, Süd, Südwest, West und Mitte. Der Name ist der feste geografische Platz der Gruppe, keine Bundeslandgrenze. Bundesland, Wappen und Landespokal bleiben am Verein.</p>'
-    : '<p>Bundesliga bis 4. Liga haben feste Zahlen. Die vier Absteiger der 4. Liga gehen nur in die Regionalliga ihres Bundeslandes (Nord: Bremen, Niedersachsen, Hamburg, Schleswig-Holstein, Mecklenburg-Vorpommern; Ost: Berlin, Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen; Süd: Bayern, Baden-Württemberg; West: Nordrhein-Westfalen, Hessen, Rheinland-Pfalz, Saarland). Jede Regionalliga gibt einen Meister an die 4. Liga ab und hat zwei feste Absteiger. Aus jeder der beiden Oberligen rücken zwei Vereine nach. Kommen k Absteiger aus der 4. Liga dazu, steigen zusätzlich k+1 Vereine ab, damit die Staffel bei 18 bleibt. In der Oberliga steigen die Plätze 1 und 2 fest auf. k Absteiger aus der eigenen Regionalliga bedeuten k Absteiger, und zwei Amateurvereine rücken nach. Niemand wird in eine fremde Region verschoben. „Ab jetzt“ folgt dem aktuellen Tabellenstand.</p>');
+  h+='</tbody></table><p>Bundesliga bis 4. Liga haben feste Zahlen. Die vier Absteiger der 4. Liga gehen nur in die Regionalliga ihres Bundeslandes (Nord: Bremen, Niedersachsen, Hamburg, Schleswig-Holstein, Mecklenburg-Vorpommern; Ost: Berlin, Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen; Süd: Bayern, Baden-Württemberg; West: Nordrhein-Westfalen, Hessen, Rheinland-Pfalz, Saarland). Jede Regionalliga gibt einen Meister an die 4. Liga ab und hat zwei feste Absteiger. Aus jeder der beiden Oberligen rücken zwei Vereine nach. Kommen k Absteiger aus der 4. Liga dazu, steigen zusätzlich k+1 Vereine ab, damit die Staffel bei 18 bleibt. In der Oberliga steigen die Plätze 1 und 2 fest auf. k Absteiger aus der eigenen Regionalliga bedeuten k Absteiger, und zwei Amateurvereine rücken nach. Niemand wird in eine fremde Region verschoben. „Ab jetzt“ folgt dem aktuellen Tabellenstand.</p>';
   const changed=LEAGUES.filter(l=>l.level>=5 && relegationProfile(s, l.id).down!==l.down);
   if (changed.length){
     h+='<p><b>In der Saison '+esc(s.name)+' weicht die Abstiegszahl ab:</b></p><ul>';
@@ -9954,7 +9387,12 @@ document.addEventListener('click', ev=>{
 document.addEventListener('change', ev=>{
   const t=ev.target;
   if (t.id==='seasonSelect'){ S.view=+t.value; if (S.ui.tab==='abschluss') S.ui.tab='aufab'; if (cur().status==='ending') S.ui.tab='aufab'; save(); render(); }
-  else if (t.id==='mobileLeague'){ if(t.value==='pokal'){ S.ui.tab='pokal'; } else { S.ui.league=t.value; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info') S.ui.tab='tabelle'; } save(); render(); }
+  else if (t.id==='mobileLeague'){
+    const v=t.value;
+    if (v==='pokal'||v==='supercup'||v==='ansehen'||v==='info') S.ui.tab=v;
+    else { S.ui.league=v; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info') S.ui.tab='tabelle'; }
+    save(); render();
+  }
   else if (t.id==='mdSelect'){ S.ui.md[S.view+':'+S.ui.league]=+t.value; save(); render(); }
   else if (t.id==='autoNext'){ S.ui.autoNext=t.checked; save(); }
   else if (t.id==='allPools'){ S.ui.allPools=t.checked; save(); render(); }
@@ -10034,8 +9472,7 @@ function adopt(data, empty){
   S.ui = Object.assign({league:'BL', tab:'tabelle', md:{}, autoNext:true, supercup:true}, S.ui||{});
   if (empty && (localStorage.getItem(OLD_KEY)||localStorage.getItem('fussballrechner_v1'))) S.ui.showMigrate = true;
   if (S.view==null || S.view>=S.seasons.length) S.view=S.seasons.length-1;
-  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
-  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
+  normalizeRemovedTab();
   if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='aufab';
   ensureAllCups();
   migrateArchive();
@@ -10697,84 +10134,6 @@ function uiSelfTestBody(fails){
   check('Pokalzeilen 90, n.V. und i.E. gleich hoch', ch>0 && ch===cn && ch===ci, ch+'/'+cn+'/'+ci);
   host.remove();
   check('Karte ist ein Ligarreiter', TABS.some(t=>t[0]==='karte'));
-  check('Einteilung steht nur bei Regionalliga und Oberliga', leagueTabs('BL').every(t=>t[0]!=='einteilung') && leagueTabs('RLN').some(t=>t[0]==='einteilung' && t[1]==='Einteilung') && leagueTabs('OLBY').some(t=>t[1]==='Einteilung') && OL_IDS.every(id=>leagueTabs(id).some(t=>t[1]==='Einteilung')) && RL_IDS.every(id=>leagueTabs(id).some(t=>t[1]==='Einteilung')));
-  const hav=(a,b)=>{
-    const R=6371.0088, rad=Math.PI/180;
-    const dLat=(b[0]-a[0])*rad, dLon=(b[1]-a[1])*rad;
-    const s=Math.sin(dLat/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin(dLon/2)**2;
-    return 2*R*Math.asin(Math.min(1, Math.sqrt(Math.max(0,s))));
-  };
-  const located=Object.keys(TEAMS).filter(id=>coordPoint(id)).sort();
-  const takeAt=(n, off)=>located.slice(off, off+n);
-  const geoSeason={name:'2099/00', geo:true, status:'running', leagues:{
-    RLN:{teams:takeAt(17,0), md:[[1]]}, RLO:{teams:takeAt(20,17)}, RLS:{teams:takeAt(16,37)}, RLW:{teams:takeAt(19,53)},
-    OLNN:{teams:takeAt(18,80)}, OLNS:{teams:takeAt(18,98)}, OLON:{teams:takeAt(18,116)}, OLOS:{teams:takeAt(18,134)},
-    OLBY:{teams:takeAt(20,152)}, OLBW:{teams:takeAt(16,172)}, OLNRW:{teams:takeAt(17,188)}, OLSW:{teams:takeAt(19,205)}
-  }};
-  const before=JSON.stringify(geoSeason);
-  const einRep=einteilungStats(geoSeason, 'RLN');
-  const einHtml=viewEinteilung(geoSeason, 'RLN');
-  const einHtmlOl=viewEinteilung(geoSeason, 'OLBY');
-  const pairOf=ids=>{
-    let sum=0, pairs=0;
-    for (let i=0;i<ids.length;i++) for (let j=i+1;j<ids.length;j++){
-      const ca=window.FR_COORDS[ids[i]], cb=window.FR_COORDS[ids[j]];
-      if (!ca || !cb) continue;
-      sum+=hav(ca, cb); pairs++;
-    }
-    return {sum, pairs};
-  };
-  const rlPair=pairOf(geoSeason.leagues.RLN.teams);
-  const olPair=pairOf(geoSeason.leagues.OLBY.teams);
-  const rlRow=einRep.staffeln.find(s=>s.id==='RLN');
-  const olRep=einteilungStats(geoSeason, 'OLBY');
-  const olRow=olRep.staffeln.find(s=>s.id==='OLBY');
-  check('Paarsumme zählt jedes Paar einmal', rlRow.n===17 && rlRow.pairs===17*16/2 && Math.abs(rlRow.sum-rlPair.sum)<1e-6 && olRow.n===20 && olRow.pairs===20*19/2 && Math.abs(olRow.sum-olPair.sum)<1e-6, rlRow.pairs+'/'+olRow.pairs);
-  const one=geoSeason.leagues.RLN.teams[0];
-  const oneSum=geoSeason.leagues.RLN.teams.slice(1).reduce((s,id)=>s+hav(window.FR_COORDS[one], window.FR_COORDS[id]), 0);
-  const oneRow=einRep.clubs.find(c=>c.id===one);
-  check('Durchschnitt teilt durch die Gegner', oneRow.own.n===16 && Math.abs(oneRow.own.sum-oneSum)<1e-6 && Math.abs(oneRow.own.mean-oneSum/16)<1e-6);
-  check('Einteilung steht als Überschrift', einHtml.indexOf('>Einteilung<')>=0);
-  check('Einteilung zeigt 17 und 20 Vereine', einHtml.indexOf('17 Vereine')>=0 && einHtml.indexOf('20 Vereine')>=0 && einHtml.indexOf('zwischen 16 und 20')>=0 && einHtml.indexOf('nicht auf 18 gezogen')>=0, (einHtml.match(/\d+ Vereine/g)||[]).join(','));
-  check('Einteilung nennt die Luftlinie und die Paarsumme', einHtml.indexOf('nach der Luftlinie zwischen den Stadien eingeteilt')>=0 && einHtml.indexOf(deNum(rlRow.sum,1))>=0 && einHtml.indexOf('einmal')>=0 && einHtml.indexOf('Hin- und Rückweg')>=0, deNum(rlRow.sum,1));
-  check('Einteilung behauptet kein globales Minimum', einHtml.indexOf('globales Minimum')<0 && einHtml.indexOf('kürzestmöglich')<0);
-  check('Oberliga-Einteilung wechselt die Auswahl', einHtmlOl.indexOf('Oberliga Südost')>=0 && einHtmlOl.indexOf(deNum(olRow.sum,1))>=0 && einHtml.indexOf('Regionalliga Nord')>=0 && einHtml!==einHtmlOl);
-  const oldSeason={name:'2001/02', status:'done', leagues:{RLN:{teams:takeAt(18,0)}, RLO:{teams:takeAt(18,18)}, RLS:{teams:takeAt(18,36)}, RLW:{teams:takeAt(18,54)}}};
-  const oldHtml=viewEinteilung(oldSeason, 'RLO');
-  check('alte Saison behält die gespeicherte Zuordnung', oldHtml.indexOf('gespeicherte Zuordnung')>=0 && oldHtml.indexOf('Saisonwechsel')>=0 && oldHtml.indexOf('Zurücksetzen')>=0 && oldHtml.indexOf('ist nach der Luftlinie eingeteilt')<0);
-  const gap=JSON.parse(JSON.stringify(geoSeason));
-  gap.leagues.RLN.teams=gap.leagues.RLN.teams.slice();
-  gap.leagues.RLN.teams[0]='t000';
-  const gapHtml=viewEinteilung(gap, 'RLN');
-  const gapRow=einteilungStats(gap, 'RLN').clubs.find(c=>c.id==='t000');
-  check('fehlender Standort wird genannt', gapRow && gapRow.missing && gapHtml.indexOf('kein Standort')>=0 && gapHtml.indexOf('t000')>=0 && gapHtml.indexOf('>0,0 km<')<0);
-  check('der Reiter verändert die Zuordnung nicht', before===JSON.stringify(geoSeason) && geoSeason.leagues.RLN.md[0][0]===1);
-  const stand=cur();
-  const standLg=stand.leagues.RLN;
-  const standTeams=standLg.teams.join(',');
-  const standMd=standLg.md;
-  const standGeo=stand.geo;
-  const standStatus=stand.status;
-  viewEinteilung(stand, 'RLN');
-  viewEinteilung(stand, 'OLNN');
-  check('der Reiter lässt den Spielstand stehen', standLg.teams.join(',')===standTeams && standLg.md===standMd && stand.geo===standGeo && stand.status===standStatus);
-  const laterSeason=JSON.parse(JSON.stringify(geoSeason));
-  laterSeason.name='2100/01';
-  laterSeason.leagues.RLN.teams=takeAt(17,300);
-  const laterRep=einteilungStats(laterSeason, 'RLN');
-  check('Saisonwechsel liest die neue Zuordnung', laterRep.staffeln.find(s=>s.id==='RLN').teams.join(',')!==rlRow.teams.join(',') && laterRep.staffeln.find(s=>s.id==='RLN').n===17);
-  const chronId='t010';
-  const chronRow={season:'1899/00', id:chronId, liga:'Oberliga Bayern', ebene:6, n:18, pl:3, pts:1};
-  const chronWas=(S.chronicle||[]).slice();
-  S.chronicle=(S.chronicle||[]).concat([chronRow]);
-  chronIndex=null; chronBuilt=-1;
-  try{
-    const hit=ligaCourseRows(chronId).find(r=>r.season==='1899/00');
-    check('gespeicherte Staffelbezeichnung bleibt historisch', hit && hit.liga==='Oberliga Bayern' && chronRow.liga==='Oberliga Bayern' && L.OLBY.name==='Oberliga Südost');
-    check('Ewige Tabelle bleibt eine Oberliga', ewigName('OLBY')==='Oberliga' && ewigName('RLN')==='Regionalliga');
-  }finally{
-    S.chronicle=chronWas; chronIndex=null; chronBuilt=-1;
-  }
   const blMap=viewKarte(cur(),'BL');
   check('Bundesliga-Karte zeigt die Saison', blMap.indexOf('de-map')>=0 && blMap.indexOf('Bundesliga')>=0);
   const rl=LEAGUES.filter(l=>l.level===5)[0];
@@ -10875,18 +10234,18 @@ function uiSelfTestBody(fails){
     const upFrom={}; RL_IDS.forEach(id=>upFrom[id]=0);
     e.moves.filter(m=>m.type==='auf' && RL_IDS.indexOf(m.from)>=0).forEach(m=>{ upFrom[m.from]++; });
     const counts=RL_IDS.map(id=>upFrom[id]);
-    check('Regionalliga-Aufstieg kann 0 und 2 sein', counts.reduce((a,b)=>a+b,0)===4 && counts.indexOf(0)>=0 && counts.some(x=>x>=2), counts.join(','));
+    check('jede Regionalliga stellt genau einen Aufsteiger', counts.length===4 && counts.every(x=>x===1), counts.join(','));
     const olFrom={}; OL_IDS.forEach(id=>olFrom[id]=0);
     e.moves.filter(m=>m.type==='auf' && OL_IDS.indexOf(m.from)>=0).forEach(m=>{ olFrom[m.from]++; });
     const olCounts=OL_IDS.map(id=>olFrom[id]);
-    check('Oberliga-Aufstieg kann 0 sein', olCounts.reduce((a,b)=>a+b,0)===16 && olCounts.indexOf(0)>=0, olCounts.join(','));
+    check('jede Oberliga stellt genau zwei Aufsteiger', olCounts.length===8 && olCounts.every(x=>x===2), olCounts.join(','));
     const one={name:'2090/91', status:'done', leagues:{RLN:{teams:['t010'], tables:{all:[{id:'t010',sp:10,s:6,u:2,n:2,tg:20,gt:10,pkt:20},{id:'t010',sp:10,s:6,u:2,n:2,tg:20,gt:10,pkt:20}]}}, RLS:{teams:['t010'], tables:{all:[{id:'t010',sp:8,s:4,u:0,n:4,tg:12,gt:12,pkt:12}]}}}};
     S.seasons=[one, {name:'2091/92', status:'done', leagues:{RLN:{teams:['t010'], tables:{all:[{id:'t010',sp:4,s:1,u:0,n:3,tg:4,gt:6,pkt:3}]}}}}];
     const ew=viewEwig('RLN');
-    check('Ewige Tabelle heißt Regionalliga', ew.indexOf('<h3>Regionalliga</h3>')>=0 && ew.indexOf('Regionalliga Nord')<0);
-    check('Ewige Regionalliga addiert beide Staffeln einmal', ew.indexOf('>35<')>=0 && ew.indexOf('>22<')>=0);
-    check('dieselbe Staffel-Saison wird nicht doppelt gezählt', ew.indexOf('>55<')<0);
-    check('Ewige Tabelle heißt Oberliga', viewEwig('OLBY').indexOf('<h3>Oberliga</h3>')>=0);
+    const ewS=viewEwig('RLS');
+    check('Ewige Tabelle heißt die einzelne Staffel', ew.indexOf('<h3>Regionalliga Nord</h3>')>=0 && ew.indexOf('<h3>Regionalliga</h3>')<0);
+    check('dieselbe Staffel zählt die doppelte Zeile nur einmal', ew.indexOf('>23<')>=0 && ew.indexOf('>14<')>=0 && ew.indexOf('>40<')<0);
+    check('die andere Staffel bleibt eine eigene Tabelle', ewS.indexOf('<h3>Regionalliga Süd</h3>')>=0 && ewS.indexOf('>12<')>=0 && ewS.indexOf('>23<')<0 && ew.indexOf('>12<')<0);
   }finally{ S.seasons=keptForGeo; S.view=keptViewGeo; }
   const master=championRows(['bl','de'],'ddr');
   const y1963=master.find(r=>r.year===1963);
@@ -10937,6 +10296,25 @@ function uiSelfTestBody(fails){
   S.ui.tab='derbys';
   render();
   check('Derbys landen auf der Tabelle', S.ui.tab==='tabelle' && history.length===len0);
+  ['RLN','OLBY'].forEach(lid=>{
+    S.ui.league=lid;
+    S.ui.tab='einteilung';
+    render();
+    const active=document.querySelector('#tabs .tab.active');
+    check(lid+' mit entferntem Reiter zeigt die Tabelle', S.ui.tab==='tabelle' && active && active.dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && document.querySelector('#title').textContent===L[lid].name && history.length===len0 && navIndex===i0);
+  });
+  S.ui.league='RLS';
+  S.ui.tab='weg';
+  render();
+  check('jeder unbekannte Ligareiter wird Tabelle', S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard'));
+  document.querySelector('#tabs [data-tab="karte"]').click();
+  check('Klick auf Karte bleibt Karte', S.ui.tab==='karte' && document.querySelector('#tabs .tab.active').dataset.tab==='karte' && !document.querySelector('#tableCard'));
+  document.querySelector('[data-league="OLNRW"]').click();
+  check('Oberliga-Wechsel bleibt auf der Karte', S.ui.league==='OLNRW' && S.ui.tab==='karte' && document.querySelector('#title').textContent==='Oberliga Nordrhein-Westfalen' && document.querySelector('#tabs .tab.active').dataset.tab==='karte');
+  document.querySelector('[data-tab="pokal"]').click();
+  check('Pokal aus der Liga bleibt Pokal', S.ui.tab==='pokal' && document.querySelector('#title').textContent.indexOf('Pokal')>=0);
+  document.querySelector('[data-league="RLW"]').click();
+  check('Regionalliga aus dem Pokal zeigt die Tabelle', S.ui.league==='RLW' && S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && history.length===len0 && navIndex===i0);
   S.ui.tab='pokal';
   render();
   check('ungültige Wertung wird Spielplan, ohne neuen Verlauf', S.ui.cup==='dfb' && S.ui.cupView==='spiele' && history.length===len0 && navIndex===i0);
@@ -11076,7 +10454,7 @@ if (brightEl) brightEl.addEventListener('input', ()=>applyBright(brightEl.value,
 function boot(){
   let ls=null;
   try { ls=parseSave(localStorage.getItem(KEY)); } catch(e){ ls=null; }
-  const finish=(data, empty)=>adopt(data, empty);
+  const finish=(data, empty)=>{ if (data && !structureOk(data)) adopt(newGame(), false); else adopt(data, empty); };
   idbGet(SPLIT+'meta').then(meta=>{
     if (meta && meta.split && meta.n) return loadSplit(meta).then(d=>finish(d, false));
     return idbGet(KEY).then(raw=>{
@@ -12983,5 +12361,5 @@ function terminSelfTest(){
   return {ok:!fails.length, fails, report};
 
 }
-window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, clusterLevel, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, AREA_BY_BL, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, seasonStrengthPoints, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
