@@ -1164,8 +1164,8 @@ function ansehenSelfTestBody(fails){
   renderNav();
   const nav=$('#leagueNav').innerHTML;
   const mob=$('#mobileLeague').innerHTML;
-  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Regionalliga<')<0 && nav.indexOf('data-league="BL"')>=0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0));
-  check('Oberliga steht direkt in der oberen Leiste', nav.indexOf('data-menu="ol"')<0 && nav.indexOf('>Oberliga<')<0 && ['OL Nord-Süd','OL Nord-Nord','OL Ost-Nord','OL Ost-Süd','OL Bayern','OL BW','OL NRW','OL Südwest'].every(n=>nav.indexOf('>'+n+'<')>=0) && nav.indexOf('title="Oberliga Bayern"')>=0 && nav.indexOf('Oberliga Mitte')<0);
+  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Regionalliga<')<0 && nav.indexOf('data-league="BL"')>=0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('>2. BL<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0));
+  check('Oberliga steht direkt in der oberen Leiste', nav.indexOf('data-menu="ol"')<0 && nav.indexOf('>Oberliga<')<0 && ['OL N-Süd','OL N-Nord','OL O-Nord','OL O-Süd','OL Bayern','OL BW','OL NRW','OL SW'].every(n=>nav.indexOf('>'+n+'<')>=0) && nav.indexOf('title="Oberliga Bayern"')>=0 && nav.indexOf('title="Oberliga Südwest"')>=0 && nav.indexOf('Oberliga Mitte')<0);
   check('Pokal steht direkt oben', nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>Wettbewerbe<')<0 && nav.indexOf('>Pokal<')>=0);
   check('schmale Auswahl enthält alle Staffeln und den Pokal', ['RLN','OLBY','OLNRW','pokal','ansehen','info'].every(v=>mob.indexOf('value="'+v+'"')>=0) && mob.indexOf('Oberliga Bayern')>=0);
   S.ui.league='OLBY'; S.ui.tab='tabelle'; renderNav();
@@ -3803,7 +3803,10 @@ function renderNav(){
   const menu=(id, title, on, body, wide)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop'+(wide?' wide':'')+'">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
   let h='';
-  LEAGUES.filter(l=>l.level<=4).forEach(l=>{ h+=top(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"'); });
+  LEAGUES.filter(l=>l.level<=4).forEach(l=>{
+    const label=l.id==='BL2'?l.short:l.name;
+    h+=top(esc(label), leagueOn(l.id), 'data-league="'+l.id+'"', l.id==='BL2'?l.name:'');
+  });
   LEAGUES.filter(l=>l.level===5).forEach(l=>{ h+=top(esc(l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
   LEAGUES.filter(l=>l.level===6).forEach(l=>{ h+=top(esc(olNavLabel(l.id)), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
   h+=top('Amateurliga'+(amN?'<span class="nav-cnt">'+amN+'</span>':''), !special && amateur, 'data-league="AM"');
@@ -4697,7 +4700,7 @@ function renderMain(){
 function leagueTabs(){
   return TABS.slice();
 }
-const OL_NAV={OLNS:'OL Nord-Süd', OLNN:'OL Nord-Nord', OLON:'OL Ost-Nord', OLOS:'OL Ost-Süd', OLBY:'OL Bayern', OLBW:'OL BW', OLNRW:'OL NRW', OLSW:'OL Südwest'};
+const OL_NAV={OLNS:'OL N-Süd', OLNN:'OL N-Nord', OLON:'OL O-Nord', OLOS:'OL O-Süd', OLBY:'OL Bayern', OLBW:'OL BW', OLNRW:'OL NRW', OLSW:'OL SW'};
 function olNavLabel(id){ return OL_NAV[id]||(L[id]&&L[id].short)||id; }
 function firstOlId(){ return LEAGUES.filter(l=>l.level===6)[0].id; }
 function settleLeagueNav(){
