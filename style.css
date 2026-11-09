@@ -4,24 +4,24 @@
 --z-bar-m:#d4b44a;--z-bar-cl:#6d93c4;--z-bar-el:#e0a15a;--z-bar-ecl:#3d6b4a;--z-bar-auf:#5aaa72;--z-bar-ab:#d97872}
 body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;font-size:13px;color:var(--text);background:var(--bg);line-height:1.4}
 #app{display:flex;flex-direction:column;min-height:100vh}
-#topbar{position:sticky;top:0;z-index:30;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid var(--line);min-height:42px}
-.brand{display:flex;align-items:center;gap:8px;font-weight:650;font-size:15px;letter-spacing:-.02em;padding:0 16px;color:var(--ink);white-space:nowrap}
+#topbar{position:sticky;top:0;z-index:30;display:flex;align-items:stretch;background:#fff;border-bottom:1px solid var(--line);min-height:36px}
+.brand{display:flex;align-items:center;gap:4px;font-weight:650;font-size:13px;letter-spacing:-.02em;padding:0 8px;color:var(--ink);white-space:nowrap}
 .nav-hist{display:inline-flex;gap:2px}
-.nav-arrow{width:26px;height:26px;padding:0;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:18px;line-height:1;cursor:pointer}
+.nav-arrow{width:22px;height:22px;padding:0;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:16px;line-height:1;cursor:pointer}
 .nav-arrow:disabled{opacity:.35;cursor:default}
 .pair-board td{vertical-align:middle}
 .pair-board .muted{display:block}
-.topnav{display:flex;align-items:stretch;flex:1;min-width:0;flex-wrap:wrap}
+.topnav{display:flex;align-items:stretch;flex:1;min-width:0;flex-wrap:nowrap}
 .nav-menu,.top-tools{position:relative;display:flex;align-items:stretch}
-.nav-menu-btn,.nav-link{border:0;border-bottom:2px solid transparent;background:transparent;padding:0 10px;cursor:pointer;color:#5c6570;font-size:12.5px;white-space:nowrap;text-decoration:none;display:flex;align-items:center;gap:4px}
+.nav-menu-btn,.nav-link{border:0;border-bottom:2px solid transparent;background:transparent;padding:0 2px;cursor:pointer;color:#5c6570;font-size:10.5px;letter-spacing:-.015em;white-space:nowrap;text-decoration:none;display:flex;align-items:center;gap:2px}
 .nav-menu-btn:hover,.nav-link:hover{color:var(--ink);background:#f4f6f7}
 .nav-menu-btn.active,.nav-link.active,.nav-menu.open>.nav-menu-btn,.top-tools.open>.nav-menu-btn{color:var(--ink);font-weight:650;border-bottom-color:var(--green);background:#f3f7f4}
 .nav-cnt{color:var(--muted);font-size:11px}
 .nav-drop.wide{min-width:280px}
 .nav-drop{display:none;position:absolute;top:100%;left:0;min-width:196px;background:#fff;border:1px solid var(--line);padding:4px 0;z-index:40}
 .nav-menu:hover>.nav-drop,.nav-menu.open>.nav-drop,.top-tools:hover>.nav-drop,.top-tools.open>.nav-drop{display:block}
-.bright-ctl{display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 8px 0 4px;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
-.bright-ctl input{width:84px;margin:0;accent-color:var(--green)}
+.bright-ctl{display:flex;align-items:center;gap:4px;margin-left:auto;padding:0 6px 0 2px;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
+.bright-ctl input{width:52px;margin:0;accent-color:var(--green)}
 #app{filter:brightness(var(--app-bright,1))}
 .bright-ctl{filter:brightness(calc(1 / var(--app-bright, 1)))}
 .top-tools{margin-left:0}
@@ -48,10 +48,6 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .subline{color:var(--muted);margin:3px 0 0;font-size:12px}
 .subline a{color:var(--ink);cursor:pointer;border-bottom:1px solid #c5cad0}
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 12px;flex-wrap:wrap}
-.ol-staffeln{flex:1 0 100%;display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0}
-.ol-tab{padding:7px 12px;cursor:pointer;color:#5c6570;border-bottom:2px solid transparent;margin-bottom:-1px}
-.ol-tab:hover{color:var(--ink)}
-.ol-tab.active{color:var(--ink);font-weight:650;border-bottom-color:var(--green)}
 .tab{padding:7px 12px;cursor:pointer;color:#5c6570;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--ink);font-weight:650;border-bottom-color:var(--green)}
@@ -65,6 +61,9 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .btn:disabled{opacity:.45;cursor:default}
 .split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(420px,.95fr);gap:12px;align-items:start}
 @media (max-width:1180px){.split{grid-template-columns:1fr}}
+@media (max-width:1279px){
+  .topnav{flex-wrap:wrap}
+}
 @media (max-width:800px){
   .topnav{display:none}
   .mobile-nav{display:block}
