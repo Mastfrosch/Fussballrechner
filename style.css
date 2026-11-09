@@ -789,3 +789,13 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .rec-sc{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;min-width:2.4em;text-align:center}
 .rec-val{font-weight:700;font-variant-numeric:tabular-nums}
 .rec-meta{color:var(--muted);font-size:12px;white-space:nowrap}
+.rec-scroll{width:100%;max-width:100%;overflow-x:auto;margin:0 0 16px}
+.rec-scroll>h3{margin:0 0 8px}
+.rec-table{width:100%;min-width:680px;border-collapse:collapse}
+.rec-table th,.rec-table td{vertical-align:top;padding:8px 10px}
+.rec-table tbody tr:nth-child(even){background:#f6f8f7}
+.rec-table .rec-match{min-width:260px}
+@media (max-width:800px){
+  .rec-table{min-width:560px;font-size:13px}
+  .rec-table th,.rec-table td{padding:6px 8px}
+}
