@@ -4366,7 +4366,8 @@ function landHistWinners(land){
   const out=[], seen={};
   const add=row=>{
     if (!row || !row.season || seen[row.season]) return;
-    if (!row.name || row.name==='ausgeschlossener Verein') return;
+    if (row.name==='ausgeschlossener Verein') return;
+    if (!row.name && !row.leer && !row.none) return;
     seen[row.season]=1;
     out.push(row);
   };
@@ -4377,12 +4378,14 @@ function landHistWinners(land){
   offenRows().forEach(e=>{
     if (!e || e.wettbewerb!==cup) return;
     if (e.grund && String(e.grund).indexOf('ausgeschlossener Verein')>=0) return;
-    add({season:String(e.saison||''), year:e.jahr||schauEndYear(e.saison)||0, id:'', name:e.original||'', reserve:String(e.grund||'').indexOf('Zweite')>=0});
+    const leer=e.grund==='leer';
+    const none=e.grund==='nicht ausgetragen';
+    add({season:String(e.saison||''), year:e.jahr||schauEndYear(e.saison)||0, id:'', name:leer?'':(e.original||''), reserve:String(e.grund||'').indexOf('Zweite')>=0, leer:leer, none:none});
   });
   return out;
 }
 function landHistRow(r){
-  const who=r.id && TEAMS[r.id] ? seasonClubHTML(null, r.id, true) : '<span class="sieger-name">'+esc(r.name||'')+(r.reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>';
+  const who=r.leer||!r.name ? '<span class="muted">–</span>' : r.none ? '<span class="muted">nicht ausgetragen</span>' : (r.id && TEAMS[r.id] ? seasonClubHTML(null, r.id, true) : '<span class="sieger-name">'+esc(r.name||'')+(r.reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>');
   return '<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year||''))+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final"><span class="muted">–</span></div></div>';
 }
 function viewCupWinners(){
@@ -10690,7 +10693,7 @@ function uiSelfTestBody(fails){
   BL_ORDER.forEach(bl=>{ S.ui.cup=bl; blobs.push(viewCupWinners()); });
   S.ui.cup=cupWas;
   check('Siegerlisten ohne gesperrten Vereinsnamen', blobs.every(b=>!blockedClubHit(b)));
-  check('gesperrte Sachsenjahrgänge fehlen', ['1992/93','1993/94','1994/95','2004/05','2010/11','2012/13'].every(y=>sachsen.indexOf(y)<0));
+  check('gesperrte Sachsenjahrgänge ohne Namen', ['1992/93','1993/94','1994/95','2004/05','2010/11','2012/13'].every(y=>sachsen.indexOf(y)>=0) && !blockedClubHit(sachsen));
   const amMaps=POOLS.every(p=>{
     const ids=(cur().pools&&cur().pools[p.id])||[];
     const states=Object.keys(AREA_BY_BL).filter(st=>AREA_BY_BL[st]===p.area);
