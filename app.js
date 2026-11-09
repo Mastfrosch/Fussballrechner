@@ -649,6 +649,28 @@ function historicalTitleRows(){
 function schauRows(){
   return (window.FR_SCHAU && window.FR_SCHAU.rows) || [];
 }
+function schauEndYear(season){
+  const s=String(season||'');
+  const m=s.match(/^(\d{4})\/(\d{2})$/);
+  if (m){ let end=Math.floor(+m[1]/100)*100+(+m[2]); if (end<=+m[1]) end+=100; return end; }
+  if (/^\d{4}$/.test(s)) return +s;
+  return null;
+}
+function schauAudit(){
+  const fails=[];
+  const seen={};
+  schauRows().forEach(r=>{
+    if (!r) return;
+    if (r.ansehen!==false) fails.push('Ansehen '+r.comp+' '+r.year);
+    if (!(r.year<=2026)) fails.push('Jahr '+r.year+' '+(r.cupName||r.land||r.comp));
+    if (schauEndYear(r.season)!==r.year) fails.push('Saison '+r.season+' '+r.year);
+    const key=(r.comp==='sc'?'sc':(r.assign?('land:'+r.land):(r.cupName||r.comp)))+'|'+r.year;
+    if (seen[key]) fails.push('doppelt '+key);
+    seen[key]=1;
+    if (/Amateure|\bU23\b|\bII\b|Reserve/i.test(r.original||'')) fails.push('zweite '+(r.original||''));
+  });
+  return fails;
+}
 const ANSEHEN_HIST_COMP={de:1, bl:1, ddr:1, dfb:1, fdgb:1};
 function applyHistoricalTitles(id, end, lines, push){
   historicalTitleRows().forEach(r=>{
@@ -4847,7 +4869,7 @@ function leagueStreaks(lid){
     const o=open[id];
     delete open[id];
     if (!o || o.len<1) return;
-    const row={id, len:o.len, season:o.startSeason&&o.startSeason!==o.endSeason?(o.startSeason+' – '+o.endSeason):o.season, startSeason:o.startSeason||o.season, endSeason:o.endSeason||o.season, startMd:o.startMd, endMd:o.endMd};
+    const row={id, len:o.len, live:!!o.live, season:o.startSeason&&o.startSeason!==o.endSeason?(o.startSeason+' – '+o.endSeason):o.season, startSeason:o.startSeason||o.season, endSeason:o.endSeason||o.season, startMd:o.startMd, endMd:o.endMd};
     if (o.len>best[o.type]){ best[o.type]=o.len; holders[o.type]=[row]; }
     else if (o.len===best[o.type]) holders[o.type].push(row);
   };
@@ -4878,6 +4900,9 @@ function leagueStreaks(lid){
       });
     });
   });
+  const lastSeason=(S.seasons||[])[(S.seasons||[]).length-1];
+  const liveName=lastSeason && lastSeason.status!=='done' && lastSeason.status!=='ending' ? lastSeason.name : '';
+  if (liveName) Object.keys(open).forEach(id=>{ if (open[id] && open[id].endSeason===liveName) open[id].live=true; });
   Object.keys(open).forEach(close);
   return holders;
 }
@@ -4923,7 +4948,7 @@ function matchRecordRow(label, matches){
   });
 }
 function teamRecordRows(label, hits, textOf){
-  return (hits||[]).map(r=>({label, value:'<b>'+esc(textOf(r))+'</b>', who:clubHTML(r.id,{nobl:true}), when:streakWhen(r)||esc(r.season||''), extra:tieNote(hits.length)}));
+  return (hits||[]).map(r=>({label, value:'<b>'+esc(textOf(r))+'</b>', who:clubHTML(r.id,{nobl:true}), when:streakWhen(r)||esc(r.season||''), extra:[tieNote(hits.length), r.live?'läuft noch':''].filter(Boolean).join(' · ')}));
 }
 function viewRekorde(lid){
   const lg=L[lid];
@@ -8935,7 +8960,7 @@ function directCompareHTML(id){
   h+='</div>';
   return h;
 }
-function walkResultStreaks(events){
+function walkResultStreaks(events, liveSeason){
   const open={};
   const holders={S:[],U:[],N:[]};
   const best={S:-1,U:-1,N:-1};
@@ -8956,6 +8981,7 @@ function walkResultStreaks(events){
       open[key]={id:ev.id, type:ev.res, len:1, liga:ev.liga||'', startSeason:ev.season, startMd:ev.md, endSeason:ev.season, endMd:ev.md, season:ev.season};
     }
   });
+  if (liveSeason) Object.keys(open).forEach(key=>{ if (open[key] && open[key].endSeason===liveSeason) open[key].live=true; });
   Object.keys(open).forEach(close);
   ['S','U','N'].forEach(t=>holders[t].sort((a,b)=>String(a.startSeason)<String(b.startSeason)?-1:String(a.startSeason)>String(b.startSeason)?1:(a.startMd||0)-(b.startMd||0)));
   return holders;
@@ -9022,7 +9048,9 @@ function clubLeagueStreaks(id){
     });
     if (!inLeague || missingMd) events.push({gap:true, season:season.name||''});
   });
-  return walkResultStreaks(events);
+  const last=(S.seasons||[])[(S.seasons||[]).length-1];
+  const live=last && last.status!=='done' && last.status!=='ending' ? last.name : '';
+  return walkResultStreaks(events, live);
 }
 function clubExtreme(list, key, higher){
   const usable=(list||[]).filter(r=>r && r[key]!=null && isFinite(+r[key]));
@@ -9032,15 +9060,57 @@ function clubExtreme(list, key, higher){
   const hits=usable.filter(r=>+r[key]===best).sort((a,b)=>String(a.season)<String(b.season)?-1:1);
   return {value:best, row:hits[0], n:hits.length};
 }
+function clubPlaceRows(id){
+  const by={};
+  const put=(season, row)=>{
+    if (!season) return;
+    const cur=by[season];
+    if (!cur || (row.pl!=null && cur.pl==null) || row.src==='rechner') by[season]=row;
+  };
+  try{
+    (historyEntries(id)||[]).forEach(r=>{
+      if (!r || !r.season) return;
+      const amateur=(+r.ebene>=7) || /Amateur/i.test(r.liga||'');
+      const pl=r.pl!=null && isFinite(+r.pl) && +r.pl>0 && !amateur ? +r.pl : null;
+      put(r.season, {season:r.season, liga:r.liga||'', pl, excluded:pl==null, src:r.src||''});
+    });
+  }catch(e){}
+  (S.seasons||[]).forEach(season=>{
+    if (!season || !season.name) return;
+    let table=null;
+    Object.keys(season.leagues||{}).forEach(lid=>{
+      const lg=season.leagues[lid];
+      if (!lg || !((lg.teams||[]).includes(id))) return;
+      let rows=null;
+      try{
+        const end=season.endData && season.endData.tables && season.endData.tables[lid];
+        rows=Array.isArray(end)?end:(lg.tables && lg.tables.all);
+      }catch(e){ rows=null; }
+      const row=(rows||[]).find(x=>x && x.id===id && x.pl!=null && isFinite(+x.pl) && +x.pl>0);
+      const liga=(L[lid]&&L[lid].name)||'';
+      table=row?{season:season.name, liga, pl:+row.pl, excluded:false, src:'rechner'}:{season:season.name, liga, pl:null, excluded:true, src:'rechner'};
+    });
+    if (table){ by[season.name]=table; return; }
+    let poolName='';
+    Object.keys(season.pools||{}).forEach(pid=>{
+      if ((season.pools[pid]||[]).includes(id)){ const p=POOLS.find(x=>x.id===pid); poolName=(p&&p.name)||'Amateurliga'; }
+    });
+    if (poolName) by[season.name]={season:season.name, liga:poolName, pl:null, excluded:true, src:'rechner'};
+  });
+  const rows=Object.keys(by).map(k=>by[k]);
+  return {rows:rows.filter(r=>r.pl!=null && !r.excluded), excluded:rows.filter(r=>r.excluded || r.pl==null).length};
+}
 function clubRecordHTML(id){
-  const place=(ligaCourseRows(id)||[]).filter(r=>r && r.pl!=null && isFinite(+r.pl)).map(r=>({season:r.season, liga:r.liga||'', pl:+r.pl}));
+  const places=clubPlaceRows(id);
+  const place=places.rows;
   const stats=clubSeasonStats(id);
   const histN=place.filter(r=>!stats.some(s=>s.season===r.season)).length;
+  const noTable=places.excluded?places.excluded+' Saisons ohne Tabelle, nicht als Platzierung gezählt.':'';
   const streaks=clubLeagueStreaks(id);
   const rows=[];
   const addPlace=(label, higher)=>{
     const hit=clubExtreme(place, 'pl', higher);
-    if (!hit){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:'nicht gespeichert'}); return; }
+    if (!hit){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:noTable?'keine Tabellendaten':'nicht gespeichert'}); return; }
     rows.push({label, value:'<b>'+hit.value+'.</b>', who:clubHTML(id,{nobl:true}), when:esc(hit.row.season||''), extra:esc(hit.row.liga||'')+(hit.n>1?' · '+hit.n+' Saisons, früheste genannt':'')});
   };
   const addStat=(label, key, higher, unit)=>{
@@ -9052,7 +9122,7 @@ function clubRecordHTML(id){
     const list=streaks[type]||[];
     if (!list.length){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:'keine Ligaspieltage'}); return; }
     const hit=list[0];
-    rows.push({label, value:'<b>'+hit.len+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:streakWhen(hit), extra:esc(hit.liga||'')+(list.length>1?' · '+list.length+' Serien, früheste genannt':'')+' · Pokale zählen nicht'});
+    rows.push({label, value:'<b>'+hit.len+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:streakWhen(hit), extra:[esc(hit.liga||''), list.length>1?list.length+' Serien, früheste genannt':'', hit.live?'läuft noch':'', 'Pokale zählen nicht'].filter(Boolean).join(' · ')});
   };
   addPlace('Beste Platzierung', false);
   addPlace('Schlechteste Platzierung', true);
@@ -9071,8 +9141,9 @@ function clubRecordHTML(id){
   addStreak('Längste Siegesserie', 'S', 'Siege');
   addStreak('Längste Unentschieden-Serie', 'U', 'Unentschieden');
   addStreak('Längste Niederlagenserie', 'N', 'Niederlagen');
-  const gap=histN?(' '+histN+' importierte Saisons haben einen Platz, aber keine Tore und keine Ligapunkte.'):'';
-  return recordTable('Rekorde', rows, 'Platzierung über die ganze gespeicherte Historie, je Saison. Tore, Punkte, Siege, Unentschieden und Niederlagen nur aus Ligatabellen des Rechners, drei Punkte pro Sieg. Serien nur aus Ligaspieltagen, auch über die Saison, und enden bei einer Saison ohne Spieltage oder beim Wechsel der Liga. Pokale zählen nicht.'+gap);
+  const gap=histN?(' '+histN+' Saisons mit Tabelle haben keine gespeicherten Tore oder Punkte.'):'';
+  const amateur=noTable?(' '+noTable+' Die Ligazugehörigkeit bleibt, der Listenplatz einer Amateurstaffel zählt nicht.'):'';
+  return recordTable('Rekorde', rows, 'Platzierung nur aus echten Tabellen, je Saison. Tore, Punkte, Siege, Unentschieden und Niederlagen nur aus Ligatabellen des Rechners, drei Punkte pro Sieg. Serien nur aus Ligaspieltagen, auch über die Saison, und enden bei einer Saison ohne Spieltage oder beim Wechsel der Liga. Eine Serie bis zum letzten gespielten Spieltag der laufenden Saison ist noch offen. Pokale zählen nicht.'+gap+amateur);
 }
 function renderInfo(){
   $('#tabs').innerHTML='';
@@ -10559,6 +10630,17 @@ function uiSelfTestBody(fails){
   check('historische Supercups ändern das Ansehen nicht', !leaked && ansehenValue('t001')===before);
   const titles=clubTitles('t001');
   check('historischer Supercup wird angezeigt', titles.some(t=>t.k==='Supercup' && String(t.y)==='1987'));
+  const audit=schauAudit();
+  check('Titelliste je Wettbewerb und Jahr eindeutig', audit.length===0, audit.slice(0,3).join(' · '));
+  const sc25=schauRows().find(r=>r && r.comp==='sc' && r.year===2025);
+  const sc26=schauRows().find(r=>r && r.comp==='sc' && r.year===2026);
+  check('Supercup 2025 und 2026 auswärts', sc25 && sc25.home==='t007' && sc25.away==='t001' && sc25.hg===1 && sc25.ag===2 && sc26 && sc26.home==='t002' && sc26.away==='t001' && sc26.hg===1 && sc26.ag===2);
+  const amRec=clubRecordHTML('t697');
+  check('Amateur ohne Listenplatz', amRec.indexOf('605')<0 && amRec.indexOf('keine Tabellendaten')>=0 && amRec.indexOf('Amateurstaffel')>=0);
+  const liveStreak=walkResultStreaks([{id:'t001', lid:'BL', liga:'Bundesliga', res:'S', season:'2028/29', md:4}], '2028/29');
+  check('laufende Serie', liveStreak.S[0] && liveStreak.S[0].live===true);
+  const doneStreak=walkResultStreaks([{id:'t001', lid:'BL', liga:'Bundesliga', res:'S', season:'2026/27', md:4}], '');
+  check('beendete Serie bleibt zu', doneStreak.S[0] && !doneStreak.S[0].live);
   check('DFB-Pokal 2022 und 2023 bleiben draußen', !historicalTitleRows().some(r=>r && r.comp==='dfb' && (r.year===2022 || r.year===2023)) && !schauRows().some(r=>r && r.comp==='dfb'));
   check('Ligarekorde sind eine Tabelle', viewRekorde('BL').indexOf('rec-table')>=0 && viewRekorde('BL').indexOf('rec-board')<0);
   check('Pokalrekorde sind eine Tabelle', viewCupRekorde('dfb').indexOf('rec-table')>=0);

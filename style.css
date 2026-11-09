@@ -243,7 +243,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .toggle{display:inline-flex;border:1px solid var(--line);overflow:hidden;margin-bottom:10px}
 .toggle button{border:none;background:#fff;padding:5px 14px;cursor:pointer}
 .toggle button.active{background:var(--green);color:#fff}
-.box{background:var(--card);border:1px solid var(--line);border-radius:0;padding:12px 14px;margin-bottom:14px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:0;padding:12px 14px;margin-bottom:14px;min-width:0;max-width:100%}
 .box h3{margin:0 0 8px;font-size:15px}
 .muted{color:var(--muted)}
 .notice{background:#fff7e0;border:1px solid #ecd9a0;padding:8px 12px;border-radius:0;margin-bottom:12px}
@@ -637,7 +637,7 @@ table.tbl.hist-seasons{width:max-content;max-width:100%;margin:0 auto;table-layo
 .hist-slot b{font-size:11px;color:var(--muted);font-weight:600;min-width:1.1em;text-align:right;font-variant-numeric:tabular-nums}
 .hist-crest{width:34px;height:34px;object-fit:contain;display:block;flex:0 0 34px}
 .tbl.compact th,.tbl.compact td{padding:2px 6px;font-size:12px}
-.info-roomy{display:flex;flex-direction:column;align-items:center;width:100%}
+.info-roomy{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;max-width:100%}
 .info-roomy>.tbl,.info-roomy .tbl.fit,.info-roomy table.tbl{width:max-content;max-width:100%}
 .info-roomy .tbl th,.info-roomy .tbl td{padding:9px 16px;font-size:14.5px}
 .info-roomy .info-split{display:grid;grid-template-columns:max-content max-content;gap:28px;width:max-content;max-width:100%;margin:18px auto 0}
@@ -789,13 +789,16 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .rec-sc{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;min-width:2.4em;text-align:center}
 .rec-val{font-weight:700;font-variant-numeric:tabular-nums}
 .rec-meta{color:var(--muted);font-size:12px;white-space:nowrap}
-.rec-scroll{width:100%;max-width:100%;overflow-x:auto;margin:0 0 16px}
+.rec-scroll{width:100%;max-width:100%;min-width:0;overflow-x:auto;margin:0 0 16px}
+.info-roomy .rec-scroll{align-self:stretch}
+.info-roomy .rec-scroll table.tbl{width:max-content;max-width:none}
 .rec-scroll>h3{margin:0 0 8px}
-.rec-table{width:100%;min-width:680px;border-collapse:collapse}
+.rec-table{width:max-content;min-width:680px;border-collapse:collapse}
 .rec-table th,.rec-table td{vertical-align:top;padding:8px 10px}
 .rec-table tbody tr:nth-child(even){background:#f6f8f7}
 .rec-table .rec-match{min-width:260px}
 @media (max-width:800px){
   .rec-table{min-width:560px;font-size:13px}
+  #main{overflow-x:hidden}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
