@@ -1641,7 +1641,7 @@ function promotionPlan(season, lid){
   const bits=openPlay?'beide Meister und der Sieger der Relegation':rls.map(id=>L[id].name+' '+(slots[id]>1?'Meister und Vizemeister':'Meister')).join(', ');
   const downBit=bal.down===2?' Es bleiben die zwei festen Absteiger.':' Zu den zwei festen Absteigern kommen '+(bal.down-2)+' als Ausgleich.';
   const note='In die '+L[l5].name+' kommen '+k+' Absteiger aus der 4. Liga. Freie Plätze: '+(4-k)+'. Die Plätze 1 und 2 steigen fest auf.'+downBit+' Aus den Regionalligen '+(openPlay?'kommen 3 Vereine, sobald die Relegation steht':'kommen '+bal.r+' Vereine')+': '+bits+'. '+decided;
-  return {up:slots[lid]||1, slots, k, total:openPlay?2:bal.r, note, decided, mode:bal.mode, down:bal.down};
+  return {up:slots[lid]||1, slots, k, total:openPlay?2:bal.r, note, decided, mode:bal.mode, down:bal.down, open:openPlay};
 }
 function promotionCount(season, lid){
   const lg=L[lid];
@@ -3959,7 +3959,7 @@ function tableHTML(rows, lg, opts={}){
   const upNow = !lg || opts.zones===false ? 0 : promotionCount(season, lg.id);
   let viceOpen=false;
   if (lg && lg.level===6 && opts.zones!==false){
-    try{ const plan=promotionPlan(season, lg.id); viceOpen=plan.mode==='relegation' && (plan.up|0)<2; }catch(e){ viceOpen=false; }
+    try{ const plan=promotionPlan(season, lg.id); viceOpen=!!(plan && plan.open && (plan.up|0)<2); }catch(e){ viceOpen=false; }
   }
   const lgZone = lg ? Object.assign({}, lg, {upShow:upNow, viceOpen:viceOpen}) : lg;
   const th=sortHead, td=sortCell;
@@ -4019,7 +4019,7 @@ function legendHTML(lg, season){
       it.push(legendSwatch('auf','Meister, fest → '+leagueName(lg.upTo)));
       let plan=null;
       try{ plan=promotionPlan(season||cur(), lg.id); }catch(e){ plan=null; }
-      if (plan && plan.mode==='relegation' && upNow<2) it.push(legendSwatch('auf-aus','Vizemeister, Relegation'));
+      if (plan && plan.open && upNow<2) it.push(legendSwatch('auf-aus','Vizemeister, Relegation'));
       else if (upNow>1) it.push(legendSwatch('auf','Vizemeister steigt mit auf'));
     }
     else if (upNow===1) it.push(legendSwatch('auf','Meister &amp; Aufstieg → '+leagueName(lg.upTo)));
