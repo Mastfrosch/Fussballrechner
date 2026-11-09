@@ -661,7 +661,8 @@ function schauAudit(){
   const seen={};
   schauRows().forEach(r=>{
     if (!r) return;
-    if (r.ansehen!==false) fails.push('Ansehen '+r.comp+' '+r.year);
+    if (r.comp==='sc'){ if (r.ansehen!==false) fails.push('Supercup-Ansehen '+r.year); }
+    else if (r.ansehen!==true) fails.push('Landespokal-Ansehen '+r.comp+' '+r.year);
     if (!(r.year<=2026)) fails.push('Jahr '+r.year+' '+(r.cupName||r.land||r.comp));
     if (schauEndYear(r.season)!==r.year) fails.push('Saison '+r.season+' '+r.year);
     const key=(r.comp==='sc'?'sc':(r.assign?('land:'+r.land):(r.cupName||r.comp)))+'|'+r.year;
@@ -672,6 +673,28 @@ function schauAudit(){
   return fails;
 }
 const ANSEHEN_HIST_COMP={de:1, bl:1, ddr:1, dfb:1, fdgb:1};
+function histLandScale(){
+  if (histLandScale.cached) return histLandScale.cached;
+  const rounds=['Vorrunde','Sechzehntelfinale','Achtelfinale','Viertelfinale','Halbfinale','Finale'];
+  const n=32;
+  const field=n*ANSEHEN.land.unknownW;
+  histLandScale.cached=finishLandScale(field, rounds, n, n, {});
+  return histLandScale.cached;
+}
+function applySchauLandTitles(id, end, lines, push){
+  const scale=histLandScale();
+  const original=landTitleOf(scale);
+  schauRows().forEach(r=>{
+    if (!r || r.id!==id || r.ansehen!==true || (r.comp!=='land' && r.comp!=='verband')) return;
+    const season=String(r.season||r.year||'');
+    const y=seasonYear(season)||r.year||0;
+    if (!y || y>end) return;
+    const label=r.assign?('Landespokal-Titel '+(r.land||'')):('Landespokal-Titel '+(r.cupName||''));
+    if (lines.some(l=>l && l.kind==='titel' && l.season===season && l.label===label)) return;
+    const age=end-y;
+    push({season, src:'historie', kind:'titel', durable:true, label, original, age, factor:titleFactor(age, true), note:titleNote(true, false)+' · historischer Landespokal, Feld nicht gespeichert: 32 Teilnehmer ohne bekannte Liga, sechs Runden, dieselbe Titelquote', factorKind:'title'});
+  });
+}
 function applyHistoricalTitles(id, end, lines, push){
   historicalTitleRows().forEach(r=>{
     if (!r || r.id!==id || !ANSEHEN_HIST_COMP[r.comp]) return;
@@ -811,6 +834,7 @@ function assembleAnsehenRaw(id){
       }
     });
     applyHistoricalTitles(id, end, lines, (line)=>{ line.factorKind='title'; push(line); });
+    applySchauLandTitles(id, end, lines, push);
   }
   return lines;
 }
@@ -1087,7 +1111,7 @@ function ansehenSelfTestBody(fails){
     chronSeen=null; chronIndex=null; chronBuilt=-1;
     touchAnsehen();
     const low=ansehenLedger('t090', 2000).lines.filter(l=>l.kind==='titel')[0];
-    const big=ansehenLedger('t091', 2000).lines.filter(l=>l.kind==='titel')[0];
+    const big=ansehenLedger('t091', 2000).lines.filter(l=>l.kind==='titel' && String(l.label).indexOf('Meistertitel')>=0)[0];
     check('Zweitliga-Meister ist kein Titel', !low);
     check('historischer Bundesliga-Titel behält 40 %', big && big.durable===true && big.age===100 && big.factor===0.4, big&&big.factor);
   }finally{
@@ -4321,6 +4345,33 @@ function viewDfbHistoric(){
   h+='</tbody></table></div>';
   return h;
 }
+function offenRows(){
+  return (window.FR_OFFEN && window.FR_OFFEN.eintraege) || [];
+}
+function landHistWinners(land){
+  const cup='Landespokal '+land;
+  const out=[], seen={};
+  const add=row=>{
+    if (!row || !row.season || seen[row.season]) return;
+    if (!row.name || row.name==='ausgeschlossener Verein') return;
+    seen[row.season]=1;
+    out.push(row);
+  };
+  schauRows().forEach(r=>{
+    if (!r || !r.assign || r.land!==land) return;
+    add({season:String(r.season||r.year||''), year:r.year||0, id:r.id||'', name:r.original||(TEAMS[r.id]&&TEAMS[r.id].name)||'', reserve:false});
+  });
+  offenRows().forEach(e=>{
+    if (!e || e.wettbewerb!==cup) return;
+    if (e.grund && String(e.grund).indexOf('ausgeschlossener Verein')>=0) return;
+    add({season:String(e.saison||''), year:e.jahr||schauEndYear(e.saison)||0, id:'', name:e.original||'', reserve:String(e.grund||'').indexOf('Zweite')>=0});
+  });
+  return out;
+}
+function landHistRow(r){
+  const who=r.id && TEAMS[r.id] ? seasonClubHTML(null, r.id, true) : '<span class="sieger-name">'+esc(r.name||'')+(r.reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year||''))+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final"><span class="muted">–</span></div></div>';
+}
 function viewCupWinners(){
   const key=S.ui.cup||'dfb';
   if (key!=='dfb'){
@@ -4333,10 +4384,10 @@ function viewCupWinners(){
     });
     const have={};
     S.seasons.forEach(sea=>{ if (sea && sea.name && sea.cups && sea.cups.land && sea.cups.land[key] && cupFinalists(sea.cups.land[key])) have[sea.name]=1; });
-    const hist=schauRows().filter(r=>r && r.assign && r.land===key && r.id && TEAMS[r.id] && !have[r.season]).sort((a,b)=>String(a.season)<String(b.season)?1:-1);
+    const hist=landHistWinners(key).filter(r=>!have[r.season]).sort((a,b)=>(b.year||0)-(a.year||0) || (String(a.season)<String(b.season)?1:-1));
     let histHtml='';
     if (hist.length){
-      histHtml='<h3>Historische Sieger</h3><p class="muted">Nur Jahrgänge, deren Verbandspokal diesem Landespokal entspricht. Finalist und Ergebnis sind hier nicht gespeichert.</p>'+siegerHead()+hist.map(r=>'<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year))+'</div><div class="sieger-who">'+seasonClubHTML(null, r.id, true)+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final"><span class="muted">–</span></div></div>').join('');
+      histHtml='<h3>Historische Sieger</h3><p class="muted">Jahrgänge dieses Landespokals. Vereine im Rechner sind verknüpft, andere stehen als Name. Zweite Mannschaften sind gekennzeichnet. Finalist und Ergebnis sind hier nicht gespeichert.</p>'+siegerHead()+hist.map(landHistRow).join('');
     }
     if (!rows.length && !hist.length) return '<div class="box"><h3>Sieger '+esc(key)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
     return '<div class="box sieger-box"><h3>Sieger '+esc(key)+'</h3>'+(rows.length?siegerHead()+rows.reverse().join(''):'<p class="muted">Noch kein Finale im Rechner.</p>')+histHtml+'</div>';
@@ -4604,7 +4655,7 @@ function renderMain(){
   if (s.status==='done') sub+=' · abgeschlossene Saison';
   $('#subline').innerHTML=sub;
   setActions(seasonActions(s));
-  $('#tabs').innerHTML=leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  $('#tabs').innerHTML=staffelTabHTML()+leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
   if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); }
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
@@ -4618,6 +4669,11 @@ function renderMain(){
 }
 function leagueTabs(){
   return TABS.slice();
+}
+function staffelTabHTML(){
+  const lg=L[S.ui.league];
+  if (!lg || lg.level!==6) return '';
+  return '<div class="ol-staffeln">'+LEAGUES.filter(l=>l.level===6).map(l=>'<a class="ol-tab'+(l.id===S.ui.league?' active':'')+'" data-league="'+l.id+'">'+esc(l.name)+'</a>').join('')+'</div>';
 }
 function currentMd(s,lid){
   const key=S.view+':'+lid;
@@ -5126,11 +5182,8 @@ function renderAmateur(){
   const order=(s.pools&&poolId&&s.pools[poolId])||[];
   if (s.seed==='ansehen') list.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
   else list.sort(byRang);
-  const pool=POOLS.find(p=>p.area===AREA_BY_BL[bl]);
   if (S.ui.amateurView==='karte'){
-    const poolIds=(pool&&s.pools&&s.pools[pool.id])||list;
-    const states=pool?Object.keys(AREA_BY_BL).filter(st=>AREA_BY_BL[st]===pool.area):[bl];
-    $('#view').innerHTML=viewMap((pool&&pool.name)||('Amateurliga '+bl), poolIds, states, 'am:'+(pool&&pool.id||bl));
+    $('#view').innerHTML=viewMap('Amateurliga '+bl, list, [bl], 'am:'+bl);
     bindMap();
     return;
   }
@@ -7645,7 +7698,7 @@ function renderAufAb(){
   let sub=s.status==='done'?'Abgeschlossene Saison':'Auf- und Absteiger dieser Saison';
   $('#subline').innerHTML=sub;
   setActions(seasonActions(s));
-  $('#tabs').innerHTML=leagueTabs(S.ui.league).map(([k,n])=>'<a class="tab'+(k==='aufab'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  $('#tabs').innerHTML=staffelTabHTML()+leagueTabs(S.ui.league).map(([k,n])=>'<a class="tab'+(k==='aufab'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const e=transitionOf(s);
   const preview=!s.endData;
   let h='';
@@ -7790,7 +7843,7 @@ function renderRegeln(){
   const lg=L[lid];
   $('#title').textContent='Regeln';
   $('#subline').innerHTML='Farben, Kürzel, Gleichstand, Auf- und Abstieg, Europa';
-  $('#tabs').innerHTML=leagueTabs(lid).map(([k,n])=>'<a class="tab'+(k==='regeln'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  $('#tabs').innerHTML=staffelTabHTML()+leagueTabs(lid).map(([k,n])=>'<a class="tab'+(k==='regeln'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   setActions(seasonActions(s));
   let h=rulesHTML();
   h+=inputHelpHTML();
@@ -9693,6 +9746,16 @@ document.addEventListener('click', ev=>{
   }
   const menuBtn=t.closest('[data-menu]');
   if (menuBtn){
+    if (menuBtn.dataset.menu==='ol'){
+      const special=S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info';
+      const inOl=L[S.ui.league]&&L[S.ui.league].level===6&&!special;
+      if (!inOl){
+        if (!(L[S.ui.league]&&L[S.ui.league].level===6)) S.ui.league=LEAGUES.filter(l=>l.level===6)[0].id;
+        if (special) S.ui.tab='tabelle';
+        save(); render();
+        return;
+      }
+    }
     const menu=menuBtn.parentElement;
     const on=menu.classList.contains('open');
     document.querySelectorAll('.nav-menu.open,.top-tools.open').forEach(el=>el.classList.remove('open'));
@@ -10600,6 +10663,16 @@ function uiSelfTestBody(fails){
   S.ui.amateurView='karte';
   renderAmateur();
   check('Amateurstaffel-Karte', !!document.querySelector('#view .de-map') || (document.querySelector('#view')||{}).textContent.indexOf('keine Vereine')>=0);
+  S.ui.amateurBl='Hamburg';
+  renderAmateur();
+  const hhMap=(document.querySelector('#view')||{}).innerHTML||'';
+  check('Amateurkarte Hamburg nur Hamburg', hhMap.indexOf('Amateurliga Hamburg')>=0 && hhMap.indexOf('Schleswig-Holstein')<0 && hhMap.indexOf('Hamburg')>=0);
+  S.ui.league='OLBY'; S.ui.tab='tabelle';
+  renderMain();
+  check('Oberliga zeigt die Staffeln darunter', ['OLNS','OLNN','OLON','OLOS','OLBY','OLBW','OLNRW','OLSW'].every(id=>!!document.querySelector('#tabs .ol-staffeln [data-league="'+id+'"]')) && document.querySelector('#tabs .ol-staffeln .ol-tab.active').dataset.league==='OLBY');
+  S.ui.cup='Sachsen'; S.ui.tab='pokal'; S.ui.cupView='sieger';
+  const sachsen=viewCupWinners();
+  check('Sachsenpokal-Siegerliste', sachsen.indexOf('Chemnitzer FC')>=0 && sachsen.indexOf('Historische Sieger')>=0 && sachsen.indexOf('ausgeschlossener Verein')<0);
   const amMaps=POOLS.every(p=>{
     const ids=(cur().pools&&cur().pools[p.id])||[];
     const states=Object.keys(AREA_BY_BL).filter(st=>AREA_BY_BL[st]===p.area);
