@@ -227,14 +227,6 @@
       "quelle": "https://de.wikipedia.org/wiki/SHFV-Pokal"
     },
     {
-      "wettbewerb": "Landespokal Schleswig-Holstein",
-      "saison": "2017/18",
-      "jahr": 2018,
-      "original": "SC Weiche Flensburg",
-      "grund": "nicht im Vereinsbestand",
-      "quelle": "https://de.wikipedia.org/wiki/SHFV-Pokal"
-    },
-    {
       "wettbewerb": "Landespokal Hamburg",
       "saison": "1954/55",
       "jahr": 1955,
@@ -680,14 +672,6 @@
       "jahr": 2021,
       "original": "nicht ausgetragen",
       "grund": "nicht ausgetragen",
-      "quelle": "https://de.wikipedia.org/wiki/Mecklenburg-Vorpommern-Pokal"
-    },
-    {
-      "wettbewerb": "Landespokal Mecklenburg-Vorpommern",
-      "saison": "2022/23",
-      "jahr": 2023,
-      "original": "Rostocker FC",
-      "grund": "nicht im Vereinsbestand",
       "quelle": "https://de.wikipedia.org/wiki/Mecklenburg-Vorpommern-Pokal"
     },
     {
@@ -1479,16 +1463,24 @@
     },
     {
       "wettbewerb": "Landespokal Berlin",
-      "saison": "1956/57",
-      "jahr": 1957,
+      "saison": "1955/56",
+      "jahr": 1956,
       "original": "Spandauer SV",
       "grund": "nicht im Vereinsbestand",
       "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
     },
     {
       "wettbewerb": "Landespokal Berlin",
-      "saison": "1957/58",
-      "jahr": 1958,
+      "saison": "1956/57",
+      "jahr": 1957,
+      "original": "SC Tasmania 1900 Berlin",
+      "grund": "nicht im Vereinsbestand",
+      "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1959/60",
+      "jahr": 1960,
       "original": "SC Tasmania 1900 Berlin",
       "grund": "nicht im Vereinsbestand",
       "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
@@ -1505,14 +1497,6 @@
       "wettbewerb": "Landespokal Berlin",
       "saison": "1961/62",
       "jahr": 1962,
-      "original": "SC Tasmania 1900 Berlin",
-      "grund": "nicht im Vereinsbestand",
-      "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
-    },
-    {
-      "wettbewerb": "Landespokal Berlin",
-      "saison": "1962/63",
-      "jahr": 1963,
       "original": "SC Tasmania 1900 Berlin",
       "grund": "nicht im Vereinsbestand",
       "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
@@ -1711,8 +1695,8 @@
     },
     {
       "wettbewerb": "Ost-Berliner Pokal",
-      "saison": "1957/58",
-      "jahr": 1958,
+      "saison": "1957",
+      "jahr": 1957,
       "original": "SG Adlershof",
       "grund": "nicht im Vereinsbestand",
       "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
@@ -1727,8 +1711,8 @@
     },
     {
       "wettbewerb": "Ost-Berliner Pokal",
-      "saison": "1960/61",
-      "jahr": 1961,
+      "saison": "1960",
+      "jahr": 1960,
       "original": "SG Lichtenberg 47 II",
       "grund": "Zweite Mannschaft, nicht der erste Verein",
       "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
@@ -2059,14 +2043,6 @@
       "jahr": 2005,
       "original": "MSV 90 Preussen",
       "grund": "nicht im Vereinsbestand",
-      "quelle": "https://de.wikipedia.org/wiki/Sachsen-Anhalt-Pokal"
-    },
-    {
-      "wettbewerb": "Landespokal Sachsen-Anhalt",
-      "saison": "2006/07",
-      "jahr": 2007,
-      "original": "1. FC Magdeburg II",
-      "grund": "Zweite Mannschaft, nicht der erste Verein",
       "quelle": "https://de.wikipedia.org/wiki/Sachsen-Anhalt-Pokal"
     },
     {
@@ -4855,6 +4831,276 @@
       "original": "nicht ausgetragen",
       "grund": "nicht ausgetragen",
       "quelle": "https://de.wikipedia.org/wiki/S%C3%BCdwestpokal"
+    },
+    {
+      "wettbewerb": "Landespokal Sachsen-Anhalt",
+      "saison": "2005/06",
+      "jahr": 2006,
+      "original": "1. FC Magdeburg II",
+      "grund": "Zweite Mannschaft, nicht der erste Verein",
+      "begruendung": "Wikipedia-Rangliste: 2006 ist einer der beiden Titel der zweiten Mannschaft, 2007 der erste.",
+      "quelle": "https://de.wikipedia.org/wiki/Sachsen-Anhalt-Pokal"
+    },
+    {
+      "wettbewerb": "Ost-Berliner Pokal",
+      "saison": "1958",
+      "jahr": 1958,
+      "original": "SG Hohenschönhausen",
+      "grund": "nicht im Vereinsbestand",
+      "begruendung": "Finale 26. Dezember 1958.",
+      "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
+    },
+    {
+      "wettbewerb": "Ost-Berliner Pokal",
+      "saison": "1961",
+      "jahr": 1961,
+      "original": "BSG Motor Weißensee",
+      "grund": "nicht im Vereinsbestand",
+      "begruendung": "Finale 26. Dezember 1961.",
+      "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1911",
+      "jahr": 1911,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1912",
+      "jahr": 1912,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1913",
+      "jahr": 1913,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1914",
+      "jahr": 1914,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1915",
+      "jahr": 1915,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1916",
+      "jahr": 1916,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1917",
+      "jahr": 1917,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1918",
+      "jahr": 1918,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1919",
+      "jahr": 1919,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1921",
+      "jahr": 1921,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1922",
+      "jahr": 1922,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1935",
+      "jahr": 1935,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1936",
+      "jahr": 1936,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1937",
+      "jahr": 1937,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1938",
+      "jahr": 1938,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1939",
+      "jahr": 1939,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1940",
+      "jahr": 1940,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1941",
+      "jahr": 1941,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1942",
+      "jahr": 1942,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Landespokal Berlin",
+      "saison": "1945",
+      "jahr": 1945,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia Endspieltabelle und en.wikipedia Berlin Cup: keine Austragung 1911–1919, 1921, 1922 und 1935–1942. 1945 liegt zwischen dem Gaupokal 1944 und der Wiederaufnahme 1946.",
+      "quelle": "https://en.wikipedia.org/wiki/Berlin_Cup"
+    },
+    {
+      "wettbewerb": "Ost-Berliner Pokal",
+      "saison": "1961/62",
+      "jahr": 1962,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "de.wikipedia: kein Finale zwischen dem 26. Dezember 1961 und dem 8. Juni 1963.",
+      "quelle": "https://de.wikipedia.org/wiki/Berliner_Landespokal_(Fu%C3%9Fball)"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1950/51",
+      "jahr": 1951,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1951/52",
+      "jahr": 1952,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1952/53",
+      "jahr": 1953,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1953/54",
+      "jahr": 1954,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1954/55",
+      "jahr": 1955,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
+    },
+    {
+      "wettbewerb": "Badischer Pokal",
+      "saison": "1955/56",
+      "jahr": 1956,
+      "original": "nicht ausgetragen",
+      "grund": "nicht ausgetragen",
+      "begruendung": "en.wikipedia Baden Cup: 1950 bis 1956 nicht ausgetragen, nächste Austragung 1956/57.",
+      "quelle": "https://en.wikipedia.org/wiki/Baden_Cup"
     }
   ]
 }

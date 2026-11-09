@@ -4361,6 +4361,18 @@ function viewDfbHistoric(){
 function offenRows(){
   return (window.FR_OFFEN && window.FR_OFFEN.eintraege) || [];
 }
+function cupGaps(){
+  const sets={};
+  const add=(k,y)=>{ if(!k || !(y>0)) return; (sets[k]=sets[k]||new Set()).add(y); };
+  schauRows().forEach(r=>{ if(!r || r.comp==='sc') return; add(r.assign?('Landespokal '+r.land):r.cupName, r.year); });
+  offenRows().forEach(e=>add(e.wettbewerb, e.jahr));
+  const gaps=[];
+  Object.keys(sets).sort().forEach(k=>{
+    const ys=[...sets[k]].sort((a,b)=>a-b);
+    for(let y=ys[0]; y<=ys[ys.length-1]; y++) if(!sets[k].has(y)) gaps.push(k+' '+y);
+  });
+  return gaps;
+}
 function landHistWinners(land){
   const cup='Landespokal '+land;
   const out=[], seen={};
@@ -10694,6 +10706,8 @@ function uiSelfTestBody(fails){
   S.ui.cup=cupWas;
   check('Siegerlisten ohne gesperrten Vereinsnamen', blobs.every(b=>!blockedClubHit(b)));
   check('gesperrte Sachsenjahrgänge ohne Namen', ['1992/93','1993/94','1994/95','2004/05','2010/11','2012/13'].every(y=>sachsen.indexOf(y)>=0) && !blockedClubHit(sachsen));
+  const gaps=cupGaps();
+  check('jede Pokalsaison zwischen erster und letzter Austragung hat einen Eintrag', gaps.length===0, gaps.slice(0,4).join(' · '));
   const amMaps=POOLS.every(p=>{
     const ids=(cur().pools&&cur().pools[p.id])||[];
     const states=Object.keys(AREA_BY_BL).filter(st=>AREA_BY_BL[st]===p.area);
