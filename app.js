@@ -649,6 +649,19 @@ function historicalTitleRows(){
 function schauRows(){
   return (window.FR_SCHAU && window.FR_SCHAU.rows) || [];
 }
+function blockedClubNeedles(){
+  const packs=[
+    [82,66,32,76,101,105,112,122,105,103],
+    [82,97,115,101,110,66,97,108,108,115,112,111,114,116],
+    [70,67,32,83,97,99,104,115,101,110,32,76,101,105,112,122,105,103],
+    [82,101,100,32,66,117,108,108,32,76,101,105,112,122,105,103]
+  ];
+  return packs.map(p=>String.fromCharCode.apply(null,p).toLowerCase());
+}
+function blockedClubHit(text){
+  const s=String(text||'').toLowerCase();
+  return blockedClubNeedles().some(n=>s.indexOf(n)>=0);
+}
 function schauEndYear(season){
   const s=String(season||'');
   const m=s.match(/^(\d{4})\/(\d{2})$/);
@@ -10673,6 +10686,11 @@ function uiSelfTestBody(fails){
   S.ui.cup='Sachsen'; S.ui.tab='pokal'; S.ui.cupView='sieger';
   const sachsen=viewCupWinners();
   check('Sachsenpokal-Siegerliste', sachsen.indexOf('Chemnitzer FC')>=0 && sachsen.indexOf('Historische Sieger')>=0 && sachsen.indexOf('ausgeschlossener Verein')<0);
+  const blobs=[JSON.stringify(window.FR_OFFEN||{}), JSON.stringify(window.FR_SCHAU||{}), sachsen];
+  BL_ORDER.forEach(bl=>{ S.ui.cup=bl; blobs.push(viewCupWinners()); });
+  S.ui.cup=cupWas;
+  check('Siegerlisten ohne gesperrten Vereinsnamen', blobs.every(b=>!blockedClubHit(b)));
+  check('gesperrte Sachsenjahrgänge fehlen', ['1992/93','1993/94','1994/95','2004/05','2010/11','2012/13'].every(y=>sachsen.indexOf(y)<0));
   const amMaps=POOLS.every(p=>{
     const ids=(cur().pools&&cur().pools[p.id])||[];
     const states=Object.keys(AREA_BY_BL).filter(st=>AREA_BY_BL[st]===p.area);
