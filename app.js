@@ -9542,13 +9542,62 @@ function clubLeagueStreaks(id){
   const live=last && last.status!=='done' && last.status!=='ending' ? last.name : '';
   return walkResultStreaks(events, live);
 }
+function youngerSeason(a, b){
+  const ya=seasonYear(a), yb=seasonYear(b);
+  if (ya!==yb) return ya-yb;
+  return String(a||'')<String(b||'')?-1:String(a||'')>String(b||'')?1:0;
+}
+function placeLevel(row){
+  if (!row) return 0;
+  if (row.ebene!=null && isFinite(+row.ebene) && +row.ebene>0) return +row.ebene;
+  const name=String(row.liga||'');
+  const known=LEAGUES.find(l=>l.name===name);
+  if (known) return known.level;
+  if (name==='Bundesliga') return 1;
+  if (/^2\./.test(name)) return 2;
+  if (/^3\./.test(name)) return 3;
+  if (/^4\./.test(name)) return 4;
+  if (/^5\./.test(name)) return 5;
+  if (/Regionalliga|Oberliga/.test(name)) return 6;
+  if (/Amateur/.test(name)) return 7;
+  return 0;
+}
+function pickPlace(rows, worst){
+  const usable=(rows||[]).filter(r=>r && r.pl!=null && isFinite(+r.pl) && +r.pl>0 && placeLevel(r)>=1 && placeLevel(r)<=6);
+  if (!usable.length) return null;
+  let best=usable[0];
+  usable.forEach(r=>{
+    const la=placeLevel(r), lb=placeLevel(best);
+    const levelWins=worst?la>lb:la<lb;
+    const same=la===lb;
+    const placeWins=worst?+r.pl>+best.pl:+r.pl<+best.pl;
+    if (levelWins || (same && placeWins)) best=r;
+  });
+  const level=placeLevel(best), pl=+best.pl;
+  const hits=usable.filter(r=>placeLevel(r)===level && +r.pl===pl).sort((a,b)=>youngerSeason(a.season, b.season));
+  return {value:pl, level, row:hits[hits.length-1], n:hits.length};
+}
+function latestWhen(season, n, md){
+  let s='zuletzt '+esc(season||'');
+  if (md!=null && md!=='') s+=', '+md+'. Spieltag';
+  if (n>1) s+=', '+n+'× erreicht';
+  return s;
+}
+function latestStreak(list){
+  let hit=list[0];
+  list.forEach(r=>{
+    const y=youngerSeason(r.endSeason||r.season, hit.endSeason||hit.season);
+    if (y>0 || (y===0 && (r.endMd||0)>(hit.endMd||0))) hit=r;
+  });
+  return hit;
+}
 function clubExtreme(list, key, higher){
   const usable=(list||[]).filter(r=>r && r[key]!=null && isFinite(+r[key]));
   if (!usable.length) return null;
   let best=null;
   usable.forEach(r=>{ const v=+r[key]; if (best==null || (higher?v>best:v<best)) best=v; });
-  const hits=usable.filter(r=>+r[key]===best).sort((a,b)=>String(a.season)<String(b.season)?-1:1);
-  return {value:best, row:hits[0], n:hits.length};
+  const hits=usable.filter(r=>+r[key]===best).sort((a,b)=>youngerSeason(a.season, b.season));
+  return {value:best, row:hits[hits.length-1], n:hits.length};
 }
 function clubPlaceRows(id){
   const by={};
@@ -9562,7 +9611,7 @@ function clubPlaceRows(id){
       if (!r || !r.season) return;
       const amateur=(+r.ebene>=7) || /Amateur/i.test(r.liga||'');
       const pl=r.pl!=null && isFinite(+r.pl) && +r.pl>0 && !amateur ? +r.pl : null;
-      put(r.season, {season:r.season, liga:r.liga||'', pl, excluded:pl==null, src:r.src||''});
+      put(r.season, {season:r.season, liga:r.liga||'', pl, ebene:r.ebene!=null?+r.ebene:null, excluded:pl==null, src:r.src||''});
     });
   }catch(e){}
   (S.seasons||[]).forEach(season=>{
@@ -9578,7 +9627,8 @@ function clubPlaceRows(id){
       }catch(e){ rows=null; }
       const row=(rows||[]).find(x=>x && x.id===id && x.pl!=null && isFinite(+x.pl) && +x.pl>0);
       const liga=(L[lid]&&L[lid].name)||'';
-      table=row?{season:season.name, liga, pl:+row.pl, excluded:false, src:'rechner'}:{season:season.name, liga, pl:null, excluded:true, src:'rechner'};
+      const ebene=L[lid]?L[lid].level:null;
+      table=row?{season:season.name, liga, pl:+row.pl, ebene, excluded:false, src:'rechner'}:{season:season.name, liga, pl:null, ebene, excluded:true, src:'rechner'};
     });
     if (table){ by[season.name]=table; return; }
     let poolName='';
@@ -9598,21 +9648,21 @@ function clubRecordHTML(id){
   const noTable=places.excluded?places.excluded+' Saisons ohne Tabelle, nicht als Platzierung gezählt.':'';
   const streaks=clubLeagueStreaks(id);
   const rows=[];
-  const addPlace=(label, higher)=>{
-    const hit=clubExtreme(place, 'pl', higher);
+  const addPlace=(label, worst)=>{
+    const hit=pickPlace(place, worst);
     if (!hit){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:noTable?'keine Tabellendaten':'nicht gespeichert'}); return; }
-    rows.push({label, value:'<b>'+hit.value+'.</b>', who:clubHTML(id,{nobl:true}), when:esc(hit.row.season||''), extra:esc(hit.row.liga||'')+(hit.n>1?' · '+hit.n+' Saisons, früheste genannt':'')});
+    rows.push({label, value:'<b>'+hit.value+'.</b> '+esc(hit.row.liga||''), who:clubHTML(id,{nobl:true}), when:latestWhen(hit.row.season, hit.n), extra:''});
   };
   const addStat=(label, key, higher, unit)=>{
     const hit=clubExtreme(stats, key, higher);
     if (!hit){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:'nicht gespeichert'}); return; }
-    rows.push({label, value:'<b>'+hit.value+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:esc(hit.row.season||''), extra:esc(hit.row.liga||'')+(hit.n>1?' · '+hit.n+' Saisons, früheste genannt':'')});
+    rows.push({label, value:'<b>'+hit.value+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:latestWhen(hit.row.season, hit.n), extra:esc(hit.row.liga||'')});
   };
   const addStreak=(label, type, unit)=>{
     const list=streaks[type]||[];
     if (!list.length){ rows.push({label, value:'<b>–</b>', who:'', when:'', extra:'keine Ligaspieltage'}); return; }
-    const hit=list[0];
-    rows.push({label, value:'<b>'+hit.len+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:streakWhen(hit), extra:[esc(hit.liga||''), list.length>1?list.length+' Serien, früheste genannt':'', hit.live?'läuft noch':'', 'Pokale zählen nicht'].filter(Boolean).join(' · ')});
+    const hit=latestStreak(list);
+    rows.push({label, value:'<b>'+hit.len+' '+esc(unit)+'</b>', who:clubHTML(id,{nobl:true}), when:'zuletzt '+streakWhen(hit)+(list.length>1?', '+list.length+'× erreicht':''), extra:[esc(hit.liga||''), hit.live?'läuft noch':''].filter(Boolean).join(' · ')});
   };
   addPlace('Beste Platzierung', false);
   addPlace('Schlechteste Platzierung', true);
@@ -9633,7 +9683,7 @@ function clubRecordHTML(id){
   addStreak('Längste Niederlagenserie', 'N', 'Niederlagen');
   const gap=histN?(' '+histN+' Saisons mit Tabelle haben keine gespeicherten Tore oder Punkte.'):'';
   const amateur=noTable?(' '+noTable+' Die Ligazugehörigkeit bleibt, der Listenplatz einer Amateurstaffel zählt nicht.'):'';
-  return recordTable('Rekorde', rows, 'Platzierung nur aus echten Tabellen, je Saison. Tore, Punkte, Siege, Unentschieden und Niederlagen nur aus Ligatabellen des Rechners, drei Punkte pro Sieg. Serien nur aus Ligaspieltagen, auch über die Saison, und enden bei einer Saison ohne Spieltage oder beim Wechsel der Liga. Eine Serie bis zum letzten gespielten Spieltag der laufenden Saison ist noch offen. Pokale zählen nicht.'+gap+amateur);
+  return recordTable('Rekorde', rows, 'Platzierung nur aus echten Tabellen, je Saison. Eine höhere Liga zählt vor einem besseren Platz in einer niedrigeren Liga. Bei der schlechtesten Platzierung zählt zuerst die niedrigste Liga, darin der schlechteste Platz. Tore, Punkte, Siege, Unentschieden und Niederlagen nur aus Ligatabellen des Rechners, drei Punkte pro Sieg. Serien nur aus Ligaspieltagen, auch über die Saison, und enden bei einer Saison ohne Spieltage oder beim Wechsel der Liga. Eine Serie bis zum letzten gespielten Spieltag der laufenden Saison ist noch offen. Genannt ist immer das jüngste Vorkommen.'+gap+amateur);
 }
 function renderInfo(){
   $('#tabs').innerHTML='';
@@ -11352,7 +11402,31 @@ function uiSelfTestBody(fails){
   const infoHtml=(document.querySelector('#view')||{}).innerHTML||'';
   const recBtn=infoHtml.indexOf('data-v="rekorde"');
   const bilanzBtn=infoHtml.indexOf('data-v="bilanz"');
-  check('Rekorde stehen rechts neben der Gesamtbilanz', recBtn>bilanzBtn && bilanzBtn>=0 && infoHtml.indexOf('Beste Platzierung')>=0 && infoHtml.indexOf('Pokale zählen nicht')>=0 && infoHtml.indexOf('rec-table')>=0);
+  check('Rekorde stehen rechts neben der Gesamtbilanz', recBtn>bilanzBtn && bilanzBtn>=0 && infoHtml.indexOf('Beste Platzierung')>=0 && infoHtml.indexOf('Pokale zählen nicht')<0 && infoHtml.indexOf('zuletzt')>=0 && infoHtml.indexOf('rec-table')>=0);
+  const placeHits=[
+    {season:'2030/31', liga:'2. Bundesliga', ebene:2, pl:5},
+    {season:'2031/32', liga:'2. Bundesliga', ebene:2, pl:5},
+    {season:'2032/33', liga:'3. Liga', ebene:3, pl:1},
+    {season:'2022/23', liga:'Regionalliga Nord', ebene:6, pl:18},
+    {season:'2024/25', liga:'Regionalliga Nord', ebene:6, pl:18},
+    {season:'2021/22', liga:'3. Liga', ebene:3, pl:20}
+  ];
+  const bestPlace=pickPlace(placeHits, false);
+  const worstPlace=pickPlace(placeHits, true);
+  check('höhere Liga schlägt den Meister darunter', bestPlace && bestPlace.value===5 && bestPlace.level===2 && bestPlace.row.season==='2031/32' && bestPlace.n===2, bestPlace && (bestPlace.value+'. '+bestPlace.row.season+' ×'+bestPlace.n));
+  check('niedrigste Liga und darin der schlechteste Platz', worstPlace && worstPlace.value===18 && worstPlace.level===6 && worstPlace.row.season==='2024/25' && worstPlace.n===2, worstPlace && (worstPlace.level+'/'+worstPlace.value+'. '+worstPlace.row.season));
+  check('jüngstes Vorkommen nennt die Anzahl', latestWhen('2031/32', 2).indexOf('zuletzt 2031/32')>=0 && latestWhen('2031/32', 2).indexOf('2× erreicht')>=0 && latestWhen('2031/32', 1).indexOf('× erreicht')<0);
+  const keptRecSeasons=S.seasons;
+  try{
+    S.seasons=[
+      {name:'2090/91', status:'done', leagues:{BL:{teams:['t010','t011'], md:[[[0,1,1,0]],[[0,1,2,0]],[[0,1,0,1]]]}}, cups:{dfb:{rounds:[{matches:[{h:'t010',a:'t011',hg:8,ag:0}]}]}}},
+      {name:'2092/93', status:'done', leagues:{BL:{teams:['t010','t011'], md:[[[0,1,3,0]],[[1,0,0,2]],[[0,1,0,1]]]}}}
+    ];
+    const bareStreak=clubLeagueStreaks('t010');
+    const bareHtml=clubRecordHTML('t010');
+    check('Serie zählt nur Ligaspiele', bareStreak.S.length===2 && bareStreak.S.every(r=>r.len===2) && bareHtml.indexOf('8:0')<0, bareStreak.S.map(r=>r.len+' '+r.endSeason+'/'+r.endMd).join(' · '));
+    check('jüngste Serie und wie oft', bareHtml.indexOf('zuletzt 2092/93, 1. Spieltag – 2092/93, 2. Spieltag, 2× erreicht')>=0 && bareHtml.indexOf('Pokale')<0, bareHtml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,500));
+  }finally{ S.seasons=keptRecSeasons; }
   const before=ansehenValue('t001');
   const leaked=(ansehenLedger('t001').lines||[]).some(l=>l && l.label==='Supercup-Titel' && String(l.season)==='1987');
   check('historische Supercups ändern das Ansehen nicht', !leaked && ansehenValue('t001')===before);
