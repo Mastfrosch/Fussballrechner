@@ -9337,9 +9337,10 @@ function clubTitles(id){
 function opponentBoardHTML(id){
   const opps=opponentsOf(id);
   const bal=balanceLists(id);
+  const cols='<colgroup><col class="opp-name"><col class="opp-n"><col class="opp-n"><col class="opp-n"><col class="opp-n"><col class="opp-tg">';
   const mini=(list, empty)=>{
     if (!list.length) return '<p class="muted">'+empty+'</p>';
-    return '<table class="tbl fit"><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+sortHead('Pkt/Sp','rate')+'</tr></thead><tbody>'
+    return '<table class="tbl fit opp-board">'+cols+'<col class="opp-rate"></colgroup><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+sortHead('Pkt/Sp','rate')+'</tr></thead><tbody>'
       +list.map(o=>'<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td>'+sortCell(o.sp, o.sp)+sortCell(o.s, o.s)+sortCell(o.u, o.u)+sortCell(o.n, o.n)+sortCell(o.gf, o.gf+':'+o.ga)+sortCell(o.rate, deNum(o.rate,2))+'</tr>').join('')
       +'</tbody></table>';
   };
@@ -9347,7 +9348,7 @@ function opponentBoardHTML(id){
   h+='<div><h3>Häufigste Gegner</h3><p class="muted">Die 20 Gegner mit den meisten Spielen. Bei weniger Gegnern nur diese.</p>';
   if (!opps.length) h+='<p class="muted">Noch keine Gegner.</p>';
   else {
-    h+='<table class="tbl fit"><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+'</tr></thead><tbody>';
+    h+='<table class="tbl fit opp-board">'+cols+'</colgroup><thead><tr>'+sortHead('Gegner','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+'</tr></thead><tbody>';
     opps.forEach(o=>{ h+='<tr><td class="l">'+clubHTML(o.id,{nobl:true})+'</td>'+sortCell(o.sp, o.sp)+sortCell(o.s, o.s)+sortCell(o.u, o.u)+sortCell(o.n, o.n)+sortCell(o.gf, o.gf+':'+o.ga)+'</tr>'; });
     h+='</tbody></table>';
   }
@@ -10962,7 +10963,7 @@ function uiSelfTestBody(fails){
   const bal=balanceLists('t001');
   check('Bilanzen höchstens 10', bal.best.length<=10 && bal.worst.length<=10);
   const oppBoard=opponentBoardHTML('t001');
-  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Beste Bilanz')>=0 && oppBoard.indexOf('Schlechteste Bilanz')>=0);
+  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Beste Bilanz')>=0 && oppBoard.indexOf('Schlechteste Bilanz')>=0 && oppBoard.indexOf('opp-board')>=0 && oppBoard.indexOf('title=')>=0);
   const cmpKeep={opp:S.ui.infoOpp, fx:S.ui.infoFx, h2h:S.ui.infoH2H, seasons:S.seasons};
   try{
     S.seasons=[{name:'2090/91', status:'running', leagues:{}, pools:{}}];
