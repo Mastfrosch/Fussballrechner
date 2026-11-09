@@ -10632,6 +10632,10 @@ function uiSelfTestBody(fails){
   check('historischer Supercup wird angezeigt', titles.some(t=>t.k==='Supercup' && String(t.y)==='1987'));
   const audit=schauAudit();
   check('Titelliste je Wettbewerb und Jahr eindeutig', audit.length===0, audit.slice(0,3).join(' · '));
+  check('Energie Cottbus ist zugeordnet', schauRows().filter(r=>r.original==='Energie Cottbus' && r.land==='Brandenburg').length===10);
+  check('Rot-Weiß Erfurt ist zugeordnet', schauRows().filter(r=>r.original==='FC Rot-Weiß Erfurt' && r.land==='Thüringen').length===9);
+  check('Würzburger Kickers sind zugeordnet', schauRows().filter(r=>r.original==='Würzburger Kickers' && r.land==='Bayern').length===4);
+  check('nackte Jahreszahl ist das Endjahr', schauRows().filter(r=>/^\d{4}$/.test(String(r.season))).every(r=>+r.season===r.year));
   const sc25=schauRows().find(r=>r && r.comp==='sc' && r.year===2025);
   const sc26=schauRows().find(r=>r && r.comp==='sc' && r.year===2026);
   check('Supercup 2025 und 2026 auswärts', sc25 && sc25.home==='t007' && sc25.away==='t001' && sc25.hg===1 && sc25.ag===2 && sc26 && sc26.home==='t002' && sc26.away==='t001' && sc26.hg===1 && sc26.ag===2);

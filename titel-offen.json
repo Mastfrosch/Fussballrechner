@@ -1,6 +1,6 @@
 {
   "checked": "2026-11-09",
-  "hinweis": "Ausgelassene Sieger. Zweite Mannschaften werden nicht der ersten Mannschaft gutgeschrieben. Ost-Berlin ist der FDGB-Bezirkspokal und kein Rechner-Landespokal.",
+  "hinweis": "Ausgelassene Sieger. Zweite Mannschaften werden nicht der ersten Mannschaft gutgeschrieben. Der Ost-Berliner Pokal ist kein Rechner-Landespokal. Unsichere Namen sind nicht zugeordnet.",
   "eintraege": [
     {
       "wettbewerb": "Landespokal Bayern",
@@ -21,7 +21,8 @@
       "saison": "1950/51",
       "jahr": null,
       "original": "BC Augsburg",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Fusion 1969 zum FC Augsburg, TSV Schwaben Augsburg besteht daneben"
     },
     {
       "wettbewerb": "Landespokal Bayern",
@@ -70,41 +71,6 @@
       "saison": "2008/09",
       "jahr": null,
       "original": "SpVgg Weiden",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Bayern",
-      "saison": "2013/14",
-      "jahr": null,
-      "original": "Würzburger Kickers",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Bayern",
-      "saison": "2015/16",
-      "jahr": null,
-      "original": "Würzburger Kickers",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Bayern",
-      "saison": "2018/19",
-      "jahr": null,
-      "original": "Würzburger Kickers",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Bayern",
-      "saison": "2020/21",
-      "jahr": null,
-      "original": "Türkgücü München",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Bayern",
-      "saison": "2025/26",
-      "jahr": null,
-      "original": "Würzburger Kickers",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -325,13 +291,6 @@
       "grund": "nicht im Vereinsbestand"
     },
     {
-      "wettbewerb": "Landespokal Berlin",
-      "saison": "2015/16",
-      "jahr": null,
-      "original": "BFC Preussen",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
       "wettbewerb": "Landespokal Niedersachsen",
       "saison": "1956",
       "jahr": null,
@@ -434,7 +393,8 @@
       "saison": "1972",
       "jahr": null,
       "original": "1. FC Wolfsburg",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Anderer Verein als der VfL Wolfsburg"
     },
     {
       "wettbewerb": "Landespokal Niedersachsen",
@@ -557,20 +517,6 @@
     },
     {
       "wettbewerb": "Landespokal Niedersachsen",
-      "saison": "1996",
-      "jahr": null,
-      "original": "Kickers Emden",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Niedersachsen",
-      "saison": "2000",
-      "jahr": null,
-      "original": "Kickers Emden",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Niedersachsen",
       "saison": "2002",
       "jahr": null,
       "original": "VfL Wolfsburg Am.",
@@ -588,13 +534,6 @@
       "saison": "2006",
       "jahr": null,
       "original": "BV Cloppenburg",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Niedersachsen",
-      "saison": "2009",
-      "jahr": null,
-      "original": "Kickers Emden",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -690,13 +629,6 @@
     },
     {
       "wettbewerb": "Landespokal Hamburg",
-      "saison": "1994/95",
-      "jahr": null,
-      "original": "1. SC Norderstedt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hamburg",
       "saison": "1995/96",
       "jahr": null,
       "original": "Hamburger SV Amateure",
@@ -708,20 +640,6 @@
       "jahr": null,
       "original": "Hamburger SV Amateure",
       "grund": "Zweite Mannschaft, nicht der erste Verein"
-    },
-    {
-      "wettbewerb": "Landespokal Hamburg",
-      "saison": "1998/99",
-      "jahr": null,
-      "original": "1. SC Norderstedt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hamburg",
-      "saison": "2001/02",
-      "jahr": null,
-      "original": "USC Paloma",
-      "grund": "nicht im Vereinsbestand"
     },
     {
       "wettbewerb": "Landespokal Hamburg",
@@ -742,13 +660,6 @@
       "saison": "2010/11",
       "jahr": null,
       "original": "Eimsbütteler TV",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hamburg",
-      "saison": "2013/14",
-      "jahr": null,
-      "original": "USC Paloma",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -896,7 +807,8 @@
       "saison": "1990/91",
       "jahr": null,
       "original": "ESV Lokomotive Cottbus",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Nicht der FC Energie Cottbus"
     },
     {
       "wettbewerb": "Landespokal Brandenburg",
@@ -917,27 +829,6 @@
       "saison": "1993/94",
       "jahr": null,
       "original": "BSV Brandenburg",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "1994/95",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "1995/96",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "1996/97",
-      "jahr": null,
-      "original": "Energie Cottbus",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -969,62 +860,6 @@
       "grund": "Zweite Mannschaft, nicht der erste Verein"
     },
     {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2011/12",
-      "jahr": null,
-      "original": "SV Falkensee-Finkenkrug",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2014/15",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2016/17",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2017/18",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2018/19",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2021/22",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2022/23",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Brandenburg",
-      "saison": "2023/24",
-      "jahr": null,
-      "original": "Energie Cottbus",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
       "wettbewerb": "Landespokal Sachsen-Anhalt",
       "saison": "1990/91",
       "jahr": null,
@@ -1050,7 +885,8 @@
       "saison": "2005",
       "jahr": null,
       "original": "MSV 90 Preussen",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Nicht der BFC Preussen 1894"
     },
     {
       "wettbewerb": "Landespokal Sachsen",
@@ -1089,23 +925,9 @@
     },
     {
       "wettbewerb": "Landespokal Sachsen",
-      "saison": "2002/03",
-      "jahr": null,
-      "original": "1. FC Dynamo Dresden",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Sachsen",
       "saison": "2004/05",
       "jahr": null,
       "original": "FC Sachsen Leipzig",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Sachsen",
-      "saison": "2006/07",
-      "jahr": null,
-      "original": "1. FC Dynamo Dresden",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -1119,15 +941,15 @@
       "wettbewerb": "Landespokal Sachsen",
       "saison": "2010/11",
       "jahr": 2011,
-      "original": "",
-      "grund": "Sieger nicht im Rechner"
+      "original": "ausgeschlossener Verein",
+      "grund": "Sieger ist der ausgeschlossene Verein und wird nicht geführt"
     },
     {
       "wettbewerb": "Landespokal Sachsen",
       "saison": "2012/13",
       "jahr": 2013,
-      "original": "",
-      "grund": "Sieger nicht im Rechner"
+      "original": "ausgeschlossener Verein",
+      "grund": "Sieger ist der ausgeschlossene Verein und wird nicht geführt"
     },
     {
       "wettbewerb": "Landespokal Thüringen",
@@ -1152,13 +974,6 @@
     },
     {
       "wettbewerb": "Landespokal Thüringen",
-      "saison": "1994",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
       "saison": "1996",
       "jahr": null,
       "original": "Wacker Nordhausen",
@@ -1173,41 +988,6 @@
     },
     {
       "wettbewerb": "Landespokal Thüringen",
-      "saison": "1998",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2000",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2001",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2002",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2003",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
       "saison": "2005",
       "jahr": null,
       "original": "FC Rot-Weiß Erfurt II",
@@ -1218,28 +998,8 @@
       "saison": "2006/07",
       "jahr": null,
       "original": "1. FC Gera 03",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2007/08",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2008/09",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Thüringen",
-      "saison": "2017",
-      "jahr": null,
-      "original": "FC Rot-Weiß Erfurt",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Nicht die BSG Wismut Gera"
     },
     {
       "wettbewerb": "Landespokal Thüringen",
@@ -1309,7 +1069,8 @@
       "saison": "1965",
       "jahr": null,
       "original": "Germania Wiesbaden",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Nicht der SV Wehen Wiesbaden"
     },
     {
       "wettbewerb": "Landespokal Hessen",
@@ -1428,14 +1189,8 @@
       "saison": "1988",
       "jahr": null,
       "original": "SV Wehen Taunusstein",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hessen",
-      "saison": "1991",
-      "jahr": null,
-      "original": "Viktoria Aschaffenburg",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Der Ortszusatz Taunusstein macht die Identität mit SV Wehen Wiesbaden nicht eindeutig"
     },
     {
       "wettbewerb": "Landespokal Hessen",
@@ -1453,13 +1208,6 @@
     },
     {
       "wettbewerb": "Landespokal Hessen",
-      "saison": "1996",
-      "jahr": null,
-      "original": "SV Wehen",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hessen",
       "saison": "1997",
       "jahr": null,
       "original": "SC Neukirchen",
@@ -1470,20 +1218,6 @@
       "saison": "1998",
       "jahr": null,
       "original": "SG 01 Hoechst",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hessen",
-      "saison": "2000",
-      "jahr": null,
-      "original": "SV Wehen",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Hessen",
-      "saison": "2017/18",
-      "jahr": null,
-      "original": "TSV Steinbach",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -1544,13 +1278,6 @@
     },
     {
       "wettbewerb": "Landespokal Saarland",
-      "saison": "1991",
-      "jahr": null,
-      "original": "Rot-Weiß Hasborn-Dautweiler",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Saarland",
       "saison": "1993",
       "jahr": null,
       "original": "SV Mettlach",
@@ -1575,13 +1302,6 @@
       "saison": "2005",
       "jahr": null,
       "original": "FC Kutzhof",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Landespokal Saarland",
-      "saison": "2007",
-      "jahr": null,
-      "original": "Rot-Weiß Hasborn-Dautweiler",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -1771,7 +1491,8 @@
       "saison": "1986/87",
       "jahr": null,
       "original": "1. FC Pforzheim",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Der Nachfolgeverein 1. CfR Pforzheim ist ein anderer Verein"
     },
     {
       "wettbewerb": "Badischer Pokal",
@@ -1806,20 +1527,6 @@
       "saison": "2008/09",
       "jahr": null,
       "original": "SpVgg Neckarelz",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südbadischer Pokal",
-      "saison": "2019/20",
-      "jahr": null,
-      "original": "1. FC Rielasingen-Arlen",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südbadischer Pokal",
-      "saison": "2016/17",
-      "jahr": null,
-      "original": "1. FC Rielasingen-Arlen",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -2114,7 +1821,8 @@
       "saison": "1950/51",
       "jahr": null,
       "original": "ESC Ulm",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Nicht der SSV Ulm 1846"
     },
     {
       "wettbewerb": "Württembergischer Pokal",
@@ -2142,7 +1850,8 @@
       "saison": "1956/57",
       "jahr": null,
       "original": "1. SSV Ulm 1928",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Die Jahreszahl 1928 passt nicht zu SSV Ulm 1846"
     },
     {
       "wettbewerb": "Württembergischer Pokal",
@@ -2279,20 +1988,6 @@
     },
     {
       "wettbewerb": "Württembergischer Pokal",
-      "saison": "1981/82",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
-      "saison": "1982/83",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
       "saison": "1983/84",
       "jahr": null,
       "original": "SC Geislingen",
@@ -2321,20 +2016,6 @@
     },
     {
       "wettbewerb": "Württembergischer Pokal",
-      "saison": "1990/91",
-      "jahr": null,
-      "original": "TSG Backnang 1919",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
-      "saison": "1991/92",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
       "saison": "1992/93",
       "jahr": null,
       "original": "TSF Ditzingen",
@@ -2342,30 +2023,9 @@
     },
     {
       "wettbewerb": "Württembergischer Pokal",
-      "saison": "1993/94",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
-      "saison": "1994/95",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
       "saison": "1995/96",
       "jahr": null,
       "original": "SV Bonlanden",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Württembergischer Pokal",
-      "saison": "1996/97",
-      "jahr": null,
-      "original": "SSV Ulm 1846",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -2391,13 +2051,6 @@
     },
     {
       "wettbewerb": "Niederrheinpokal",
-      "saison": "1985/86",
-      "jahr": null,
-      "original": "SV Viktoria Goch",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Niederrheinpokal",
       "saison": "1991/92",
       "jahr": null,
       "original": "FC Remscheid",
@@ -2416,20 +2069,6 @@
       "jahr": null,
       "original": "Borussia Mönchengladbach",
       "grund": "Zweite Mannschaft, nicht der erste Verein"
-    },
-    {
-      "wettbewerb": "Niederrheinpokal",
-      "saison": "2002/03",
-      "jahr": null,
-      "original": "SSVg Velbert",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Niederrheinpokal",
-      "saison": "2005/06",
-      "jahr": null,
-      "original": "SSVg Velbert",
-      "grund": "nicht im Vereinsbestand"
     },
     {
       "wettbewerb": "Niederrheinpokal",
@@ -2454,23 +2093,9 @@
     },
     {
       "wettbewerb": "Mittelrheinpokal",
-      "saison": "1985/86",
-      "jahr": null,
-      "original": "SC Viktoria Köln",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Mittelrheinpokal",
       "saison": "1987/88",
       "jahr": null,
       "original": "SG Düren 99",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Mittelrheinpokal",
-      "saison": "1993",
-      "jahr": null,
-      "original": "Alemannia Aachen",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -2594,13 +2219,6 @@
     },
     {
       "wettbewerb": "Westfalenpokal",
-      "saison": "1996/97",
-      "jahr": null,
-      "original": "Preußen Münster",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
       "saison": "1997/98",
       "jahr": null,
       "original": "LR Ahlen",
@@ -2615,51 +2233,9 @@
     },
     {
       "wettbewerb": "Westfalenpokal",
-      "saison": "2007/08",
-      "jahr": null,
-      "original": "Preußen Münster",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
-      "saison": "2008/09",
-      "jahr": null,
-      "original": "Preußen Münster",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
-      "saison": "2009/10",
-      "jahr": null,
-      "original": "Preußen Münster",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
-      "saison": "2010/11",
-      "jahr": null,
-      "original": "SC Wiedenbrück 2000",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
-      "saison": "2013/14",
-      "jahr": null,
-      "original": "Preußen Münster",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
       "saison": "2019/20",
       "jahr": null,
       "original": "RSV Meinerzhagen",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Westfalenpokal",
-      "saison": "2020/21",
-      "jahr": null,
-      "original": "Preußen Münster",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -2761,13 +2337,6 @@
       "grund": "nicht im Vereinsbestand"
     },
     {
-      "wettbewerb": "Rheinlandpokal",
-      "saison": "2018",
-      "jahr": null,
-      "original": "TuS Rot-Weiß Koblenz",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
       "wettbewerb": "Südwestpokal",
       "saison": "1973/74",
       "jahr": null,
@@ -2779,20 +2348,6 @@
       "saison": "1974/75",
       "jahr": null,
       "original": "ASV Landau",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
-      "saison": "1975/76",
-      "jahr": null,
-      "original": "VfR Wormatia Worms",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
-      "saison": "1976/77",
-      "jahr": null,
-      "original": "SG Eintracht Bad Kreuznach",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -2849,14 +2404,16 @@
       "saison": "1975/76",
       "jahr": null,
       "original": "VfR Wormatia Worms",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Für diesen Jahrgang ist bereits ein anderer Sieger gespeichert"
     },
     {
       "wettbewerb": "Südwestpokal",
       "saison": "1976/77",
       "jahr": null,
       "original": "SG Eintracht Bad Kreuznach",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Für diesen Jahrgang ist bereits ein anderer Sieger gespeichert"
     },
     {
       "wettbewerb": "Südwestpokal",
@@ -2919,7 +2476,8 @@
       "saison": "2013/14",
       "jahr": null,
       "original": "SV Alemannia Waldalgesheim",
-      "grund": "nicht im Vereinsbestand"
+      "grund": "unsicher",
+      "begruendung": "Für diesen Jahrgang ist bereits ein anderer Sieger gespeichert"
     },
     {
       "wettbewerb": "Südwestpokal",
@@ -2986,13 +2544,6 @@
     },
     {
       "wettbewerb": "Südwestpokal",
-      "saison": "2006/07",
-      "jahr": null,
-      "original": "Wormatia Worms",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
       "saison": "2007/08",
       "jahr": null,
       "original": "1. FC Kaiserslautern",
@@ -3000,23 +2551,9 @@
     },
     {
       "wettbewerb": "Südwestpokal",
-      "saison": "2008/09",
-      "jahr": null,
-      "original": "Wormatia Worms",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
       "saison": "2010/11",
       "jahr": null,
       "original": "SVN Zweibrücken",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
-      "saison": "2011/12",
-      "jahr": null,
-      "original": "Wormatia Worms",
       "grund": "nicht im Vereinsbestand"
     },
     {
@@ -3038,13 +2575,6 @@
       "saison": "2016/17",
       "jahr": null,
       "original": "SV Morlautern",
-      "grund": "nicht im Vereinsbestand"
-    },
-    {
-      "wettbewerb": "Südwestpokal",
-      "saison": "2017/18",
-      "jahr": null,
-      "original": "Wormatia Worms",
       "grund": "nicht im Vereinsbestand"
     }
   ]
