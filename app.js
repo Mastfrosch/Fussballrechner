@@ -4296,14 +4296,18 @@ function navState(){
   o.termBlock=u.termBlock && u.termBlock[tbKey]!=null ? u.termBlock[tbKey] : null;
   return JSON.stringify(o);
 }
-function navNormalize(){
+function knownViewTab(tab){
+  return TABS.some(t=>t[0]===tab) || tab==='info' || tab==='ansehen' || tab==='supercup' || tab==='verein' || tab==='pokal';
+}
+function normalizeRemovedTab(){
   if (!S || !S.ui) return;
   if (S.ui.tab==='abschluss') S.ui.tab='aufab';
   if (S.ui.tab==='derbys') S.ui.tab='tabelle';
-  if (S.ui.tab==='einteilung'){
-    const lv=L[S.ui.league];
-    if (!lv || (lv.level!==5 && lv.level!==6)) S.ui.tab='tabelle';
-  }
+  if (!knownViewTab(S.ui.tab)) S.ui.tab='tabelle';
+}
+function navNormalize(){
+  if (!S || !S.ui) return;
+  normalizeRemovedTab();
   if (S.ui.tab==='ansehen') S.ui.ansehenSec=S.ui.ansehenSec==='liste'?'liste':'wertung';
   if (S.ui.tab==='pokal'){
     const s=cur();
@@ -4429,12 +4433,7 @@ function render(){
   finally{ navRemember(); }
 }
 function renderMain(){
-  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
-  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
-  if (S.ui.tab==='einteilung'){
-    const lv=L[S.ui.league];
-    if (!lv || (lv.level!==5 && lv.level!==6)) S.ui.tab='tabelle';
-  }
+  normalizeRemovedTab();
   renderMigrate();
   renderSettings();
   renderNav();
@@ -9473,8 +9472,7 @@ function adopt(data, empty){
   S.ui = Object.assign({league:'BL', tab:'tabelle', md:{}, autoNext:true, supercup:true}, S.ui||{});
   if (empty && (localStorage.getItem(OLD_KEY)||localStorage.getItem('fussballrechner_v1'))) S.ui.showMigrate = true;
   if (S.view==null || S.view>=S.seasons.length) S.view=S.seasons.length-1;
-  if (S.ui.tab==='abschluss') S.ui.tab='aufab';
-  if (S.ui.tab==='derbys') S.ui.tab='tabelle';
+  normalizeRemovedTab();
   if (latest().status==='ending' && S.view===S.seasons.length-1) S.ui.tab='aufab';
   ensureAllCups();
   migrateArchive();
@@ -10298,6 +10296,25 @@ function uiSelfTestBody(fails){
   S.ui.tab='derbys';
   render();
   check('Derbys landen auf der Tabelle', S.ui.tab==='tabelle' && history.length===len0);
+  ['RLN','OLBY'].forEach(lid=>{
+    S.ui.league=lid;
+    S.ui.tab='einteilung';
+    render();
+    const active=document.querySelector('#tabs .tab.active');
+    check(lid+' mit entferntem Reiter zeigt die Tabelle', S.ui.tab==='tabelle' && active && active.dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && document.querySelector('#title').textContent===L[lid].name && history.length===len0 && navIndex===i0);
+  });
+  S.ui.league='RLS';
+  S.ui.tab='weg';
+  render();
+  check('jeder unbekannte Ligareiter wird Tabelle', S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard'));
+  document.querySelector('#tabs [data-tab="karte"]').click();
+  check('Klick auf Karte bleibt Karte', S.ui.tab==='karte' && document.querySelector('#tabs .tab.active').dataset.tab==='karte' && !document.querySelector('#tableCard'));
+  document.querySelector('[data-league="OLNRW"]').click();
+  check('Oberliga-Wechsel bleibt auf der Karte', S.ui.league==='OLNRW' && S.ui.tab==='karte' && document.querySelector('#title').textContent==='Oberliga Nordrhein-Westfalen' && document.querySelector('#tabs .tab.active').dataset.tab==='karte');
+  document.querySelector('[data-tab="pokal"]').click();
+  check('Pokal aus der Liga bleibt Pokal', S.ui.tab==='pokal' && document.querySelector('#title').textContent.indexOf('Pokal')>=0);
+  document.querySelector('[data-league="RLW"]').click();
+  check('Regionalliga aus dem Pokal zeigt die Tabelle', S.ui.league==='RLW' && S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && history.length===len0 && navIndex===i0);
   S.ui.tab='pokal';
   render();
   check('ungültige Wertung wird Spielplan, ohne neuen Verlauf', S.ui.cup==='dfb' && S.ui.cupView==='spiele' && history.length===len0 && navIndex===i0);
