@@ -4984,6 +4984,8 @@ function renderMain(){
   renderSettings();
   renderNav();
   setActions('');
+  const headEl=document.querySelector('.head');
+  if (headEl) headEl.classList.remove('head-off');
   const s=cur(), lid=S.ui.league;
   if (S.ui.tab==='info'){ renderInfo(); return; }
   if (S.ui.tab==='ansehen'){
@@ -5005,13 +5007,12 @@ function renderMain(){
   }
   if (lid==='AM' || P[lid]){ renderAmateur(); return; }
   const lg=L[lid];
+  const head=document.querySelector('.head');
+  if (head) head.classList.add('head-off');
   $('#title').textContent=lg.name;
-  const pr=seasonProgress(s), lp=leagueProgress(s,lid);
-  let sub = '<a data-act="rules">Regeln &amp; Auf-/Abstieg</a> · Liga '+lp.done+'/'+lp.total+' · alle Ligen '+pr.done+'/'+pr.total;
-  if (s.status==='done') sub+=' · abgeschlossene Saison';
-  $('#subline').innerHTML=sub;
+  $('#subline').innerHTML='';
   setActions(seasonActions(s));
-  $('#tabs').innerHTML=leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  $('#tabs').innerHTML='<h1 class="tab-title">'+esc(lg.name)+'</h1>'+leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
   if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); }
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
@@ -10483,19 +10484,6 @@ function adopt(data, empty){
   save(); render();
   navInstall();
 }
-function readBright(){
-  let n=100;
-  try{ const s=localStorage.getItem('fr-bright'); if (s!=null && s!=='') n=parseInt(s,10); }catch(e){}
-  if (!isFinite(n)) n=100;
-  return Math.max(45, Math.min(100, n));
-}
-function applyBright(n, persist){
-  n=Math.max(45, Math.min(100, Math.round(+n||100)));
-  document.documentElement.style.setProperty('--app-bright', (n/100).toFixed(2));
-  const el=document.getElementById('brightRange');
-  if (el) el.value=String(n);
-  if (persist){ try{ localStorage.setItem('fr-bright', String(n)); }catch(e){} }
-}
 function mulberry32(seed){
   let a=seed>>>0;
   return function(){
@@ -11097,11 +11085,12 @@ function uiSelfTestBody(fails){
   const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
   const navScreen=window.innerWidth||0;
   check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
-  if (navScreen>=1900 && navWide){
+  if (navScreen>=2500 && navWide){
     const brand=document.querySelector('.brand');
     const tools=document.querySelector('.top-tools');
-    const bright=document.querySelector('.bright-ctl');
-    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), bright, tools].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
+    const actions=document.querySelector('#headActions');
+    const season=document.querySelector('.season-field');
+    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
     let edge=999;
     for (let i=1;i<boxes.length;i++){
       if (Math.abs(boxes[i].top-boxes[0].top)>2) continue;
@@ -11110,7 +11099,7 @@ function uiSelfTestBody(fails){
     const tops=boxes.map(b=>Math.round(b.top));
     const verein=navItems[navItems.length-1];
     const toolR=tools?tools.getBoundingClientRect():null;
-    check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && parseFloat(linkCs.fontSize)>=14 && edge>=8 && !!toolR && !!verein && verein.right<=toolR.left-8, 'abstand '+Math.round(edge)+' zeilen '+Object.keys(navRows).length+' schrift '+(linkCs?linkCs.fontSize:''));
+    check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && edge>=12 && !!toolR && !!verein && verein.right<=toolR.left-12 && !!actions && actions.closest('#topbar') && !!season && season.closest('#topbar'), 'abstand '+Math.round(edge)+' zeilen '+new Set(tops).size);
   }
   if (navScreen>=1200 && navScreen<=1400){
     const keepTab=S.ui.tab, keepLeague=S.ui.league;
@@ -11123,6 +11112,52 @@ function uiSelfTestBody(fails){
     S.ui.tab=keepTab; S.ui.league=keepLeague;
     render();
   }
+  (()=>{
+    const keep={tab:S.ui.tab, league:S.ui.league};
+    S.ui.league='L5NO'; S.ui.tab='tabelle';
+    render();
+    const sub=document.querySelector('#subline');
+    const head=document.querySelector('.head');
+    const tabs=document.querySelector('#tabs');
+    const top=document.querySelector('#topbar');
+    const cell=document.querySelector('#tableCard tbody td');
+    const pxOf=raw=>{
+      const s=String(raw==null?'':raw).trim();
+      if (!/^[0-9.]+px$/i.test(s)) return null;
+      const n=parseFloat(s);
+      return isFinite(n)&&n>0?n:null;
+    };
+    const fromStyle=style=>{
+      if (!style || !style.getPropertyValue) return null;
+      try{ return pxOf(style.getPropertyValue('font-size')); }catch(e){ return null; }
+    };
+    let measured=null;
+    try{ measured=cell?fromStyle(getComputedStyle(cell)):null; }catch(e){ measured=null; }
+    let declared=null;
+    const walk=list=>{
+      if (!list) return;
+      for (let i=0;i<list.length;i++){
+        const rule=list[i];
+        if (rule.cssRules) walk(rule.cssRules);
+        const sel=(rule.selectorText||'').replace(/\s+/g,'');
+        const size=fromStyle(rule.style);
+        if (size==null || sel.indexOf('#tableCard>table.tbl.stand')<0) continue;
+        if (sel.indexOf('td')<0 && sel!=='#tableCard>table.tbl.stand') continue;
+        declared=size;
+      }
+    };
+    try{
+      const sheets=document.styleSheets||[];
+      for (let i=0;i<sheets.length;i++){ try{ walk(sheets[i].cssRules); }catch(e){} }
+    }catch(e){}
+    const fontOk=measured!=null?measured>=13:declared!=null?declared>=13:false;
+    const fontNote=measured!=null?measured+'px':declared!=null?declared+'px aus CSS':'nicht messbar';
+    const gap=tabs&&top?tabs.getBoundingClientRect().top-top.getBoundingClientRect().bottom:99;
+    check('Hauptansicht ohne Unterzeile, Reiter direkt unter der Leiste', !!head && head.classList.contains('head-off') && !!sub && sub.textContent.trim()==='' && gap<=16 && fontOk, 'abstand '+Math.round(gap)+' schrift '+fontNote);
+    if (navScreen>=2500 && (window.innerHeight||0)>=1200 && (window.innerHeight||0)<=1450) check('5. Liga passt ohne senkrechtes Scrollen', document.documentElement.scrollHeight<=window.innerHeight+1, document.documentElement.scrollHeight+'/'+window.innerHeight);
+    S.ui.tab=keep.tab; S.ui.league=keep.league;
+    render();
+  })();
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);
@@ -11945,9 +11980,7 @@ async function navEventSelfTest(){
   }
   return {ok:!fails.length, fails, guard};
 }
-applyBright(readBright(), false);
-const brightEl=document.getElementById('brightRange');
-if (brightEl) brightEl.addEventListener('input', ()=>applyBright(brightEl.value, true));
+try{ localStorage.removeItem('fr-bright'); }catch(e){}
 function boot(){
   let ls=null;
   try { ls=parseSave(localStorage.getItem(KEY)); } catch(e){ ls=null; }

@@ -32,10 +32,6 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .nav-drop.wide{min-width:280px}
 .nav-drop{display:none;position:absolute;top:100%;left:0;min-width:196px;background:#fff;border:1px solid var(--line);padding:4px 0;z-index:40}
 .nav-menu:hover>.nav-drop,.nav-menu.open>.nav-drop,.top-tools:hover>.nav-drop,.top-tools.open>.nav-drop{display:block}
-.bright-ctl{display:flex;align-items:center;gap:4px;margin-left:auto;padding:0 4px;font-size:11px;color:var(--muted);white-space:nowrap;flex:0 0 auto}
-.bright-ctl input{width:40px;margin:0;accent-color:var(--green)}
-#app{filter:brightness(var(--app-bright,1))}
-.bright-ctl{filter:brightness(calc(1 / var(--app-bright, 1)))}
 .top-tools{margin-left:0}
 .top-tools>.nav-drop{left:auto;right:0;min-width:220px}
 .nav-item{display:block;padding:6px 12px;color:var(--text);text-decoration:none;cursor:pointer;line-height:1.35;font-size:12.5px}
@@ -46,9 +42,12 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .feat-settings{font-size:12px;color:var(--muted);padding:2px 4px 4px}
 .side-tools .btn{width:100%;text-align:left}
 #main{flex:1;min-width:0;width:100%;padding:16px 20px 36px}
+#main:has(.head.head-off){padding-top:6px;padding-bottom:12px}
 .mobile-nav{display:none;margin-bottom:8px}
 .mobile-nav select{width:100%;padding:6px}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:0 0 8px}
+.head.head-off{display:none}
+.head-actions .btn{padding:3px 8px;font-size:13px;white-space:nowrap}
 .head-main{min-width:0}
 .head h1{font-size:20px;font-weight:650;letter-spacing:-.02em;margin:0;line-height:1.2}
 .head-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
@@ -59,7 +58,8 @@ select,input[type="text"],input[type="search"],.searchbox{padding:5px 8px;border
 select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-offset:1px}
 .subline{color:var(--muted);margin:3px 0 0;font-size:12px}
 .subline a{color:var(--ink);cursor:pointer;border-bottom:1px solid #c5cad0}
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 12px;flex-wrap:wrap}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 6px;flex-wrap:wrap;align-items:center}
+.tabs .tab-title{margin:0;padding:2px 14px 2px 0;font-size:16px;font-weight:650;line-height:1.2;color:var(--ink)}
 .tab{padding:7px 12px;cursor:pointer;color:#5c6570;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--ink);font-weight:650;border-bottom-color:var(--green)}
@@ -74,19 +74,20 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(420px,.95fr);gap:12px;align-items:start}
 @media (max-width:1519px){.split{grid-template-columns:1fr}}
 @media (min-width:801px) and (max-width:1919px){
-  #topbar{flex-wrap:wrap;align-items:stretch;row-gap:6px}
+  #topbar{flex-wrap:wrap;align-items:stretch;column-gap:12px;row-gap:6px}
   .brand{order:1}
-  .bright-ctl{order:2}
   .top-tools{order:3}
-  .topnav{order:4;flex:1 1 100%;flex-wrap:wrap}
+  .head-actions{order:4}
+  .season-field{order:5}
+  .topnav{order:6;flex:1 1 100%;flex-wrap:wrap}
 }
 @media (min-width:1920px){
   #topbar{flex-wrap:nowrap;column-gap:12px}
-  .brand,.bright-ctl,.top-tools{order:0;flex:0 0 auto}
-  .bright-ctl{margin-left:0}
+  .brand,.top-tools{order:0;flex:0 0 auto}
   .topnav{order:0;flex:1 1 auto;flex-wrap:nowrap;min-width:0}
 }
 @media (max-width:800px){
+  #topbar{flex-wrap:wrap;column-gap:8px;row-gap:4px}
   .topnav{display:none}
   .mobile-nav{display:block}
   #main{padding:10px}
@@ -842,9 +843,18 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
 @media (min-width:1600px){
-  #tableCard>table.tbl.stand{font-size:15px}
-  #tableCard .club img{width:34px;height:34px;flex-basis:34px}
-  #spCard .match.sp-line .ml-name{font-size:15px}
+  #tableCard>table.tbl.stand{font-size:13px}
+  #tableCard>table.tbl.stand th,#tableCard>table.tbl.stand td{padding:1px 3px;font-size:13px}
+  #tableCard .club img{width:20px;height:20px;flex-basis:20px}
+  #tableCard .form-bit,#tableCard .form>span{width:14px;height:14px;line-height:14px;font-size:9px}
+  #tableCard .fixed-row{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));padding:3px 8px;gap:2px 6px}
+  #tableCard .fixed-row .fp{height:20px}
+  #tableCard .fixed-row img{width:16px;height:16px;flex-basis:16px}
+  #spCard .card-title{padding:4px 8px}
+  #spCard .match.sp-line{padding:1px 4px}
+  #spCard .match.sp-line .ml-crest{width:20px;height:20px;flex-basis:20px}
+  #spCard .match.sp-line .ml-name{font-size:13px}
+  #spCard .match.sp-line .score{min-height:0}
   .map-card{max-width:1680px;margin-left:auto;margin-right:auto}
   .map-card .de-map{width:100%;height:auto;aspect-ratio:858/680}
   .py-level.one>.mv-card.top{width:min(1280px,100%)}
