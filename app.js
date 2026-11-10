@@ -10484,19 +10484,6 @@ function adopt(data, empty){
   save(); render();
   navInstall();
 }
-function readBright(){
-  let n=100;
-  try{ const s=localStorage.getItem('fr-bright'); if (s!=null && s!=='') n=parseInt(s,10); }catch(e){}
-  if (!isFinite(n)) n=100;
-  return Math.max(45, Math.min(100, n));
-}
-function applyBright(n, persist){
-  n=Math.max(45, Math.min(100, Math.round(+n||100)));
-  document.documentElement.style.setProperty('--app-bright', (n/100).toFixed(2));
-  const el=document.getElementById('brightRange');
-  if (el) el.value=String(n);
-  if (persist){ try{ localStorage.setItem('fr-bright', String(n)); }catch(e){} }
-}
 function mulberry32(seed){
   let a=seed>>>0;
   return function(){
@@ -11101,10 +11088,9 @@ function uiSelfTestBody(fails){
   if (navScreen>=2500 && navWide){
     const brand=document.querySelector('.brand');
     const tools=document.querySelector('.top-tools');
-    const bright=document.querySelector('.bright-ctl');
     const actions=document.querySelector('#headActions');
     const season=document.querySelector('.season-field');
-    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), bright, tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
+    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
     let edge=999;
     for (let i=1;i<boxes.length;i++){
       if (Math.abs(boxes[i].top-boxes[0].top)>2) continue;
@@ -11964,9 +11950,7 @@ async function navEventSelfTest(){
   }
   return {ok:!fails.length, fails, guard};
 }
-applyBright(readBright(), false);
-const brightEl=document.getElementById('brightRange');
-if (brightEl) brightEl.addEventListener('input', ()=>applyBright(brightEl.value, true));
+try{ localStorage.removeItem('fr-bright'); }catch(e){}
 function boot(){
   let ls=null;
   try { ls=parseSave(localStorage.getItem(KEY)); } catch(e){ ls=null; }
