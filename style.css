@@ -43,6 +43,7 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .side-tools .btn{width:100%;text-align:left}
 #main{flex:1;min-width:0;width:100%;padding:16px 20px 36px}
 #main:has(.head.head-off){padding-top:6px;padding-bottom:4px}
+#main:has(.pokal-bar){padding-bottom:4px}
 .mobile-nav{display:none;margin-bottom:8px}
 .mobile-nav select{width:100%;padding:6px}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:0 0 8px}
@@ -254,6 +255,8 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .meta{font-size:10px;color:var(--muted);text-align:center;line-height:1.25}
 .meta .kick{display:block}
 .slot-head{background:#eef3f8;color:#234;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 10px;border-top:1px solid var(--line)}
+.slot-head.cup-slot{text-align:center}
+.tab-note{margin:0 0 6px}
 .scoreline{display:flex;align-items:center;justify-content:center;gap:1px;min-width:2.4em}
 .score b{font-weight:700}
 .goals{min-width:.7em;text-align:center;font-weight:700;font-size:13px;line-height:16px;font-variant-numeric:tabular-nums}
@@ -514,7 +517,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .sieger-club img{width:30px;height:30px;object-fit:contain;flex:0 0 30px}
 .sieger-club .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
 .sieger-club .ml-name{display:flex;align-items:baseline;gap:4px;font-size:13px;min-width:0;overflow:visible}
-.sieger-club .nm-txt{min-width:0;overflow:visible;text-overflow:clip;white-space:nowrap}
+.sieger-club .nm-txt{min-width:0;overflow:visible;text-overflow:clip;white-space:normal}
 .sieger-club .ml-bl{font-size:9.5px;color:var(--muted);line-height:1.15}
 .match.cup .ml-name:has(.liga-tag){display:flex;align-items:baseline;gap:4px}
 .br-round .br-m{border:0;border-top:1px solid var(--line);margin:0;padding:2px 8px}
@@ -587,7 +590,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
 .sieger-box{overflow:visible}
-.sieger-row{display:grid;grid-template-columns:76px minmax(0,1fr) minmax(0,1fr) minmax(0,1.7fr);column-gap:12px;align-items:center;padding:9px 0;min-height:56px;border-bottom:1px solid var(--line)}
+.sieger-row{display:grid;grid-template-columns:7.4rem minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr);column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
 .title-who{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .title-who .ml-crest{width:28px;height:28px;flex:0 0 28px;object-fit:contain}
 .title-who .muted{font-size:12px}
@@ -798,6 +801,14 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table{min-width:560px;font-size:13px}
   #main{overflow-x:hidden}
   .rec-table th,.rec-table td{padding:6px 8px}
+}
+@media (min-width:2200px){
+  .split{grid-template-columns:minmax(0,1fr) 960px}
+  #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
+  #tableCard>table.tbl.stand th:nth-child(1),
+  #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
+  #tableCard>table.tbl.stand th:nth-child(2),
+  #tableCard>table.tbl.stand td:nth-child(2){width:auto;max-width:none}
 }
 @media (min-width:1600px){
   #tableCard>table.tbl.stand{font-size:16px}
