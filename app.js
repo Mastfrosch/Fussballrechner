@@ -2420,6 +2420,17 @@ function h2hStats(ids, matches){
 function tieSig(r){
   return [r.pkt, r.diff, r.tg, r.h2hP||0, r.h2hD||0, r.h2hG||0, r.h2hA||0, r.aw||0].join(',');
 }
+function byAnsehen(a,b){
+  const an=id=>{ try{ const v=ansehenValue(id); return v!=null && isFinite(+v) ? +v : 0; }catch(e){ return 0; } };
+  return an(b)-an(a) || (TEAMS[a]&&TEAMS[b] ? TEAMS[a].name.localeCompare(TEAMS[b].name,'de') : 0) || String(a).localeCompare(String(b));
+}
+function sortUnplayedTable(rows){
+  if (!rows || !rows.length || rows.some(r=>!r || r.sp!==0)) return rows;
+  const out=rows.map(r=>Object.assign({}, r));
+  out.sort((a,b)=>byAnsehen(a.id, b.id));
+  out.forEach((r,i)=>r.pl=i+1);
+  return out;
+}
 function computeTable(teamIds, matches, mode){
   const rows = {}; teamIds.forEach(id => rows[id]=emptyRow(id));
   matches.forEach(m => {
@@ -3908,6 +3919,7 @@ function formSpan(letter, game){
   return '<span class="form-wrap"><span class="form-bit f-'+letter+'">'+letter+'</span>'+tip+'</span>';
 }
 function tableHTML(rows, lg, opts={}){
+  rows=sortUnplayedTable(rows);
   const n=rows.length, season=opts.season||cur();
   const sure = opts.zones===false || !lg ? {} : certaintyMap(season, lg.id);
   const down = !lg || opts.zones===false ? 0 : relegationProfile(season, lg.id).down;
@@ -5533,10 +5545,7 @@ function renderAmateur(){
   setActions(seasonActions(s));
   $('#tabs').innerHTML='<a class="tab'+(S.ui.amateurView==='karte'?'':' active')+'" data-act="amateurList">Vereine</a><a class="tab'+(S.ui.amateurView==='karte'?' active':'')+'" data-act="amateurMap">Karte</a>'+BL_ORDER.filter(b=>counts[b]).map(b=>'<a class="tab'+(b===bl?' active':'')+'" data-amateur="'+esc(b)+'">'+esc(b)+'</a>').join('');
   const list=ids.filter(id=>TEAMS[id].bl===bl);
-  const poolId=(POOLS.find(p=>p.bl===bl)||{}).id;
-  const order=(s.pools&&poolId&&s.pools[poolId])||[];
-  if (s.seed==='ansehen') list.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
-  else list.sort(byRang);
+  list.sort(byAnsehen);
   if (S.ui.amateurView==='karte'){
     $('#view').innerHTML=viewMap('Amateurliga '+bl, list, [bl], 'am:'+bl);
     bindMap();
@@ -8308,11 +8317,11 @@ function pyramidOf(season){
     if (!rows && season.endData&&season.endData.tables&&season.endData.tables[l.id]) rows=season.endData.tables[l.id];
     if (!rows && lg.md){ try{ rows=leagueTable(season, l.id); }catch(e){ rows=null; } }
     if (!rows) return;
-    rows.slice().sort((a,b)=>(a.pl||999)-(b.pl||999)).forEach(r=>list.push({id:r.id, liga:l.name, level:l.level, pl:r.pl}));
+    sortUnplayedTable(rows).forEach(r=>list.push({id:r.id, liga:l.name, level:l.level, pl:r.pl}));
   });
   const am=[];
   POOLS.forEach(p=>((season.pools&&season.pools[p.id])||[]).forEach(id=>am.push(id)));
-  am.sort(byRang);
+  am.sort(byAnsehen);
   am.forEach((id,i)=>list.push({id, liga:'Amateurliga', level:7, pl:i+1}));
   const map={};
   list.forEach((r,i)=>map[r.id]=Object.assign({rank:i+1, n:list.length}, r));
@@ -10334,6 +10343,17 @@ function uiSelfTestBody(fails){
   const home=computeTable(['t001','t002'], matches, 'home');
   const away=computeTable(['t001','t002'], matches, 'away');
   check('Heimform nur Heimspiele', home.find(r=>r.id==='t001').form.join('')==='SU', home.find(r=>r.id==='t001').form.join(''));
+  const blankIds=['t003','t001','t002'];
+  const blankSeason={name:'2099/00', status:'running', seed:'ansehen', leagues:{BL:{teams:blankIds.slice(), md:[[[0,1,null,null]]]}}, markers:{}};
+  const blankLogic=leagueTable(blankSeason,'BL').map(r=>r.id).join();
+  const blankShown=sortUnplayedTable(leagueTable(blankSeason,'BL')).map(r=>r.id);
+  const blankWant=blankIds.slice().sort(byAnsehen);
+  const blankHome=sortUnplayedTable(leagueTable(blankSeason,'BL','home')).map(r=>r.id).join();
+  const blankRueck=sortUnplayedTable(leagueTable(blankSeason,'BL','all','rueck')).map(r=>r.id).join();
+  const playedRows=computeTable(['t001','t002'], [{md:0,h:'t001',a:'t002',hg:0,ag:1}], 'all');
+  const playedOrder=playedRows.map(r=>r.id).join();
+  const playedShown=sortUnplayedTable(playedRows).map(r=>r.id).join();
+  check('ungespielte Tabelle zeigt Ansehen, die Wertung bleibt die Teamreihenfolge', blankLogic==='t003,t001,t002' && blankShown.join()===blankWant.join() && blankHome===blankShown.join() && blankRueck===blankShown.join() && playedOrder==='t002,t001' && playedShown===playedOrder, blankLogic+' / '+blankShown.join()+' / '+playedShown);
   check('Auswärtsform nur Auswärtsspiele', away.find(r=>r.id==='t001').form.join('')==='S', away.find(r=>r.id==='t001').form.join(''));
   const plain=matchLineHTML({h:'t001', a:'t002', hg:1, ag:0, bl:true, ansehen:true});
   check('Ligaspielplan ohne Status', plain.indexOf('(P)')<0 && plain.indexOf('(CL)')<0 && plain.indexOf('(Auf)')<0 && plain.indexOf('ml-an')>=0);
