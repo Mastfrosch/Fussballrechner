@@ -72,8 +72,10 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .btn.danger{color:#9b2c2c;border-color:#e4c8c8;background:#fff}
 .btn.small{font-size:12px;padding:4px 8px}
 .btn:disabled{opacity:.45;cursor:default}
-.split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(420px,.95fr);gap:12px;align-items:start}
-@media (max-width:1519px){.split{grid-template-columns:1fr}}
+.split{display:grid;grid-template-columns:auto minmax(480px,1fr);gap:12px;align-items:start}
+@media (max-width:1519px){.split{grid-template-columns:1fr}
+  #tableCard > table.tbl.stand{min-width:100%}
+}
 @media (min-width:801px) and (max-width:2199px){
   #topbar{flex-wrap:wrap;align-items:stretch;column-gap:12px;row-gap:6px}
   .brand{order:1}
@@ -119,11 +121,13 @@ table.tbl.stand .form{width:88px;min-width:88px;justify-content:flex-start}
 table.tbl.stand th[data-sort]{position:relative}
 table.tbl.stand th.sort-asc::after,table.tbl.stand th.sort-desc::after{position:absolute;right:1px;top:50%;transform:translateY(-50%)}
 #tableCard{overflow-x:auto}
-#tableCard > table.tbl.stand{width:max-content;min-width:100%;max-width:none;margin:0;table-layout:auto}
+#tableCard > table.tbl.stand{width:max-content;min-width:0;max-width:none;margin:0;table-layout:auto}
 #tableCard > table.tbl.stand th:nth-child(1),
 #tableCard > table.tbl.stand td:nth-child(1){width:auto;min-width:2.2em}
 #tableCard > table.tbl.stand th:nth-child(2),
-#tableCard > table.tbl.stand td:nth-child(2){min-width:11em}
+#tableCard > table.tbl.stand td:nth-child(2){width:19rem;max-width:19rem;min-width:0}
+#tableCard .club .nm,#tableCard .club .nm .nm-txt{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
+#tableCard > table.tbl.stand td.l{white-space:normal;overflow:visible}
 #tableCard > table.tbl.stand th:nth-child(3),
 #tableCard > table.tbl.stand td:nth-child(3),
 #tableCard > table.tbl.stand th:nth-child(4),
@@ -795,17 +799,19 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
 @media (min-width:1600px){
-  #tableCard>table.tbl.stand{font-size:13px}
-  #tableCard>table.tbl.stand th,#tableCard>table.tbl.stand td{padding:2px 3px;font-size:13px}
-  #tableCard .club img{width:20px;height:20px;flex-basis:20px}
+  #tableCard>table.tbl.stand{font-size:16px}
+  #tableCard>table.tbl.stand th,#tableCard>table.tbl.stand td{padding:2px 4px;font-size:16px}
+  #tableCard .club{gap:8px}
+  #tableCard .club img{width:28px;height:28px;flex-basis:28px}
+  #tableCard .club .nm{font-size:16px}
   #tableCard .form-bit,#tableCard .form>span{width:14px;height:14px;line-height:14px;font-size:9px}
   #tableCard .fixed-row{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));padding:3px 8px;gap:2px 6px}
   #tableCard .fixed-row .fp{height:20px}
   #tableCard .fixed-row img{width:16px;height:16px;flex-basis:16px}
   #spCard .card-title{padding:4px 8px}
   #spCard .match.sp-line .ml-name{font-size:15px}
-  .map-card{max-width:1680px;margin-left:auto;margin-right:auto}
-  .map-card .de-map{width:100%;height:auto;aspect-ratio:858/680}
+  .map-card{width:860px;max-width:100%}
+  .map-card .de-map{width:100%;height:680px}
   .py-level.one>.mv-card.top{width:min(1280px,100%)}
   .cup-cols:not(.one){grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:none !important}
   .spread>table.tbl.fit{width:100%}
