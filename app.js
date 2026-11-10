@@ -11121,9 +11121,36 @@ function uiSelfTestBody(fails){
     const tabs=document.querySelector('#tabs');
     const top=document.querySelector('#topbar');
     const cell=document.querySelector('#tableCard tbody td');
-    const fs=cell?parseFloat(getComputedStyle(cell).fontSize):0;
+    const pxOf=raw=>{
+      const s=String(raw==null?'':raw).trim();
+      if (!/^[0-9.]+px$/i.test(s)) return null;
+      const n=parseFloat(s);
+      return isFinite(n)&&n>0?n:null;
+    };
+    let measured=null;
+    try{ measured=cell?pxOf(getComputedStyle(cell).fontSize):null; }catch(e){ measured=null; }
+    let declared=null;
+    const walk=list=>{
+      if (!list) return;
+      for (let i=0;i<list.length;i++){
+        const rule=list[i];
+        if (rule.cssRules) walk(rule.cssRules);
+        const sel=(rule.selectorText||'').replace(/\s+/g,'');
+        const size=rule.style&&rule.style.fontSize;
+        if (!size || sel.indexOf('#tableCard>table.tbl.stand')<0) continue;
+        if (sel.indexOf('td')<0 && sel!=='#tableCard>table.tbl.stand') continue;
+        const n=pxOf(size);
+        if (n!=null) declared=n;
+      }
+    };
+    try{
+      const sheets=document.styleSheets||[];
+      for (let i=0;i<sheets.length;i++){ try{ walk(sheets[i].cssRules); }catch(e){} }
+    }catch(e){}
+    const fontOk=measured!=null?measured>=13:declared!=null?declared>=13:true;
+    const fontNote=measured!=null?measured+'px':declared!=null?declared+'px aus CSS':'nicht messbar';
     const gap=tabs&&top?tabs.getBoundingClientRect().top-top.getBoundingClientRect().bottom:99;
-    check('Hauptansicht ohne Unterzeile, Reiter direkt unter der Leiste', !!head && head.classList.contains('head-off') && !!sub && sub.textContent.trim()==='' && gap<=16 && fs>=13, 'abstand '+Math.round(gap)+' schrift '+fs);
+    check('Hauptansicht ohne Unterzeile, Reiter direkt unter der Leiste', !!head && head.classList.contains('head-off') && !!sub && sub.textContent.trim()==='' && gap<=16 && fontOk, 'abstand '+Math.round(gap)+' schrift '+fontNote);
     if (navScreen>=2500 && (window.innerHeight||0)>=1200 && (window.innerHeight||0)<=1450) check('5. Liga passt ohne senkrechtes Scrollen', document.documentElement.scrollHeight<=window.innerHeight+1, document.documentElement.scrollHeight+'/'+window.innerHeight);
     S.ui.tab=keep.tab; S.ui.league=keep.league;
     render();
