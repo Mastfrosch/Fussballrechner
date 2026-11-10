@@ -4158,7 +4158,7 @@ function viewCupRound(s, cup, ed){
   }
   if (cup.archived) h+='<p class="cup-note">Ältere Runden dieses Pokals sind abgelegt. Das Finale bleibt hier, die erreichte Runde jedes Vereins in der Vereinsinfo.</p>';
   if (cup.kind==='land' && ri===0 && cup.entrants && cup.entrants.length){
-    h+='<p class="cup-note">'+cup.entrants.length+' Vereine aus '+esc(cup.bl)+', von der 3. Liga bis zur Amateurliga. Freilose gehen an die bestplatzierten Vereine des Vorjahres. Die schwächere Liga hat Heimrecht, innerhalb derselben Liga der zuerst gezogene. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.</p>';
+    h+='<p class="cup-note">'+cup.entrants.length+' Vereine aus '+esc(cup.bl)+', von der 3. Liga bis zur Amateurliga. Freilose gehen an die Vereine mit dem höchsten Ansehen. Die schwächere Liga hat Heimrecht, innerhalb derselben Liga der zuerst gezogene. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.</p>';
   }
   if (!round.drawn){
     const ready=ri===0 || roundComplete(cup.rounds[ri-1]);

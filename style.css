@@ -334,9 +334,6 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .ansehen-break b{display:block;font-size:18px;margin:2px 0}
 .ansehen-break i{display:block;color:#888;font-style:normal;font-size:10.5px}
 .ansehen-break .tot{background:#e7f3ec;border-color:#b7d7c4}
-tr.w-hot td{background:#e7f6ec}
-tr.w-off td{color:#9aa}
-tr.w-off .nm,tr.w-off .muted{color:#9aa}
 .pyramid{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 12px 20px;background:#f4f6f8}
 .py-scroll{overflow-x:auto;width:100%;min-width:0}
 .py-tree{--gap:8px;--col:118px;display:flex;flex-direction:column;width:100%;min-width:0}
