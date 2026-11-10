@@ -4935,7 +4935,7 @@ function renderMain(){
   setActions(seasonActions(s));
   $('#tabs').innerHTML='<h1 class="tab-title">'+esc(lg.name)+'</h1>'+leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
-  if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); }
+  if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); alignStandToPlan(); }
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
   else if (S.ui.tab==='terminierung') v.innerHTML=viewTerminierung(s,lid);
   else if (S.ui.tab==='heimaus') v.innerHTML=viewToggle(s,lid,'ha');
@@ -4965,6 +4965,51 @@ function currentMd(s,lid){
 function viewTabelle(s,lid){
   try{ syncRelay(s); }catch(e){}
   return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div></div>'+relayHTML(s,lid);
+}
+function alignStandToPlan(){
+  const card=document.getElementById('tableCard');
+  const plan=document.getElementById('spCard');
+  if(!card||!plan) return;
+  const rows=[...card.querySelectorAll(':scope > table.tbl.stand > tbody > tr')];
+  rows.forEach(r=>{ r.style.height=''; });
+  plan.style.minHeight='';
+  card.style.minHeight='';
+  const c0=card.getBoundingClientRect();
+  const p0=plan.getBoundingClientRect();
+  if(Math.abs(c0.top-p0.top)>8||!rows.length) return;
+  const lid=S&&S.ui&&S.ui.league;
+  const lg=lid&&cur()&&cur().leagues&&cur().leagues[lid];
+  const games=lg&&lg.md&&lg.md[0]?lg.md[0].length:0;
+  let maxHeads=1;
+  try{
+    const seen={};
+    slotTemplate(lid, games||undefined).forEach(s=>{ seen[s.dow+'|'+s.time+'|'+(s.kind||'')]=1; });
+    maxHeads=Math.max(1, Object.keys(seen).length);
+  }catch(e){ maxHeads=1; }
+  const headEls=[...plan.querySelectorAll('.slot-head')];
+  const headH=headEls.length?headEls[0].getBoundingClientRect().height:0;
+  const hint=plan.querySelector('.sp-hint');
+  const hintH=hint?hint.getBoundingClientRect().height:0;
+  const full=p0.height-hintH-headEls.length*headH+maxHeads*headH;
+  const target=Math.max(p0.height, c0.height, full);
+  plan.style.minHeight=target+'px';
+  let gap=plan.getBoundingClientRect().bottom-card.getBoundingClientRect().bottom;
+  if(Math.abs(gap)>0.4){
+    const add=gap/rows.length;
+    rows.forEach(r=>{
+      const h=r.getBoundingClientRect().height+add;
+      const need=Math.max(0, ...[...r.children].map(td=>td.scrollHeight));
+      r.style.height=Math.max(h, need)+'px';
+    });
+  }
+  const left=plan.getBoundingClientRect().bottom-card.getBoundingClientRect().bottom;
+  if(Math.abs(left)>0.3){
+    const last=rows[rows.length-1];
+    const next=last.getBoundingClientRect().height+left;
+    const need=Math.max(0, ...[...last.children].map(td=>td.scrollHeight));
+    if(next+0.5>=need) last.style.height=next+'px';
+    else plan.style.minHeight=(plan.getBoundingClientRect().height+ (card.getBoundingClientRect().bottom-plan.getBoundingClientRect().bottom))+'px';
+  }
 }
 function relayHTML(season, lid){
   const spec=L[lid];
@@ -9575,6 +9620,7 @@ function refreshTableOnly(){
   const pg=$('#spCard .progress'); if (pg) pg.textContent='('+done+'/'+md.length+' eingetragen)';
   const opt=$('#mdSelect option:checked'); if (opt) opt.textContent=(shownMd+1)+'. Spieltag'+(done===md.length?' ✓':'');
   paintLiveRows();
+  alignStandToPlan();
 }
 function clubsOfMatch(row){
   const ids=[];
@@ -9893,6 +9939,7 @@ const navBackBtn=document.getElementById('navBack');
 const navFwdBtn=document.getElementById('navFwd');
 if (navBackBtn) navBackBtn.addEventListener('click', ()=>navGo(-1));
 if (navFwdBtn) navFwdBtn.addEventListener('click', ()=>navGo(1));
+window.addEventListener('resize', ()=>{ if(S&&S.ui&&S.ui.tab==='tabelle') alignStandToPlan(); });
 $('#modalClose').onclick=()=>$('#modal').classList.add('hidden');
 $('#modal').addEventListener('click', ev=>{ if (ev.target.id==='modal') $('#modal').classList.add('hidden'); });
 $('#btnExport').onclick=()=>{
