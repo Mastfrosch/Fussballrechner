@@ -72,13 +72,19 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .btn.small{font-size:12px;padding:4px 8px}
 .btn:disabled{opacity:.45;cursor:default}
 .split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(420px,.95fr);gap:12px;align-items:start}
-@media (max-width:1180px){.split{grid-template-columns:1fr}}
-@media (min-width:801px){
-  #topbar{flex-wrap:wrap;align-items:stretch}
+@media (max-width:1519px){.split{grid-template-columns:1fr}}
+@media (min-width:801px) and (max-width:1919px){
+  #topbar{flex-wrap:wrap;align-items:stretch;row-gap:6px}
   .brand{order:1}
   .bright-ctl{order:2}
   .top-tools{order:3}
   .topnav{order:4;flex:1 1 100%;flex-wrap:wrap}
+}
+@media (min-width:1920px){
+  #topbar{flex-wrap:nowrap;column-gap:12px}
+  .brand,.bright-ctl,.top-tools{order:0;flex:0 0 auto}
+  .bright-ctl{margin-left:0}
+  .topnav{order:0;flex:1 1 auto;flex-wrap:nowrap;min-width:0}
 }
 @media (max-width:800px){
   .topnav{display:none}

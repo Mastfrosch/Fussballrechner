@@ -11097,7 +11097,32 @@ function uiSelfTestBody(fails){
   const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
   const navScreen=window.innerWidth||0;
   check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
-  if (navScreen>=2400 && navWide) check('breite Leiste bleibt eine Zeile mit größerer Schrift', Object.keys(navRows).length===1 && parseFloat(linkCs.fontSize)>=14 && navMin>=12, 'zeilen '+Object.keys(navRows).length+' schrift '+(linkCs?linkCs.fontSize:''));
+  if (navScreen>=1900 && navWide){
+    const brand=document.querySelector('.brand');
+    const tools=document.querySelector('.top-tools');
+    const bright=document.querySelector('.bright-ctl');
+    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), bright, tools].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
+    let edge=999;
+    for (let i=1;i<boxes.length;i++){
+      if (Math.abs(boxes[i].top-boxes[0].top)>2) continue;
+      edge=Math.min(edge, boxes[i].left-boxes[i-1].right);
+    }
+    const tops=boxes.map(b=>Math.round(b.top));
+    const verein=navItems[navItems.length-1];
+    const toolR=tools?tools.getBoundingClientRect():null;
+    check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && parseFloat(linkCs.fontSize)>=14 && edge>=8 && !!toolR && !!verein && verein.right<=toolR.left-8, 'abstand '+Math.round(edge)+' zeilen '+Object.keys(navRows).length+' schrift '+(linkCs?linkCs.fontSize:''));
+  }
+  if (navScreen>=1200 && navScreen<=1400){
+    const keepTab=S.ui.tab, keepLeague=S.ui.league;
+    S.ui.league='BL'; S.ui.tab='tabelle';
+    render();
+    const card=document.querySelector('#tableCard');
+    const table=card&&card.querySelector('table');
+    const cardW=card?card.clientWidth:0, tableW=table?Math.round(table.getBoundingClientRect().width):0;
+    check('Tabelle bei 1280 ohne Querscrollen', !!card && card.scrollWidth<=card.clientWidth+1 && tableW<=cardW+1, 'karte '+cardW+' tabelle '+tableW);
+    S.ui.tab=keepTab; S.ui.league=keepLeague;
+    render();
+  }
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);
