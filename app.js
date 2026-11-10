@@ -11127,8 +11127,12 @@ function uiSelfTestBody(fails){
       const n=parseFloat(s);
       return isFinite(n)&&n>0?n:null;
     };
+    const fromStyle=style=>{
+      if (!style || !style.getPropertyValue) return null;
+      try{ return pxOf(style.getPropertyValue('font-size')); }catch(e){ return null; }
+    };
     let measured=null;
-    try{ measured=cell?pxOf(getComputedStyle(cell).fontSize):null; }catch(e){ measured=null; }
+    try{ measured=cell?fromStyle(getComputedStyle(cell)):null; }catch(e){ measured=null; }
     let declared=null;
     const walk=list=>{
       if (!list) return;
@@ -11136,18 +11140,17 @@ function uiSelfTestBody(fails){
         const rule=list[i];
         if (rule.cssRules) walk(rule.cssRules);
         const sel=(rule.selectorText||'').replace(/\s+/g,'');
-        const size=rule.style&&rule.style.fontSize;
-        if (!size || sel.indexOf('#tableCard>table.tbl.stand')<0) continue;
+        const size=fromStyle(rule.style);
+        if (size==null || sel.indexOf('#tableCard>table.tbl.stand')<0) continue;
         if (sel.indexOf('td')<0 && sel!=='#tableCard>table.tbl.stand') continue;
-        const n=pxOf(size);
-        if (n!=null) declared=n;
+        declared=size;
       }
     };
     try{
       const sheets=document.styleSheets||[];
       for (let i=0;i<sheets.length;i++){ try{ walk(sheets[i].cssRules); }catch(e){} }
     }catch(e){}
-    const fontOk=measured!=null?measured>=13:declared!=null?declared>=13:true;
+    const fontOk=measured!=null?measured>=13:declared!=null?declared>=13:false;
     const fontNote=measured!=null?measured+'px':declared!=null?declared+'px aus CSS':'nicht messbar';
     const gap=tabs&&top?tabs.getBoundingClientRect().top-top.getBoundingClientRect().bottom:99;
     check('Hauptansicht ohne Unterzeile, Reiter direkt unter der Leiste', !!head && head.classList.contains('head-off') && !!sub && sub.textContent.trim()==='' && gap<=16 && fontOk, 'abstand '+Math.round(gap)+' schrift '+fontNote);
