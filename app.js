@@ -1168,12 +1168,12 @@ function ansehenSelfTestBody(fails){
   renderNav();
   const nav=$('#leagueNav').innerHTML;
   const mob=$('#mobileLeague').innerHTML;
-  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Regionalliga<')<0 && nav.indexOf('data-league="BL"')>=0 && nav.indexOf('>BL<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. BL<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0));
-  check('5. Liga steht direkt in der oberen Leiste', nav.indexOf('data-league="L5NO"')>=0 && nav.indexOf('data-league="L5SW"')>=0 && nav.indexOf('>5. NO<')>=0 && nav.indexOf('>5. SW<')>=0 && nav.indexOf('title="5. Liga Nordost"')>=0 && nav.indexOf('>Amateur<')>=0 && nav.indexOf('nav-cnt')<0 && nav.indexOf('>Oberliga<')<0 && nav.indexOf('OL Bayern')<0);
+  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0 && nav.indexOf('>Regionalliga '+(id==='RLN'?'Nord':id==='RLO'?'Ost':id==='RLS'?'Süd':'West')+'<')>=0));
+  check('5. Liga steht direkt in der oberen Leiste', nav.indexOf('data-league="L5NO"')>=0 && nav.indexOf('data-league="L5SW"')>=0 && nav.indexOf('>5. Liga Nordost<')>=0 && nav.indexOf('>5. Liga Südwest<')>=0 && nav.indexOf('title="5. Liga Nordost"')>=0 && nav.indexOf('>Amateurliga<')>=0 && nav.indexOf('nav-cnt')<0 && nav.indexOf('>Oberliga<')<0 && nav.indexOf('OL Bayern')<0);
   check('Pokal steht direkt oben', nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>Wettbewerbe<')<0 && nav.indexOf('>Pokal<')>=0);
   check('schmale Auswahl enthält alle Staffeln und den Pokal', ['L5NO','L5SW','RLN','RLW','pokal','ansehen','info'].every(v=>mob.indexOf('value="'+v+'"')>=0) && mob.indexOf('5. Liga Nordost')>=0 && mob.indexOf('Oberliga')<0);
   S.ui.league='L5NO'; S.ui.tab='tabelle'; renderNav();
-  check('aktive 5. Liga', $('#leagueNav a.nav-link.active[data-league="L5NO"]') && $('#leagueNav a.nav-link.active[data-league="L5NO"]').textContent==='5. NO' && $('#leagueNav a.nav-link.active[data-league="L5NO"]').title==='5. Liga Nordost');
+  check('aktive 5. Liga', $('#leagueNav a.nav-link.active[data-league="L5NO"]') && $('#leagueNav a.nav-link.active[data-league="L5NO"]').textContent==='5. Liga Nordost' && $('#leagueNav a.nav-link.active[data-league="L5NO"]').title==='5. Liga Nordost');
   S.ui.tab='pokal'; renderNav();
   check('aktiver Pokal', !!$('#leagueNav a.nav-link.active[data-tab="pokal"]'));
   S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; renderNav();
@@ -4096,10 +4096,10 @@ function renderNav(){
   const menu=(id, title, on, body, wide)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop'+(wide?' wide':'')+'">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
   let h='';
-  const NAV_SHORT={BL:'BL',BL2:'2. BL',L3:'3. L',L4:'4. L',L5NO:'5. NO',L5SW:'5. SW',RLN:'RL N',RLO:'RL O',RLS:'RL S',RLW:'RL W'};
-  LEAGUES.forEach(l=>{ h+=top(esc(NAV_SHORT[l.id]||l.short), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
-  h+=top('Amateur', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
-  h+=top('Pokal', pokal, 'data-tab="pokal"');
+  LEAGUES.forEach(l=>{ h+=top(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
+  h+='<span class="nav-break"></span>';
+  h+=top('Amateurliga', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
+  h+=top('Pokal', pokal, 'data-tab="pokal"', 'DFB-Pokal und Landespokale');
   if (featOn('supercup')) h+=top('Supercup', tab==='supercup', 'data-tab="supercup"');
   h+=menu('ansehen','Ansehen', ansehen, item('Wertungsübersicht', ansehen && S.ui.ansehenSec!=='liste', 'data-tab="ansehen" data-sec="wertung"')+item('Rangliste', ansehen && S.ui.ansehenSec==='liste', 'data-tab="ansehen" data-sec="liste"'));
   h+=top('Verein', tab==='info', 'data-tab="info"');
@@ -11072,7 +11072,30 @@ function uiSelfTestBody(fails){
   const navLink=navBar&&navBar.querySelector('.nav-link');
   const navCs=navBar?getComputedStyle(navBar):null;
   const linkCs=navLink?getComputedStyle(navLink):null;
-  check('Leiste verteilt die Links', !!navCs && navCs.justifyContent==='space-between' && !!linkCs && parseFloat(linkCs.fontSize)>=12);
+  const navNames=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','5. Liga Nordost','5. Liga Südwest','Regionalliga Nord','Regionalliga Ost','Regionalliga Süd','Regionalliga West','Amateurliga','Pokal','Supercup','Ansehen','Verein'];
+  const navText=navBar?navBar.textContent:'';
+  check('Leiste nennt die vollen Namen', !!navBar && navNames.every(name=>navText.indexOf(name)>=0));
+  const navItems=navBar?[...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu')].map(el=>{
+    const r=el.getBoundingClientRect();
+    const label=el.matches('.nav-link')?el:el.querySelector('.nav-menu-btn');
+    return {top:Math.round(r.top), left:r.left, right:r.right, bottom:r.bottom, clip:!!(label && label.scrollWidth>label.clientWidth+1)};
+  }).sort((a,b)=>a.top-b.top || a.left-b.left):[];
+  let navMin=999, navOverlap=false;
+  navItems.forEach((a,i)=>{
+    navItems.slice(i+1).forEach(b=>{
+      const x=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+      const y=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+      if (x>0.5 && y>0.5) navOverlap=true;
+    });
+  });
+  const navRows={};
+  navItems.forEach(b=>{ (navRows[b.top]||(navRows[b.top]=[])).push(b); });
+  Object.keys(navRows).forEach(k=>{
+    const row=navRows[k];
+    for (let i=1;i<row.length;i++) navMin=Math.min(navMin, row[i].left-row[i-1].right);
+  });
+  const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
+  check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);
