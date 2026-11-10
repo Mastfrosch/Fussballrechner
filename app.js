@@ -257,13 +257,10 @@ function strengthInfo(id, endYear, full){
   infoMemo.set(id+'|'+(full?'f':'w')+'|'+end, out);
   return out;
 }
-// Alte Ansehen-Formel, nur noch als Spielstärke-Signal.
-// Kopplungen, die NICHT die neue Erfolgswertung nutzen dürfen:
-// simStrength (80 % historischer Schnitt + 20 % dieser Mischung)
-// und cupAppeal (Anstoßzeiten im Pokal).
+// Alte Ansehen-Formel, nur noch für die Terminierung (cupAppeal, rankedIds).
+// Die Spielsimulation würfelt ohne Teamstärke und ohne Heimvorteil.
 // Die Topspiel-Auswahl nutzt das Erfolg-Ansehen nur als Rang innerhalb der Staffel.
-// Die Vorrunde des Landespokals sortiert weiter nach ansehenValue,
-// also nach dem Erfolg, nicht nach dieser Stärke.
+// Die Vorrunde des Landespokals sortiert weiter nach ansehenValue.
 const strengthMemo=new Map();
 function strengthBlend(id){
   if (!TEAMS[id]) return 12;
@@ -277,12 +274,6 @@ function strengthBlend(id){
     strengthMemo.set(key, v);
   }
   return v;
-}
-function simStrength(id){
-  const base=TEAMS[id]?(TEAMS[id].schnitt??50):50;
-  const an=strengthBlend(id);
-  if (an==null || !isFinite(an)) return base;
-  return base*0.8+an*0.2;
 }
 // ---------- Ansehen = Vereinserfolg, nicht Spielstärke ----------
 // Punkteskala, Alterskurve und Titelregel. Reine Funktion der gespeicherten
@@ -1766,10 +1757,8 @@ function simRelay(season){
       c++;
     });
     if (!leg1 || !leg2 || relayWinner(rel) || !aggregateLevel(leg1, leg2)) return;
-    let peh=3+Math.floor(Math.random()*4), pea=3+Math.floor(Math.random()*4);
-    if (peh===pea) peh++;
-    if (simStrength(leg2.h)<simStrength(leg2.a)) [peh,pea]=[pea,peh];
-    leg2.peh=peh; leg2.pea=pea; leg2.et=false;
+    const pens=simShootout();
+    leg2.peh=pens[0]; leg2.pea=pens[1]; leg2.et=false;
     c++;
   });
   return c;
@@ -2768,9 +2757,13 @@ function zoneOf(lg, pl, n, down, eighth){
 
 // ---------- Simulation (optional) ----------
 function poisson(l){ const L0=Math.exp(-l); let k=0,p=1; do{k++;p*=Math.random();}while(p>L0); return k-1; }
-function simMatch(h,a){
-  const sh=simStrength(h), sa=simStrength(a), d=(sh-sa)/10;
-  return [Math.min(9,poisson(Math.max(.25,1.5*Math.exp(.25*d)))), Math.min(9,poisson(Math.max(.2,1.15*Math.exp(-.25*d))))];
+function simMatch(){
+  return [Math.min(9, poisson(1.4)), Math.min(9, poisson(1.4))];
+}
+function simShootout(){
+  let peh=3+Math.floor(Math.random()*4), pea=3+Math.floor(Math.random()*4);
+  if (peh===pea){ if (Math.random()<0.5) peh++; else pea++; }
+  return [peh, pea];
 }
 function simLeague(season, lid, mdIdx){
   const lg=season.leagues[lid]; let c=0;
@@ -2799,10 +2792,8 @@ function simDecide(season, lid){
         if (aggregateLevel(leg1, m)){
           if (m.hg!==m.ag && Math.random()<0.5){ m.et=true; }
           if (aggregateLevel(leg1, m)){
-            let peh=3+Math.floor(Math.random()*4), pea=3+Math.floor(Math.random()*4);
-            if (peh===pea) peh++;
-            if (simStrength(m.h)<simStrength(m.a)) [peh,pea]=[pea,peh];
-            m.peh=peh; m.pea=pea;
+            const pens=simShootout();
+            m.peh=pens[0]; m.pea=pens[1];
           }
         }
       }
@@ -2812,10 +2803,8 @@ function simDecide(season, lid){
   lg.decide.filter(m=>m.leg===2).forEach(m=>{
     const leg1=lg.decide.find(x=>x.key===m.key && x.leg===1);
     if (twoLegWinner(leg1, m) || !aggregateLevel(leg1, m)) return;
-    let peh=3+Math.floor(Math.random()*4), pea=3+Math.floor(Math.random()*4);
-    if (peh===pea) peh++;
-    if (simStrength(m.h)<simStrength(m.a)) [peh,pea]=[pea,peh];
-    m.peh=peh; m.pea=pea; m.et=false;
+    const pens=simShootout();
+    m.peh=pens[0]; m.pea=pens[1]; m.et=false;
     c++;
   });
   return c;
@@ -3709,14 +3698,11 @@ function simCupScore(h,a){
   let hg=r[0], ag=r[1];
   if (hg===ag){
     let peh=0, pea=0, guard=0;
-    const homeFav=simStrength(h)>=simStrength(a);
     while (peh===pea && guard++<30){
       peh=3+Math.floor(Math.random()*5);
       pea=3+Math.floor(Math.random()*5);
-      if (homeFav && peh<pea) [peh,pea]=[pea,peh];
-      if (!homeFav && pea<peh) [peh,pea]=[pea,peh];
     }
-    if (peh===pea) peh++;
+    if (peh===pea){ if (Math.random()<0.5) peh++; else pea++; }
     return {hg, ag, et:false, peh, pea};
   }
   return {hg, ag, et:Math.random()<0.22, peh:null, pea:null};
@@ -9840,7 +9826,10 @@ function simSupercup(season){
   if (m.hg===m.ag){
     const res=simCupScore(m.h, m.a);
     m.peh=res.peh; m.pea=res.pea; m.et=false;
-    if (m.peh==null || m.pea==null || m.peh===m.pea){ m.peh=4; m.pea=3; }
+    if (m.peh==null || m.pea==null || m.peh===m.pea){
+      const pens=simShootout();
+      m.peh=pens[0]; m.pea=pens[1];
+    }
     return 1;
   }
   return 0;
@@ -10766,6 +10755,7 @@ function uiSelfTestBody(fails){
     const rolls=[];
     for (let i=0;i<5;i++) rolls.push(rollSimulatedSeason());
     check('Start und fünf Folgesaisons', rolls.every(r=>r.rolled) && S.seasons.length===6, rolls.map(r=>!!r.rolled).join(','));
+    check('mehrere Saisons laufen fehlerfrei', rolls.every(r=>r.rolled) && S.seasons.length===6, rolls.map(r=>!!r.rolled).join(','));
     const regionWrong=[], sizeWrong=[];
     S.seasons.forEach(sea=>{
       const ids=new Set();
@@ -11508,8 +11498,31 @@ function uiSelfTestBody(fails){
   const early={info:{p:row('p',null,0,null,90), q:row('q',null,0,null,80), r:row('r',null,0,null,10)}, total:38, table:[], zones:{n:20,up:0,down:3,meister:1,cl:4,el:6,uecl:7}};
   const bothHigh=matchValue('p','q',early,0), oneHigh=matchValue('p','r',early,0);
   check('frühe Saison ohne Ergebnisse bevorzugt zwei hohe Ansehen', bothHigh.sport===0 && oneHigh.sport===0 && bothHigh.total>oneHigh.total, bothHigh.total+'/'+oneHigh.total);
-  const simBase=(TEAMS.t001.schnitt??50), sim=simStrength('t001');
-  check('Spielstärke bleibt unabhängig vom Erfolg-Ansehen', Math.abs(sim-(simBase*0.8+strengthBlend('t001')*0.2))<0.001 && Math.abs(sim-ansehenValue('t001'))>100);
+  let amateurId='';
+  POOLS.some(p=>((cur().pools[p.id])||[]).some(id=>{
+    if (!amateurId && TEAMS[id] && !/Leipzig/i.test(TEAMS[id].name)) amateurId=id;
+    return !!amateurId;
+  }));
+  let bayWins=0, amWins=0, draws=0;
+  for (let i=0;i<500;i++){
+    const home=simMatch('t001', amateurId), away=simMatch(amateurId, 't001');
+    if (home[0]>home[1]) bayWins++; else if (home[0]<home[1]) amWins++; else draws++;
+    if (away[0]>away[1]) amWins++; else if (away[0]<away[1]) bayWins++; else draws++;
+  }
+  check('Bayern gewinnt gegen einen Amateur etwa so oft wie umgekehrt', !!amateurId && Math.abs(bayWins-amWins)<=120 && bayWins>=250 && amWins>=250, bayWins+'/'+amWins+'/'+draws+' '+amateurId);
+  let gHome=0, gAway=0, gDraw=0, gGoals=0;
+  for (let i=0;i<1000;i++){
+    const r=simMatch();
+    gGoals+=r[0]+r[1];
+    if (r[0]>r[1]) gHome++; else if (r[0]<r[1]) gAway++; else gDraw++;
+  }
+  check('tausend Spiele ohne Heimvorteil', Math.abs(gHome-gAway)<=120 && gHome>=250 && gAway>=250, gHome+'/'+gDraw+'/'+gAway+' '+(gGoals/2000).toFixed(3));
+  let penL=0, penR=0;
+  for (let i=0;i<400;i++){
+    const p=simShootout();
+    if (p[0]>p[1]) penL++; else penR++;
+  }
+  check('Elfmeterschießen bleibt ohne Seitenbias', penL>=120 && penR>=120 && Math.abs(penL-penR)<=90, penL+'/'+penR);
   const relPts=[
     {season:'2015/16', ebene:2, n:18, pl:2, liga:'2. Bundesliga', y:pyramidScore(2,18,2)},
     {season:'2016/17', ebene:1, n:18, pl:17, liga:'Bundesliga', y:pyramidScore(1,18,17)},
