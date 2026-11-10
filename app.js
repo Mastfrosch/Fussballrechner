@@ -5993,8 +5993,9 @@ function firstTopTarget(id, ids, total, snap){
   return Math.round((0.12 + 0.55*(i/Math.max(1, order.length-1)))*(total-1));
 }
 function rescueUrge(id, mi, total, ids, snap){
-  const late=mi-firstTopTarget(id, ids, total, snap);
-  if (late<0) return Math.max(0, 5000*(1-(firstTopTarget(id, ids, total)-mi)/Math.max(1,total)));
+  const target=firstTopTarget(id, ids, total, snap);
+  const late=mi-target;
+  if (late<0) return Math.max(0, 5000*(1-(target-mi)/Math.max(1,total)));
   return 7000 + late*3800;
 }
 function kCombinations(n, k){
@@ -6010,120 +6011,6 @@ function combinations(n, k){
   const key=n+':'+k;
   if (!COMBO_CACHE[key]) COMBO_CACHE[key]=kCombinations(n, k);
   return COMBO_CACHE[key];
-}
-function assignExactDayRow(md, tmpl, conf, ctx){
-  const {teams, counts, rankOf, upper, mi, rem, n, total, ids, pairQ}=ctx;
-  const confSlots=tmpl.filter(s=>s.kind==='konferenz');
-  const freeSlots=tmpl.filter(s=>s.kind!=='konferenz');
-  const row=md.map(()=>null);
-  const freeArr=[];
-  let t=0;
-  for (let i=0;i<md.length;i++){
-    if (conf.has(i)) row[i]=confSlots[Math.min(t++, confSlots.length-1)];
-    else freeArr.push(i);
-  }
-  const topClass=i=>{
-    const h=teams[md[i][0]], a=teams[md[i][1]];
-    const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
-    if (lo<=upper) return 0;
-    if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
-    if (hi<=upper) return 2;
-    return 3;
-  };
-  if (freeArr.length===freeSlots.length && freeArr.length){
-    const costF=freeArr.map(i=>{
-      const h=teams[md[i][0]], a=teams[md[i][1]];
-      const dist=kmBetween(h,a);
-      const distKm=dist==null?400:dist;
-      return freeSlots.map(slot=>{
-        let c=0;
-        if (slot.kind==='top'){
-          const q=pairQ(h,a);
-          const kind=topKind(rankOf(h), rankOf(a), counts[h].top===0, counts[a].top===0, n);
-          if (topClass(i)>=3) c += 900000;
-          else if (kind==='both') c += -q*280;
-          else if (kind==='rescue') c += 20000;
-          else if (Math.min(rankOf(h), rankOf(a))<=upper) c += 80000;
-          else c += 900000;
-        }
-        if (slot.kind==='regional') c += distKm*4-9000;
-        for (const id of [h,a]){
-          const cnt=counts[id];
-          if (slot.dow==='Fr'){
-            const fairFr=(2/n)*mi;
-            if (cnt.fr>=5 || (mi<n-1 && cnt.fr>=3)) c += 8000000;
-            else c -= (fairFr-cnt.fr)*50000 + (cnt.fr<2 && rem<16 ? 220000 : 0);
-          }
-          if (slot.dow==='So' && cnt.so===0) c -= rem<=10?150000:5000;
-          if (slot.kind==='regional' && cnt.regional===0) c -= rem<=12?150000:5000;
-        }
-        return c;
-      });
-    });
-    hungarian(costF).forEach((col,i)=>{ row[freeArr[i]]=freeSlots[col]; });
-    const repairTops=()=>{
-      row.forEach((slot,i)=>{
-        if (!slot || slot.kind!=='top' || topClass(i)<3) return;
-        let alt=null;
-        freeArr.forEach(j=>{
-          if (j===i || row[j].kind==='top' || topClass(j)>=3) return;
-          const q=pairQ(teams[md[j][0]], teams[md[j][1]]);
-          const cls=topClass(j);
-          if (!alt || cls<alt.cls || (cls===alt.cls && q>alt.q)) alt={j,cls,q};
-        });
-        if (alt){ const tmp=row[i]; row[i]=row[alt.j]; row[alt.j]=tmp; }
-      });
-    };
-    repairTops();
-    row.forEach((slot,i)=>{
-      if (!slot || slot.kind!=='top') return;
-      const here=[teams[md[i][0]], teams[md[i][1]]];
-      if (here.some(id=>counts[id].top===0)) return;
-      let best=null;
-      freeArr.forEach(j=>{
-        if (j===i || row[j].kind==='top' || topClass(j)>2) return;
-        const tms=[teams[md[j][0]], teams[md[j][1]]];
-        const urge=Math.max(...tms.map(id=>counts[id].top===0 ? rescueUrge(id, mi, total, ids) : 0));
-        if (urge<=0) return;
-        if (!best || urge>best.urge) best={j,urge};
-      });
-      if (best && (best.urge>18000 || rem<=6)){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
-    });
-    repairTops();
-    const fri=freeArr.find(i=>row[i]&&row[i].dow==='Fr');
-    if (fri!=null){
-      const frScore=j=>{
-        const ids=[teams[md[j][0]], teams[md[j][1]]];
-        const mx=Math.max(counts[ids[0]].fr, counts[ids[1]].fr);
-        const zero=ids.some(id=>counts[id].fr===0);
-        if (mx>=6) return (zero?250:500)+mx;
-        return (zero?0:100)+mx;
-      };
-      let alt=null;
-      freeArr.forEach(j=>{
-        if (topClass(j)>=3) return;
-        const sc=frScore(j);
-        if (!alt || sc<alt.sc) alt={j,sc};
-      });
-      if (alt && alt.j!==fri && alt.sc<frScore(fri)){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
-    }
-    repairTops();
-  }
-  return row;
-}
-function tallyExcept(season, lid, skip){
-  const ids=season.leagues[lid].teams, map={};
-  ids.forEach(id=>map[id]=emptySlotCount());
-  const bag=season.kickoffs&&season.kickoffs[lid]||{};
-  season.leagues[lid].md.forEach((md,mi)=>{
-    if (mi===skip) return;
-    const slots=bag[mi]; if (!slots) return;
-    md.forEach((m,k)=>{
-      const slot=slots[k]; if (!slot) return;
-      [ids[m[0]], ids[m[1]]].forEach(id=>bumpSlot(map[id], slot));
-    });
-  });
-  return map;
 }
 function noteKick(md, row, lg, counts){
   row.forEach((slot,i)=>{
@@ -6501,155 +6388,6 @@ function assignMatchday(season, lid, mi, snap, counts){
   });
   noteKick(md, row, lg, counts);
   return row;
-}
-function recomputeConfDebt(season, lid){
-  const lg=season.leagues[lid], half=seasonShape(lg.teams.length).half, bag=season.kickoffs[lid];
-  const debt={}; lg.teams.forEach(id=>debt[id]=0);
-  if (!bag) return debt;
-  for (let mi=half; mi<lg.md.length; mi++){
-    const src=bag[mi-half], row=bag[mi];
-    if (!src || !row) continue;
-    row.forEach((slot,i)=>{
-      const plan=src[i].kind!=='konferenz', now=slot.kind==='konferenz';
-      if (plan===now) return;
-      const delta=plan&&!now?1:-1;
-      debt[lg.teams[lg.md[mi][i][0]]]+=delta;
-      debt[lg.teams[lg.md[mi][i][1]]]+=delta;
-    });
-  }
-  if (!season.confDebt) season.confDebt={};
-  season.confDebt[lid]=debt;
-  return debt;
-}
-function settleExactBlock(season, lid, from, to){
-  const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length, half=n-1;
-  const upper=n>=20?8:6, tmpl=slotTemplate(lid);
-  const konfCount=tmpl.filter(s=>s.kind==='konferenz').length;
-  const topNeed=Math.max(1, tmpl.filter(s=>s.kind==='top').length);
-  const snap=powerSnapshot(season, lid, from);
-  const rankOf=id=>snap.rank[id]||n;
-  const indexOf={}; lg.teams.forEach((id,i)=>indexOf[id]=i);
-  const days=[]; for (let mi=from; mi<=to; mi++) if (bag[mi] && bag[mi-half]) days.push(mi);
-  if (!days.length) return recomputeConfDebt(season, lid);
-  const optionCache={};
-  const optionsFor=mi=>{
-    if (optionCache[mi]) return optionCache[mi];
-    const md=lg.md[mi], src=bag[mi-half], opts=[];
-    const legal=i=>Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper;
-    combinations(md.length, konfCount).forEach(combo=>{
-      const conf=new Set(combo);
-      let legalFree=0, flips=0;
-      const delta=new Array(n).fill(0), add=new Array(n).fill(0);
-      for (let i=0;i<md.length;i++){
-        const now=conf.has(i), plan=src[i].kind!=='konferenz';
-        if (!now && legal(i)) legalFree++;
-        if (now){ add[indexOf[lg.teams[md[i][0]]]]=1; add[indexOf[lg.teams[md[i][1]]]]=1; }
-        if (plan===now) continue;
-        flips++;
-        const dlt=plan&&!now?1:-1;
-        delta[indexOf[lg.teams[md[i][0]]]]+=dlt;
-        delta[indexOf[lg.teams[md[i][1]]]]+=dlt;
-      }
-      if (legalFree>=topNeed) opts.push({conf, delta, add, flips});
-    });
-    optionCache[mi]=opts;
-    return opts;
-  };
-  const debtVector=skip=>{
-    const v=new Array(n).fill(0), skipSet=new Set(skip);
-    for (let mi=half; mi<total; mi++){
-      if (skipSet.has(mi) || !bag[mi] || !bag[mi-half]) continue;
-      const src=bag[mi-half], row=bag[mi];
-      for (let i=0;i<row.length;i++){
-        const plan=src[i].kind!=='konferenz', now=row[i].kind==='konferenz';
-        if (plan===now) continue;
-        const dlt=plan&&!now?1:-1;
-        v[indexOf[lg.teams[lg.md[mi][i][0]]]]+=dlt;
-        v[indexOf[lg.teams[lg.md[mi][i][1]]]]+=dlt;
-      }
-    }
-    return v;
-  };
-  const sumSq=v=>{ let s=0; for (let t=0;t<n;t++) s+=v[t]*v[t]; return s; };
-  const sig=d=>{ let s=''; for (let t=0;t<n;t++) s+=d[t]+','; return s; };
-  const fillDay=(mi, conf)=>{
-    const counts=tallyExcept(season, lid, mi);
-    bag[mi]=assignExactDayRow(lg.md[mi], tmpl, conf, {
-      teams:lg.teams, counts, rankOf, upper, mi, rem:total-mi, n, total, ids:lg.teams, pairQ:(h,a)=>pairScore(h,a,snap)
-    });
-  };
-  const currentLegal=mi=>{
-    const row=bag[mi], md=lg.md[mi];
-    let c=0;
-    for (let i=0;i<row.length;i++){
-      if (row[i].kind==='konferenz') continue;
-      if (Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper) c++;
-    }
-    return c>=topNeed;
-  };
-  const outside=debtVector(days);
-  const outsideSS=sumSq(outside);
-  const allLegal=days.every(currentLegal);
-  if (outsideSS===0 && allLegal){
-    days.forEach(mi=>{
-      const row=bag[mi];
-      const bad=row.some((slot,i)=>slot.kind==='top' && Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))>upper);
-      if (bad){
-        const conf=new Set();
-        row.forEach((slot,i)=>{ if (slot.kind==='konferenz') conf.add(i); });
-        fillDay(mi, conf);
-      }
-    });
-    return recomputeConfDebt(season, lid);
-  }
-  const optLists=days.map(optionsFor);
-  let solved=null;
-  const target=outside.map(x=>-x);
-  if (optLists.every(o=>o.length)){
-    const mid=Math.floor(days.length/2);
-    const enumerate=(lists)=>{
-      if (lists.length===1) return lists[0].map(o=>({delta:o.delta, flips:o.flips, picks:[o]}));
-      const A=lists[0], B=lists[1], out=[];
-      for (let i=0;i<A.length;i++) for (let j=0;j<B.length;j++){
-        const da=A[i].delta, db=B[j].delta, delta=new Array(n);
-        for (let t=0;t<n;t++) delta[t]=da[t]+db[t];
-        out.push({delta, flips:A[i].flips+B[j].flips, picks:[A[i], B[j]]});
-      }
-      return out;
-    };
-    const left=enumerate(optLists.slice(0, mid));
-    const right=enumerate(optLists.slice(mid));
-    const map=new Map();
-    right.forEach(r=>{
-      const k=sig(r.delta);
-      const prev=map.get(k);
-      if (!prev || r.flips<prev.flips) map.set(k, r);
-    });
-    const need=new Array(n);
-    left.forEach(L=>{
-      for (let t=0;t<n;t++) need[t]=target[t]-L.delta[t];
-      const R=map.get(sig(need));
-      if (!R) return;
-      const flips=L.flips+R.flips;
-      if (!solved || flips<solved.flips) solved={flips, picks:L.picks.concat(R.picks)};
-    });
-  }
-  if (solved){
-    days.forEach((mi,i)=>fillDay(mi, solved.picks[i].conf));
-  } else {
-    days.forEach(mi=>{
-      if (currentLegal(mi) && outsideSS===0) return;
-      const base=debtVector([mi]);
-      let best=null;
-      optionsFor(mi).forEach(opt=>{
-        let ssv=0;
-        for (let t=0;t<n;t++){ const dd=base[t]+opt.delta[t]; ssv+=dd*dd; }
-        if (!best || ssv<best.ss || (ssv===best.ss && opt.flips<best.flips)) best={opt, ss:ssv};
-      });
-      if (best) fillDay(mi, best.opt.conf);
-    });
-  }
-  return recomputeConfDebt(season, lid);
 }
 function assignmentKeepsTimes(season, lid, mi, to, beforeRow, afterRow){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
@@ -7671,8 +7409,7 @@ function scheduleNextBlock(season, lid){
   const snap=powerSnapshot(season, lid, range[0]);
   const counts=slotTally(season, lid);
   for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=assignMatchday(season, lid, mi, snap, counts);
-  const half=seasonShape(n).half, total=lg.md.length, konfPer=slotTemplate(lid, leagueGames(lg)).filter(s=>s.kind==='konferenz').length;
-  const exact=false;
+  const konfPer=slotTemplate(lid, leagueGames(lg)).filter(s=>s.kind==='konferenz').length;
   let repairOk=true;
   let dropBlock=false;
   const cloneRows=()=>{
@@ -7683,8 +7420,7 @@ function scheduleNextBlock(season, lid){
   const restoreRows=(saved)=>{
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(saved[mi]||[]).map(s=>Object.assign({}, s));
   };
-  if (exact && range[0]>=half) settleExactBlock(season, lid, range[0], range[1]);
-  else if (konfPer && !exact){
+  if (konfPer){
     const raw=cloneRows();
     nudgeNonExactBlock(season, lid, range[0], range[1], snap);
     repairBlockConference(season, lid, range[0], range[1], snap);
@@ -11970,106 +11706,6 @@ function pairScorePR66(h, a, snap){
   const cross=Math.max(Math.min(s1, A.ansehen||0), Math.min(s2, H.ansehen||0));
   return 0.62*sportTerm+0.18*anDuel+0.20*cross;
 }
-function assignExactDayRowPR66(md, tmpl, conf, ctx){
-  const {teams, counts, rankOf, upper, mi, rem, n, total, ids, pairQ}=ctx;
-  const confSlots=tmpl.filter(s=>s.kind==='konferenz');
-  const freeSlots=tmpl.filter(s=>s.kind!=='konferenz');
-  const row=md.map(()=>null);
-  const freeArr=[];
-  let t=0;
-  for (let i=0;i<md.length;i++){
-    if (conf.has(i)) row[i]=confSlots[Math.min(t++, confSlots.length-1)];
-    else freeArr.push(i);
-  }
-  const topClass=i=>{
-    const h=teams[md[i][0]], a=teams[md[i][1]];
-    const rh=rankOf(h), ra=rankOf(a), hi=Math.min(rh,ra), lo=Math.max(rh,ra);
-    if (lo<=upper) return 0;
-    if (hi<=upper && counts[rh===lo?h:a].top===0) return 1;
-    if (hi<=upper) return 2;
-    return 3;
-  };
-  if (freeArr.length===freeSlots.length && freeArr.length){
-    const costF=freeArr.map(i=>{
-      const h=teams[md[i][0]], a=teams[md[i][1]];
-      const dist=kmBetween(h,a);
-      const distKm=dist==null?400:dist;
-      return freeSlots.map(slot=>{
-        let c=0;
-        if (slot.kind==='top'){
-          const q=pairQ(h,a);
-          const kind=topKind(rankOf(h), rankOf(a), counts[h].top===0, counts[a].top===0, n);
-          if (topClass(i)>=3) c += 900000;
-          else if (kind==='both') c += -q*280;
-          else if (kind==='rescue') c += 20000;
-          else if (Math.min(rankOf(h), rankOf(a))<=upper) c += 80000;
-          else c += 900000;
-        }
-        if (slot.kind==='regional') c += distKm*4-9000;
-        for (const id of [h,a]){
-          const cnt=counts[id];
-          if (slot.dow==='Fr'){
-            const fairFr=(2/n)*mi;
-            if (cnt.fr>=5 || (mi<n-1 && cnt.fr>=3)) c += 8000000;
-            else c -= (fairFr-cnt.fr)*50000 + (cnt.fr<2 && rem<16 ? 220000 : 0);
-          }
-          if (slot.dow==='So' && cnt.so===0) c -= rem<=10?150000:5000;
-          if (slot.kind==='regional' && cnt.regional===0) c -= rem<=12?150000:5000;
-        }
-        return c;
-      });
-    });
-    hungarian(costF).forEach((col,i)=>{ row[freeArr[i]]=freeSlots[col]; });
-    const repairTops=()=>{
-      row.forEach((slot,i)=>{
-        if (!slot || slot.kind!=='top' || topClass(i)<3) return;
-        let alt=null;
-        freeArr.forEach(j=>{
-          if (j===i || row[j].kind==='top' || topClass(j)>=3) return;
-          const q=pairQ(teams[md[j][0]], teams[md[j][1]]);
-          const cls=topClass(j);
-          if (!alt || cls<alt.cls || (cls===alt.cls && q>alt.q)) alt={j,cls,q};
-        });
-        if (alt){ const tmp=row[i]; row[i]=row[alt.j]; row[alt.j]=tmp; }
-      });
-    };
-    repairTops();
-    row.forEach((slot,i)=>{
-      if (!slot || slot.kind!=='top') return;
-      const here=[teams[md[i][0]], teams[md[i][1]]];
-      if (here.some(id=>counts[id].top===0)) return;
-      let best=null;
-      freeArr.forEach(j=>{
-        if (j===i || row[j].kind==='top' || topClass(j)>2) return;
-        const tms=[teams[md[j][0]], teams[md[j][1]]];
-        const urge=Math.max(...tms.map(id=>counts[id].top===0 ? rescueUrge(id, mi, total, ids) : 0));
-        if (urge<=0) return;
-        if (!best || urge>best.urge) best={j,urge};
-      });
-      if (best && (best.urge>18000 || rem<=6)){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
-    });
-    repairTops();
-    const fri=freeArr.find(i=>row[i]&&row[i].dow==='Fr');
-    if (fri!=null){
-      const frScore=j=>{
-        const ids=[teams[md[j][0]], teams[md[j][1]]];
-        const mx=Math.max(counts[ids[0]].fr, counts[ids[1]].fr);
-        const zero=ids.some(id=>counts[id].fr===0);
-        if (mx>=6) return (zero?250:500)+mx;
-        return (zero?0:100)+mx;
-      };
-      let alt=null;
-      freeArr.forEach(j=>{
-        if (topClass(j)>=3) return;
-        const sc=frScore(j);
-        if (!alt || sc<alt.sc) alt={j,sc};
-      });
-      if (alt && alt.j!==fri && alt.sc<frScore(fri)){ const tmp=row[fri]; row[fri]=row[alt.j]; row[alt.j]=tmp; }
-    }
-    repairTops();
-  }
-  return row;
-}
 function assignMatchdayPR66(season, lid, mi, snap, counts){
   const lg=season.leagues[lid], md=lg.md[mi], tmpl=slotTemplatePR66(lid), n=lg.teams.length;
   const total=md.length? lg.md.length : 0;
@@ -12448,136 +12084,6 @@ function assignMatchdayPR66(season, lid, mi, snap, counts){
   noteKick(md, row, lg, counts);
   return row;
 }
-function settleExactBlockPR66(season, lid, from, to){
-  const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length, half=n-1;
-  const upper=n>=20?8:6, tmpl=slotTemplatePR66(lid);
-  const konfCount=tmpl.filter(s=>s.kind==='konferenz').length;
-  const topNeed=Math.max(1, tmpl.filter(s=>s.kind==='top').length);
-  const snap=powerSnapshotPR66(season, lid, from);
-  const rankOf=id=>snap.rank[id]||n;
-  const indexOf={}; lg.teams.forEach((id,i)=>indexOf[id]=i);
-  const days=[]; for (let mi=from; mi<=to; mi++) if (bag[mi] && bag[mi-half]) days.push(mi);
-  if (!days.length) return recomputeConfDebt(season, lid);
-  const optionCache={};
-  const optionsFor=mi=>{
-    if (optionCache[mi]) return optionCache[mi];
-    const md=lg.md[mi], src=bag[mi-half], opts=[];
-    const legal=i=>Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper;
-    combinations(md.length, konfCount).forEach(combo=>{
-      const conf=new Set(combo);
-      let legalFree=0, flips=0;
-      const delta=new Array(n).fill(0), add=new Array(n).fill(0);
-      for (let i=0;i<md.length;i++){
-        const now=conf.has(i), plan=src[i].kind!=='konferenz';
-        if (!now && legal(i)) legalFree++;
-        if (now){ add[indexOf[lg.teams[md[i][0]]]]=1; add[indexOf[lg.teams[md[i][1]]]]=1; }
-        if (plan===now) continue;
-        flips++;
-        const dlt=plan&&!now?1:-1;
-        delta[indexOf[lg.teams[md[i][0]]]]+=dlt;
-        delta[indexOf[lg.teams[md[i][1]]]]+=dlt;
-      }
-      if (legalFree>=topNeed) opts.push({conf, delta, add, flips});
-    });
-    optionCache[mi]=opts;
-    return opts;
-  };
-  const debtVector=skip=>{
-    const v=new Array(n).fill(0), skipSet=new Set(skip);
-    for (let mi=half; mi<total; mi++){
-      if (skipSet.has(mi) || !bag[mi] || !bag[mi-half]) continue;
-      const src=bag[mi-half], row=bag[mi];
-      for (let i=0;i<row.length;i++){
-        const plan=src[i].kind!=='konferenz', now=row[i].kind==='konferenz';
-        if (plan===now) continue;
-        const dlt=plan&&!now?1:-1;
-        v[indexOf[lg.teams[lg.md[mi][i][0]]]]+=dlt;
-        v[indexOf[lg.teams[lg.md[mi][i][1]]]]+=dlt;
-      }
-    }
-    return v;
-  };
-  const sumSq=v=>{ let s=0; for (let t=0;t<n;t++) s+=v[t]*v[t]; return s; };
-  const sig=d=>{ let s=''; for (let t=0;t<n;t++) s+=d[t]+','; return s; };
-  const fillDay=(mi, conf)=>{
-    const counts=tallyExcept(season, lid, mi);
-    bag[mi]=assignExactDayRowPR66(lg.md[mi], tmpl, conf, {
-      teams:lg.teams, counts, rankOf, upper, mi, rem:total-mi, n, total, ids:lg.teams, pairQ:(h,a)=>pairScorePR66(h,a,snap)
-    });
-  };
-  const currentLegal=mi=>{
-    const row=bag[mi], md=lg.md[mi];
-    let c=0;
-    for (let i=0;i<row.length;i++){
-      if (row[i].kind==='konferenz') continue;
-      if (Math.min(rankOf(lg.teams[md[i][0]]), rankOf(lg.teams[md[i][1]]))<=upper) c++;
-    }
-    return c>=topNeed;
-  };
-  const outside=debtVector(days);
-  const outsideSS=sumSq(outside);
-  const allLegal=days.every(currentLegal);
-  if (outsideSS===0 && allLegal){
-    days.forEach(mi=>{
-      const row=bag[mi];
-      const bad=row.some((slot,i)=>slot.kind==='top' && Math.min(rankOf(lg.teams[lg.md[mi][i][0]]), rankOf(lg.teams[lg.md[mi][i][1]]))>upper);
-      if (bad){
-        const conf=new Set();
-        row.forEach((slot,i)=>{ if (slot.kind==='konferenz') conf.add(i); });
-        fillDay(mi, conf);
-      }
-    });
-    return recomputeConfDebt(season, lid);
-  }
-  const optLists=days.map(optionsFor);
-  let solved=null;
-  const target=outside.map(x=>-x);
-  if (optLists.every(o=>o.length)){
-    const mid=Math.floor(days.length/2);
-    const enumerate=(lists)=>{
-      if (lists.length===1) return lists[0].map(o=>({delta:o.delta, flips:o.flips, picks:[o]}));
-      const A=lists[0], B=lists[1], out=[];
-      for (let i=0;i<A.length;i++) for (let j=0;j<B.length;j++){
-        const da=A[i].delta, db=B[j].delta, delta=new Array(n);
-        for (let t=0;t<n;t++) delta[t]=da[t]+db[t];
-        out.push({delta, flips:A[i].flips+B[j].flips, picks:[A[i], B[j]]});
-      }
-      return out;
-    };
-    const left=enumerate(optLists.slice(0, mid));
-    const right=enumerate(optLists.slice(mid));
-    const map=new Map();
-    right.forEach(r=>{
-      const k=sig(r.delta);
-      const prev=map.get(k);
-      if (!prev || r.flips<prev.flips) map.set(k, r);
-    });
-    const need=new Array(n);
-    left.forEach(L=>{
-      for (let t=0;t<n;t++) need[t]=target[t]-L.delta[t];
-      const R=map.get(sig(need));
-      if (!R) return;
-      const flips=L.flips+R.flips;
-      if (!solved || flips<solved.flips) solved={flips, picks:L.picks.concat(R.picks)};
-    });
-  }
-  if (solved){
-    days.forEach((mi,i)=>fillDay(mi, solved.picks[i].conf));
-  } else {
-    days.forEach(mi=>{
-      if (currentLegal(mi) && outsideSS===0) return;
-      const base=debtVector([mi]);
-      let best=null;
-      optionsFor(mi).forEach(opt=>{
-        let ssv=0;
-        for (let t=0;t<n;t++){ const dd=base[t]+opt.delta[t]; ssv+=dd*dd; }
-        if (!best || ssv<best.ss || (ssv===best.ss && opt.flips<best.flips)) best={opt, ss:ssv};
-      });
-      if (best) fillDay(mi, best.opt.conf);
-    });
-  }
-  return recomputeConfDebt(season, lid);
-}
 function nudgeNonExactBlockPR66(season, lid, from, to, snap){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], n=lg.teams.length, total=lg.md.length;
   const upper=n>=20?8:6, konfN=slotTemplatePR66(lid).filter(s=>s.kind==='konferenz').length;
@@ -12752,9 +12258,7 @@ function scheduleNextBlockPR66(season, lid){
   const counts=slotTally(season, lid);
   for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=assignMatchdayPR66(season, lid, mi, snap, counts);
   const half=n-1, total=lg.md.length, konfPer=slotTemplatePR66(lid).filter(s=>s.kind==='konferenz').length;
-  const exact=false;
-  if (exact && range[0]>=half) settleExactBlockPR66(season, lid, range[0], range[1]);
-  else if (konfPer && !exact){
+  if (konfPer){
     nudgeNonExactBlockPR66(season, lid, range[0], range[1], snap);
     if (range[0]===total-1){
       let prevFrom=0, b=0;
@@ -12843,6 +12347,8 @@ function terminSelfTest(){
   check('die Tabelle ändert die Nachrück-Reihe nicht', rankedIds(frühIds, spät).join()===rankedIds(frühIds, früh).join() && firstTopTarget('t919', frühIds, 38, spät)===firstTopTarget('t919', frühIds, 38, früh));
   const stichtag={raw:{t001:10, t919:80}, info:spät.info};
   check('Nachrücken liest das Ansehen zum Termin-Stichtag', rankedIds(frühIds, stichtag)[0]==='t001');
+  const urgeLow=rescueUrge('t001', 0, 38, frühIds, stichtag), urgeHigh=rescueUrge('t919', 0, 38, frühIds, stichtag);
+  check('frühes Nachrücken folgt nur dem Stichtags-Ansehen', firstTopTarget('t001', frühIds, 38, stichtag)>0 && urgeLow>urgeHigh, urgeLow+'/'+urgeHigh);
   const spitzeInfo={};
   ladder.forEach(r=>{ spitzeInfo[r.id]={id:r.id, sportPlace:r.pl, pkt:r.pkt, sp:34, ansehen:30, sport:sportSignal(r.pkt, 34), form:[]}; });
   const withAn=(a,b)=>Object.assign({}, spitzeInfo, {p1:Object.assign({}, spitzeInfo.p1, {ansehen:a}), p2:Object.assign({}, spitzeInfo.p2, {ansehen:b}), p10:Object.assign({}, spitzeInfo.p10, {ansehen:a}), p11:Object.assign({}, spitzeInfo.p11, {ansehen:b})});
