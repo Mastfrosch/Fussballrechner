@@ -236,7 +236,7 @@ const ANSEHEN = {
     6:{title:0, safeFirst:8, safeLast:6.5, promoStep:0.4, relStep:0.2}
   },
   amateurUp:4,
-  euro:{CL:100,EL:75,UECL:45},
+  euro:{CL:175,EL:130,UECL:90},
   dfb:{'1. Runde':40,'2. Runde':60,'Achtelfinale':80,'Viertelfinale':110,'Halbfinale':140,'Finale':170,title:50},
   land:{levelW:{1:0,2:0,3:9,4:6.5,5:3,6:1.8,7:0.6}, unknownW:0.4, roundK:0.15, winnerCap:35, titleShare:0.28, capBudget:35/1.28},
   supercup:{title:0.2},
@@ -428,6 +428,11 @@ function landWinnerTotal(budget){
   const b=ansehenRound2(budget);
   return ansehenRound2(b+ansehenRound2(b*ANSEHEN.land.titleShare));
 }
+function landBudgetForWinner(target){
+  const cap=Math.round(ANSEHEN.land.capBudget*100);
+  for (let c=1;c<=cap;c++) if (landWinnerTotal(c/100)===target) return c/100;
+  return ansehenRound2(target/(1+ANSEHEN.land.titleShare));
+}
 function cappedLandBudget(raw){
   const limit=ANSEHEN.land.winnerCap;
   const mathCap=limit/(1+ANSEHEN.land.titleShare);
@@ -437,11 +442,12 @@ function cappedLandBudget(raw){
   while (cents>0 && landWinnerTotal(cents/100)>limit) cents--;
   return cents/100;
 }
-function finishLandScale(field, rounds, n, unknown, byLevel){
+function finishLandScale(field, rounds, n, unknown, byLevel, opts){
   const names=(rounds||[]).filter(Boolean);
   const roundN=Math.max(1, names.length||1);
   const raw=(field/8)*(1+ANSEHEN.land.roundK*(roundN-1));
-  const budget=cappedLandBudget(raw);
+  let budget=cappedLandBudget(raw);
+  if (!(opts && opts.noFloor) && landWinnerTotal(budget)<10) budget=landBudgetForWinner(10);
   const title=ansehenRound2(budget*ANSEHEN.land.titleShare);
   return {budget, title, rounds:names.slice(), n:n||0, field:ansehenRound2(field), unknown:unknown||0, byLevel:byLevel||{}};
 }
@@ -629,7 +635,7 @@ function histLandScale(){
   const rounds=['Vorrunde','Sechzehntelfinale','Achtelfinale','Viertelfinale','Halbfinale','Finale'];
   const n=32;
   const field=n*ANSEHEN.land.unknownW;
-  histLandScale.cached=finishLandScale(field, rounds, n, n, {});
+  histLandScale.cached=finishLandScale(field, rounds, n, n, {}, {noFloor:true});
   return histLandScale.cached;
 }
 function applySchauLandTitles(id, end, lines, push){
@@ -913,13 +919,13 @@ function ansehenSelfTestBody(fails){
   const roundPts=(scale, name)=>ansehenRound2(scale.budget*((scale.rounds.indexOf(name)+1)/scale.rounds.length));
   check('Freilos gleiche Runde', roundPts(bScale,'Achtelfinale')===roundPts(bScale,'Achtelfinale'));
   const euro1=euroOf(1,1), euro4=euroOf(1,4), euro5=euroOf(1,5), euro7=euroOf(1,7), euro8=euroOf(1,8);
-  check('CL vor EL vor UECL', euro1.pts===100 && euro5.pts===75 && euro7.pts===45 && euro1.key==='CL' && euro4.key==='CL' && !euro8);
+  check('CL vor EL vor UECL', euro1.pts===175 && euro5.pts===130 && euro7.pts===90 && euro1.key==='CL' && euro4.key==='CL' && !euro8);
   check('Landespokale bleiben abgestuft und höchstens 35', landWinnerSum(bScale)<=35 && landWinnerSum(rScale)<=35 && landWinnerSum(bScale)>landWinnerSum(rScale), landWinnerSum(bScale)+'/'+landWinnerSum(rScale));
   const openLand=cur()&&cur().cups&&cur().cups.land;
   if (openLand){
     const sums=BL_ORDER.map(bl=>openLand[bl]?landWinnerSum(landScaleOf(cur().name, bl)):null).filter(v=>v!=null);
     const uniq=new Set(sums.map(String));
-    check('alle geöffneten Landespokale bleiben verschieden und bei höchstens 35', sums.length===BL_ORDER.length && uniq.size>1 && sums.every(v=>v<=35), sums.join(' · '));
+    check('alle geöffneten Landespokale liegen zwischen 10 und 35', sums.length===BL_ORDER.length && uniq.size>1 && sums.every(v=>v>=10 && v<=35), sums.join(' · '));
   }
   const a=ansehenLedger('t001'), b=ansehenLedger('t001');
   const sum=ansehenRound2(a.lines.reduce((s,l)=>s+l.today,0));
@@ -1203,7 +1209,7 @@ function ansehenSelfTestBody(fails){
     const amUp=ansehenLedger('t017', 2094).lines.filter(l=>l.season==='2094/95');
     check('Bewegung ohne Tabelle bucht den Ligaplatz einmal, Amateur genau 4', lastUp.length===0 && lastLiga.length===1 && lastLiga[0].original===placePoints(3,20,2) && lastDown.length===0 && amUp.length===1 && amUp[0].kind==='liga' && amUp[0].original===4 && !amUp.some(l=>l.kind==='titel'||l.kind==='aufstieg'));
     const amEuro=ansehenLedger('t090', 2092).lines.filter(l=>l.season==='2092/93');
-    check('Amateur-Pokalsieger bekommt UECL 45 ohne Ligaplatz', amEuro.filter(l=>l.kind==='euro').length===1 && amEuro.some(l=>l.kind==='euro'&&l.original===45) && !amEuro.some(l=>l.kind==='liga'));
+    check('Amateur-Pokalsieger bekommt UECL 90 ohne Ligaplatz', amEuro.filter(l=>l.kind==='euro').length===1 && amEuro.some(l=>l.kind==='euro'&&l.original===90) && !amEuro.some(l=>l.kind==='liga'));
   }finally{
     S.seasons=keepS; S.chronicle=keepC; S.pokalRuns=keepR; S.view=keepV;
     chronSeen=null; chronIndex=null; chronBuilt=-1; runIndex=null; runBuilt=-1; runSeasons=null;
@@ -4006,9 +4012,8 @@ function seasonActions(s, withEnd){
   if (!s) return '';
   const live=s.status==='running' && S.view===S.seasons.length-1;
   if (live){
-    let h='<button class="btn" data-act="simSeason">Saison simulieren</button>';
-    if (withEnd!==false) h+='<button class="btn primary" data-act="end">Saison abschließen</button>';
-    return h;
+    if (withEnd!==false) return '<button class="btn primary" data-act="end">Saison abschließen</button>';
+    return '';
   }
   if (withEnd!==false && s.status==='ending') return '<button class="btn primary" data-act="toEnd">Auf/Abstiege</button>';
   return '';
@@ -4502,7 +4507,7 @@ function landPointsHTML(s, cup){
   roundsHtml+='<tr><td class="l">Titel, einmalig für den Sieger</td>'+sortCell(titleNow, ansehenPts(titleNow))+'</tr>';
   roundsHtml+='<tr data-pin="1"><td class="l"><b>Sieger insgesamt</b></td>'+sortCell(sum, ansehenPts(sum))+'</tr>';
   roundsHtml+='</tbody></table>';
-  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher. Das Budget bleibt bei höchstens '+ansehenPts(cappedLandBudget(ANSEHEN.land.capBudget))+', damit Finalrunde plus Titel zusammen höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+' sind. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent dieses Budgets, auch wenn eine ältere Skala noch einen anderen Titel gespeichert hat.</p>'+mix+roundsHtml+'</div>';
+  return '<div class="box"><h3>Wertung '+esc(s.name)+'</h3><p class="muted">Gezählt wird nur die erreichte Runde, nicht die Summe der Runden davor. Ein Freilos ist keine zusätzliche Runde. Feldgewicht '+ansehenPts(scale.field)+' bei '+scale.n+' Vereinen, geteilt durch 8 und je weiterer Runde um 15 Prozent höher. Das Budget bleibt bei höchstens '+ansehenPts(cappedLandBudget(ANSEHEN.land.capBudget))+'. Finalrunde plus Titel sind zusammen mindestens 10 und höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+'. Liegt das Feld darunter, werden Budget und alle Runden im selben Verhältnis angehoben. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent dieses Budgets, auch wenn eine ältere Skala noch einen anderen Titel gespeichert hat.</p>'+mix+roundsHtml+'</div>';
 }
 function rowSeason(r){
   if (r.season) return r.season;
@@ -5051,7 +5056,7 @@ function spielplanHTML(s,lid){
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, bl:true, ansehen:true, step, above, hin:true, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
-  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>';
+  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button><button class="btn small" data-act="simSeason" title="Alle Ligen und Pokale dieser Saison simulieren">Komplette Saison simulieren</button></div>';
   if (lg.decide && lg.decide.length && shownMd===lg.md.length-1) h+=decideHTML(s, lid);
   return h;
 }
@@ -8053,7 +8058,7 @@ function landCompareHTML(){
   const row=(label, fn)=>'<tr><th class="l">'+label+'</th>'+cells(fn)+'</tr>';
   const weights=[3,4,5,6,7].map(lv=>(LAND_LEVEL[lv]||lv)+' '+ansehenPts(ANSEHEN.land.levelW[lv])).join(' · ');
   let h='<div class="ansehen-card"><h3>Landespokale '+esc(seasonName)+'</h3>';
-  h+='<p>Alle 16 Pokale der geöffneten Saison stehen nebeneinander. Gezählt wird das Feld dieser Saison. Eine eingefrorene Mischung behält ihre Ligazahlen und wird mit den aktuellen Gewichten neu gerechnet, ohne die heutigen Ligen zu raten. Gewichte: '+weights+'. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Budgets. Finalrunde plus Titel sind zusammen höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+'. Die Wertung jedes einzelnen Pokals bleibt im Wettbewerb.</p>';
+  h+='<p>Alle 16 Pokale der geöffneten Saison stehen nebeneinander. Gezählt wird das Feld dieser Saison. Eine eingefrorene Mischung behält ihre Ligazahlen und wird mit den aktuellen Gewichten neu gerechnet, ohne die heutigen Ligen zu raten. Gewichte: '+weights+'. Der Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Budgets. Finalrunde plus Titel sind zusammen mindestens 10 und höchstens '+ansehenPts(ANSEHEN.land.winnerCap)+'. Die Wertung jedes einzelnen Pokals bleibt im Wettbewerb.</p>';
   h+='<div class="hscroll land-matrix"><table class="tbl"><thead><tr><th class="l">Vergleich</th>'+head+'</tr></thead><tbody>';
   h+=row('Anzahl', (cup,scale)=>scale.missing?'–':String(scale.n||0));
   h+=row('Ligaverteilung', (cup,scale)=>esc(landMixText(scale)));
@@ -10709,6 +10714,25 @@ function uiSelfTestBody(fails){
   const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
   const navScreen=window.innerWidth||0;
   check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
+  const barActs=document.querySelector('#headActions');
+  check('Leiste ohne Knopf Saison simulieren', !!barActs && barActs.textContent.indexOf('Saison simulieren')<0 && barActs.textContent.indexOf('Saison abschließen')>=0);
+  (()=>{
+    const sPlan=cur(), lidPlan='BL', lgPlan=sPlan&&sPlan.leagues&&sPlan.leagues.BL;
+    if (!sPlan || !lgPlan || !lgPlan.md) return;
+    const key=S.view+':BL';
+    const mdWas=S.ui.md?S.ui.md[key]:undefined;
+    const kickWas=sPlan.kickoffs&&sPlan.kickoffs.BL?sPlan.kickoffs.BL[0]:undefined;
+    sPlan.kickoffs=sPlan.kickoffs||{};
+    sPlan.kickoffs.BL=sPlan.kickoffs.BL||{};
+    if (!sPlan.kickoffs.BL[0]) sPlan.kickoffs.BL[0]=lgPlan.md[0].map(()=>({dow:'Sa',time:'15:30',kind:''}));
+    if (!S.ui.md) S.ui.md={};
+    S.ui.md[key]=0;
+    const planHtml=spielplanHTML(sPlan, lidPlan);
+    if (kickWas===undefined) delete sPlan.kickoffs.BL[0];
+    if (mdWas===undefined) delete S.ui.md[key]; else S.ui.md[key]=mdWas;
+    const ligaAt=planHtml.indexOf('Liga zu Ende simulieren'), saisonAt=planHtml.indexOf('Komplette Saison simulieren');
+    check('Spielplan simuliert die komplette Saison neben der Liga', ligaAt>=0 && saisonAt>ligaAt);
+  })();
   if (navScreen>=2500 && navWide){
     const brand=document.querySelector('.brand');
     const tools=document.querySelector('.top-tools');
@@ -10723,7 +10747,7 @@ function uiSelfTestBody(fails){
     const tops=boxes.map(b=>Math.round(b.top));
     const verein=navItems[navItems.length-1];
     const toolR=tools?tools.getBoundingClientRect():null;
-    check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && edge>=12 && !!toolR && !!verein && verein.right<=toolR.left-12 && !!actions && actions.closest('#topbar') && !!season && season.closest('#topbar'), 'abstand '+Math.round(edge)+' zeilen '+new Set(tops).size);
+      check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && edge>=12 && !!toolR && !!verein && verein.right<=toolR.left-12 && !!actions && actions.closest('#topbar') && !!season && season.closest('#topbar') && actions.textContent.indexOf('Saison simulieren')<0, 'abstand '+Math.round(edge)+' zeilen '+new Set(tops).size);
   }
   if (navScreen>=1200 && navScreen<=1400){
     const keepTab=S.ui.tab, keepLeague=S.ui.league;
@@ -10778,6 +10802,15 @@ function uiSelfTestBody(fails){
     const fontNote=measured!=null?measured+'px':declared!=null?declared+'px aus CSS':'nicht messbar';
     const gap=tabs&&top?tabs.getBoundingClientRect().top-top.getBoundingClientRect().bottom:99;
     check('Hauptansicht ohne Unterzeile, Reiter direkt unter der Leiste', !!head && head.classList.contains('head-off') && !!sub && sub.textContent.trim()==='' && gap<=16 && fontOk, 'abstand '+Math.round(gap)+' schrift '+fontNote);
+    if ((window.innerWidth||0)>=1600 && cell){
+      let pad=0;
+      try{ pad=parseFloat(getComputedStyle(cell).paddingTop)||0; }catch(e){ pad=0; }
+      check('Tabellenzeile ist einen Tick höher', pad>=2 && pad<=3, String(pad));
+      const crest=document.querySelector('#spCard .match.sp-line .ml-crest');
+      let crestW=0;
+      try{ crestW=crest?parseFloat(getComputedStyle(crest).width)||0:0; }catch(e){ crestW=0; }
+      check('Spielplan-Wappen hat wieder 32 px', !!crest && crestW>=31 && crestW<=33, String(crestW));
+    }
     if (navScreen>=2500 && (window.innerHeight||0)>=1200 && (window.innerHeight||0)<=1450) check('5. Liga passt ohne senkrechtes Scrollen', document.documentElement.scrollHeight<=window.innerHeight+1, document.documentElement.scrollHeight+'/'+window.innerHeight);
     S.ui.tab=keep.tab; S.ui.league=keep.league;
     render();
@@ -11364,6 +11397,13 @@ function uiSelfTestBody(fails){
   check('anderes Feld und andere Ligaverteilung ändern die Punkte', mixed.length>small.length && bigS.budget>smallS.budget && bigS.field>smallS.field && Object.keys(bigS.byLevel).length>=2);
   check('weniger Runden senken das Budget derselben Mannschaften', shortS.budget<bigS.budget);
   check('ein Freilos ist keine Extra-Runde', landRoundPoints(bigS, 'Freilos')===0);
+  const floorCup=landAnsehenScale(idsAt(7, 4), sea, ['Halbfinale','Finale']);
+  const floorRaw=(floorCup.field/8)*(1+ANSEHEN.land.roundK);
+  check('kleiner Landespokal hebt Finale plus Titel auf 10', landWinnerTotal(floorRaw)<10 && landWinnerSum(floorCup)===10 && floorCup.budget===landBudgetForWinner(10), landWinnerSum(floorCup)+'/'+floorCup.budget);
+  const ratio=floorCup.budget/cappedLandBudget(floorRaw);
+  const half=landRoundPoints(floorCup, 'Halbfinale');
+  check('die Runden steigen im selben Verhältnis', Math.abs(half-ansehenRound2(cappedLandBudget(floorRaw)*ratio*0.5))<0.02, half+'/'+ratio);
+  check('historischer Landespokaltitel bleibt 0,78', landTitleOf(histLandScale())===0.78, String(landTitleOf(histLandScale())));
   const summed=ansehenRound2(rounds.reduce((a,name)=>a+landRoundPoints(bigS, name),0));
   check('die Finalpunkte sind nicht die Summe aller Runden', landRoundPoints(bigS, 'Finale')>0 && landRoundPoints(bigS, 'Finale')<summed);
   const ghost={name:'2099/00', cups:{land:{Saarland:{bl:'Saarland', kind:'land', name:'Saarlandpokal', ansehenScale:Object.assign({}, bigS), entrants:mixed.slice()}}}};

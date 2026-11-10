@@ -47,7 +47,9 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .mobile-nav select{width:100%;padding:6px}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:0 0 8px}
 .head.head-off{display:none}
+.head-actions{flex:0 0 auto}
 .head-actions .btn{padding:3px 8px;font-size:13px;white-space:nowrap}
+.season-field,.top-tools,.brand{flex:0 0 auto}
 .head-main{min-width:0}
 .head h1{font-size:20px;font-weight:650;letter-spacing:-.02em;margin:0;line-height:1.2}
 .head-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
@@ -844,17 +846,14 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 }
 @media (min-width:1600px){
   #tableCard>table.tbl.stand{font-size:13px}
-  #tableCard>table.tbl.stand th,#tableCard>table.tbl.stand td{padding:1px 3px;font-size:13px}
+  #tableCard>table.tbl.stand th,#tableCard>table.tbl.stand td{padding:2px 3px;font-size:13px}
   #tableCard .club img{width:20px;height:20px;flex-basis:20px}
   #tableCard .form-bit,#tableCard .form>span{width:14px;height:14px;line-height:14px;font-size:9px}
   #tableCard .fixed-row{grid-template-columns:repeat(auto-fit,minmax(96px,1fr));padding:3px 8px;gap:2px 6px}
   #tableCard .fixed-row .fp{height:20px}
   #tableCard .fixed-row img{width:16px;height:16px;flex-basis:16px}
   #spCard .card-title{padding:4px 8px}
-  #spCard .match.sp-line{padding:1px 4px}
-  #spCard .match.sp-line .ml-crest{width:20px;height:20px;flex-basis:20px}
-  #spCard .match.sp-line .ml-name{font-size:13px}
-  #spCard .match.sp-line .score{min-height:0}
+  #spCard .match.sp-line .ml-name{font-size:15px}
   .map-card{max-width:1680px;margin-left:auto;margin-right:auto}
   .map-card .de-map{width:100%;height:auto;aspect-ratio:858/680}
   .py-level.one>.mv-card.top{width:min(1280px,100%)}
