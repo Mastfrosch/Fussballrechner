@@ -5164,8 +5164,13 @@ function clubPlacements(id){
   S.seasons.forEach(s=>{
     let found=false;
     for (const lid in s.leagues){ if (s.leagues[lid].teams.includes(id)){
-      let row; if (s.endData && s.endData.tables) row=s.endData.tables[lid].find(r=>r.id===id);
-      else row=leagueTable(s,lid).find(r=>r.id===id);
+      let row;
+      if (s.endData && s.endData.tables && s.endData.tables[lid]) row=s.endData.tables[lid].find(r=>r.id===id);
+      else {
+        const table=leagueTable(s,lid);
+        const live=s.status==='running' && table.length && table.every(r=>r && r.sp===0);
+        row=(live?sortUnplayedTable(table):table).find(r=>r.id===id);
+      }
       out.push({season:s.name, lid, pl:row.pl, n:s.leagues[lid].teams.length, pkt:row.pkt, tore:row.tg+':'+row.gt, final:s.status==='done'||s.status==='ending'}); found=true; }}
     if (!found){ for (const pid in s.pools) if (s.pools[pid].includes(id)) out.push({season:s.name, lid:pid, pl:null}); }
   });
@@ -10354,6 +10359,14 @@ function uiSelfTestBody(fails){
   const playedOrder=playedRows.map(r=>r.id).join();
   const playedShown=sortUnplayedTable(playedRows).map(r=>r.id).join();
   check('ungespielte Tabelle zeigt Ansehen, die Wertung bleibt die Teamreihenfolge', blankLogic==='t003,t001,t002' && blankShown.join()===blankWant.join() && blankHome===blankShown.join() && blankRueck===blankShown.join() && playedOrder==='t002,t001' && playedShown===playedOrder, blankLogic+' / '+blankShown.join()+' / '+playedShown);
+  const placeKeep=S.seasons;
+  try{
+    const donePlace={name:'2098/99', status:'done', leagues:{BL:{teams:blankIds.slice(), md:[[[0,1,1,0]]]}}, endData:{tables:{BL:[{id:'t003',pl:1,sp:1,tg:1,gt:0},{id:'t001',pl:2,sp:1,tg:0,gt:1},{id:'t002',pl:3,sp:0,tg:0,gt:0}]}}, markers:{}};
+    S.seasons=[donePlace, blankSeason];
+    const livePlace=clubPlacements('t001').find(p=>p.season==='2099/00');
+    const closedPlace=clubPlacements('t001').find(p=>p.season==='2098/99');
+    check('Verlauf und Platzierungen der laufenden Saison zeigen den Ansehen-Platz', !!livePlace && livePlace.pl===blankWant.indexOf('t001')+1 && !!closedPlace && closedPlace.pl===2, (livePlace&&livePlace.pl)+'/'+(closedPlace&&closedPlace.pl));
+  }finally{ S.seasons=placeKeep; }
   check('Auswärtsform nur Auswärtsspiele', away.find(r=>r.id==='t001').form.join('')==='S', away.find(r=>r.id==='t001').form.join(''));
   const plain=matchLineHTML({h:'t001', a:'t002', hg:1, ag:0, bl:true, ansehen:true});
   check('Ligaspielplan ohne Status', plain.indexOf('(P)')<0 && plain.indexOf('(CL)')<0 && plain.indexOf('(Auf)')<0 && plain.indexOf('ml-an')>=0);
@@ -10734,6 +10747,25 @@ function uiSelfTestBody(fails){
   const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
   const navScreen=window.innerWidth||0;
   check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
+  const barBoxes=[...document.querySelectorAll('#topbar > *')].map(el=>el.getBoundingClientRect()).filter(r=>r.width>1 && r.height>1);
+  let barOverlap=false, barGap=999, barRows={};
+  barBoxes.forEach(r=>{ const k=Math.round(r.top); (barRows[k]||(barRows[k]=[])).push(r); });
+  Object.keys(barRows).forEach(k=>{
+    const row=barRows[k].slice().sort((a,b)=>a.left-b.left);
+    for (let i=1;i<row.length;i++) barGap=Math.min(barGap, row[i].left-row[i-1].right);
+  });
+  for (let i=0;i<barBoxes.length;i++) for (let j=i+1;j<barBoxes.length;j++){
+    const a=barBoxes[i], b=barBoxes[j];
+    const x=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+    const y=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+    if (x>0.5 && y>0.5) barOverlap=true;
+  }
+  const barWide=(window.innerWidth||0)>=1600;
+  const barOne=(window.innerWidth||0)>=2200;
+  const brandBox=document.querySelector('.brand');
+  const brandTop=brandBox?Math.round(brandBox.getBoundingClientRect().top):0;
+  const navTop=navBar?Math.round(navBar.getBoundingClientRect().top):0;
+  check('Leiste überlappt nicht und hält 12 px', !barOverlap && (!barWide || barGap>=12) && (!barOne || navTop===brandTop) && (barOne || !barWide || navTop>brandTop), 'abstand '+Math.round(barGap)+' nav '+navTop+' marke '+brandTop);
   const barActs=document.querySelector('#headActions');
   check('Leiste ohne Knopf Saison simulieren', !!barActs && barActs.textContent.indexOf('Saison simulieren')<0 && barActs.textContent.indexOf('Saison abschließen')>=0);
   (()=>{

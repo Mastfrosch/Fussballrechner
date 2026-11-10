@@ -75,7 +75,7 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .btn:disabled{opacity:.45;cursor:default}
 .split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(420px,.95fr);gap:12px;align-items:start}
 @media (max-width:1519px){.split{grid-template-columns:1fr}}
-@media (min-width:801px) and (max-width:1919px){
+@media (min-width:801px) and (max-width:2199px){
   #topbar{flex-wrap:wrap;align-items:stretch;column-gap:12px;row-gap:6px}
   .brand{order:1}
   .top-tools{order:3}
@@ -83,7 +83,7 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
   .season-field{order:5}
   .topnav{order:6;flex:1 1 100%;flex-wrap:wrap}
 }
-@media (min-width:1920px){
+@media (min-width:2200px){
   #topbar{flex-wrap:nowrap;column-gap:12px}
   .brand,.top-tools{order:0;flex:0 0 auto}
   .topnav{order:0;flex:1 1 auto;flex-wrap:nowrap;min-width:0}
