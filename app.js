@@ -10935,7 +10935,7 @@ function uiSelfTestBody(fails){
     check('k='+kNo+' hält die freien Plätze und die Staffelgrößen', bad.length===0 && penBad.length===0 && !dup && foreign===0 && seen.size===919, bad.slice(0,3).join(' · ')+' '+penBad.slice(0,3).join(' · ')+' fremd '+foreign+' n '+seen.size);
   });
   const ruleText=rulesHTML();
-  check('Regel nennt Relegation ohne Verlängerung', ruleText.indexOf('keine Verlängerung')>=0 && ruleText.indexOf('Elfmeterschießen')>=0 && ruleText.indexOf('beide Vizemeister')>=0);
+  check('Regel nennt Relegation ohne Verlängerung', ruleText.indexOf('ohne Verlängerung')>=0 && ruleText.indexOf('Elfmeterschießen')>=0 && ruleText.indexOf('beide Vizemeister')>=0);
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);
@@ -10962,8 +10962,25 @@ function uiSelfTestBody(fails){
   check('Gegnerliste höchstens 20', opponentsOf('t001').length<=20);
   const bal=balanceLists('t001');
   check('Bilanzen höchstens 10', bal.best.length<=10 && bal.worst.length<=10);
-  const oppBoard=opponentBoardHTML('t001');
-  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Beste Bilanz')>=0 && oppBoard.indexOf('Schlechteste Bilanz')>=0 && oppBoard.indexOf('opp-board')>=0 && oppBoard.indexOf('title=')>=0);
+  const oppKeep={seasons:S.seasons, stats:S.stats};
+  let oppBoard='';
+  try{
+    const foes=[];
+    for (let n=2;n<=13;n++) foes.push('t'+String(n).padStart(3,'0'));
+    const teams=['t001'].concat(foes);
+    const md=[];
+    foes.forEach((opp,i)=>{
+      const j=i+1;
+      for (let g=0;g<4;g++) md.push(i<8?[0,j,2,0]:[0,j,0,1]);
+    });
+    S.stats={c:{}, p:{}};
+    S.seasons=[{name:'2090/91', status:'running', leagues:{BL:{teams, md:[md]}}}];
+    oppBoard=opponentBoardHTML('t001');
+  }finally{
+    S.seasons=oppKeep.seasons;
+    S.stats=oppKeep.stats;
+  }
+  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Beste Bilanz')>=0 && oppBoard.indexOf('Schlechteste Bilanz')>=0 && oppBoard.indexOf('opp-board')>=0 && oppBoard.indexOf('opp-rate')>=0 && oppBoard.indexOf('title=')>=0);
   const cmpKeep={opp:S.ui.infoOpp, fx:S.ui.infoFx, h2h:S.ui.infoH2H, seasons:S.seasons};
   try{
     S.seasons=[{name:'2090/91', status:'running', leagues:{}, pools:{}}];
@@ -13108,45 +13125,32 @@ function terminSelfTest(){
     S.seasons=keepWorld.seasons; S.view=keepWorld.view; S.chronicle=keepWorld.chronicle; S.pokalRuns=keepWorld.pokalRuns;
     chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
   }
-  const lock=(()=>{
-    seedRandom(4242);
-    const lid='L4', teams=squad.leagues.L4.slice(), md=makeSchedule(teams.length);
+  const closingKeepsSlots=(lid, seed)=>{
+    seedRandom(seed);
+    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length);
     Math.random=prevRandom;
     const season={name:'2097/98', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
     const total=md.length;
-    let saved=null;
-    while (lastScheduled(season, lid)<total-2){
+    for (let guard=0; guard<40 && lastScheduled(season, lid)<total-1; guard++){
+      const from=lastScheduled(season, lid)+1;
+      const preview=nextBlockRange(teams.length, from);
+      if (!preview) return false;
+      const before=JSON.parse(JSON.stringify(season.kickoffs[lid]||{}));
       const range=scheduleNextBlock(season, lid);
       if (!range) return false;
-      if (range[1]>=total-2){ saved=JSON.parse(JSON.stringify(season.kickoffs[lid])); break; }
-      for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+      if (preview[1]<total-1){
+        for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+        continue;
+      }
+      const earlier=Object.keys(before).every(k=>JSON.stringify(before[k])===JSON.stringify(season.kickoffs[lid][k]));
+      const frozen=JSON.parse(JSON.stringify(season.kickoffs[lid]));
+      const extra=scheduleNextBlock(season, lid);
+      const still=extra==null && Object.keys(frozen).every(k=>JSON.stringify(frozen[k])===JSON.stringify(season.kickoffs[lid][k]));
+      return earlier && still && range[1]===total-1;
     }
-    const range=scheduleNextBlock(season, lid);
-    if (!range || !saved) return false;
-    const again=JSON.parse(JSON.stringify(season.kickoffs[lid]));
-    scheduleNextBlock(season, lid);
-    const held=Object.keys(saved).every(k=>JSON.stringify(saved[k])===JSON.stringify(season.kickoffs[lid][k]));
-    const reloaded=JSON.parse(JSON.stringify(season));
-    return held && Object.keys(again).every(k=>JSON.stringify(again[k])===JSON.stringify(reloaded.kickoffs[lid][k]));
-  })();
-  const lockRl=(()=>{
-    seedRandom(3434);
-    const lid='RLN', teams=squad.leagues.RLN.slice(), md=makeSchedule(teams.length);
-    Math.random=prevRandom;
-    const season={name:'2095/96', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
-    const total=md.length;
-    let saved=null;
-    while (lastScheduled(season, lid)<total-2){
-      const range=scheduleNextBlock(season, lid);
-      if (!range) return false;
-      if (range[1]>=total-2){ saved=JSON.parse(JSON.stringify(season.kickoffs[lid])); break; }
-      for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
-    }
-    const range=scheduleNextBlock(season, lid);
-    if (!range || !saved) return false;
-    return Object.keys(saved).every(k=>JSON.stringify(saved[k])===JSON.stringify(season.kickoffs[lid][k]));
-  })();
-  check('der letzte Spieltag ändert keine früheren Slots', lock && lockRl);
+    return false;
+  };
+  check('der letzte Spieltag ändert keine früheren Slots', closingKeepsSlots('L3', 4242) && closingKeepsSlots('L4', 4242) && closingKeepsSlots('RLN', 3434));
   const leak=(()=>{
     const build=()=>{
       seedRandom(77);
