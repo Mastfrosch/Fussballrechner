@@ -4972,20 +4972,43 @@ function alignStandToPlan(){
   if(!card||!plan) return;
   const rows=[...card.querySelectorAll(':scope > table.tbl.stand > tbody > tr')];
   rows.forEach(r=>{ r.style.height=''; });
-  const cardBox=card.getBoundingClientRect();
-  const planBox=plan.getBoundingClientRect();
-  if(Math.abs(cardBox.top-planBox.top)>8||!rows.length) return;
-  const gap=planBox.bottom-card.getBoundingClientRect().bottom;
-  if(gap>0.5){
+  plan.style.minHeight='';
+  card.style.minHeight='';
+  const c0=card.getBoundingClientRect();
+  const p0=plan.getBoundingClientRect();
+  if(Math.abs(c0.top-p0.top)>8||!rows.length) return;
+  const lid=S&&S.ui&&S.ui.league;
+  const lg=lid&&cur()&&cur().leagues&&cur().leagues[lid];
+  const games=lg&&lg.md&&lg.md[0]?lg.md[0].length:0;
+  let maxHeads=1;
+  try{
+    const seen={};
+    slotTemplate(lid, games||undefined).forEach(s=>{ seen[s.dow+'|'+s.time+'|'+(s.kind||'')]=1; });
+    maxHeads=Math.max(1, Object.keys(seen).length);
+  }catch(e){ maxHeads=1; }
+  const headEls=[...plan.querySelectorAll('.slot-head')];
+  const headH=headEls.length?headEls[0].getBoundingClientRect().height:0;
+  const hint=plan.querySelector('.sp-hint');
+  const hintH=hint?hint.getBoundingClientRect().height:0;
+  const full=p0.height-hintH-headEls.length*headH+maxHeads*headH;
+  const target=Math.max(p0.height, c0.height, full);
+  plan.style.minHeight=target+'px';
+  let gap=plan.getBoundingClientRect().bottom-card.getBoundingClientRect().bottom;
+  if(Math.abs(gap)>0.4){
     const add=gap/rows.length;
-    rows.forEach(r=>{ r.style.height=(r.getBoundingClientRect().height+add)+'px'; });
+    rows.forEach(r=>{
+      const h=r.getBoundingClientRect().height+add;
+      const need=Math.max(0, ...[...r.children].map(td=>td.scrollHeight));
+      r.style.height=Math.max(h, need)+'px';
+    });
   }
   const left=plan.getBoundingClientRect().bottom-card.getBoundingClientRect().bottom;
   if(Math.abs(left)>0.3){
     const last=rows[rows.length-1];
     const next=last.getBoundingClientRect().height+left;
-    const need=Math.max(...[...last.children].map(td=>td.scrollHeight));
-    if(next+1>=need) last.style.height=next+'px';
+    const need=Math.max(0, ...[...last.children].map(td=>td.scrollHeight));
+    if(next+0.5>=need) last.style.height=next+'px';
+    else plan.style.minHeight=(plan.getBoundingClientRect().height+ (card.getBoundingClientRect().bottom-plan.getBoundingClientRect().bottom))+'px';
   }
 }
 function relayHTML(season, lid){
