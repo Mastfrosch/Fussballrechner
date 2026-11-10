@@ -8273,7 +8273,7 @@ function moveBoardHTML(e, s){
   return h;
 }
 function inputHelpHTML(){
-  return '<div class="box"><h3>Tore eintragen</h3><p>＋ und − ändern die Tore. Ein offenes Spiel wird mit Heim-＋ zu 1:0, mit Gast-＋ zu 0:1 und mit − zu 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</p><p>Im Pokal trägt ein Sieg den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht. Ein Freilos ist keine eigene Runde.</p></div>';
+  return '<div class="box spread"><h3>Tore eintragen</h3><p>＋ und − ändern die Tore. Ein offenes Spiel wird mit Heim-＋ zu 1:0, mit Gast-＋ zu 0:1 und mit − zu 0:0. Bei 0:0 setzen − oder × das Spiel auf -:- zurück. Ist der letzte angesetzte Spieltag voll, wird der nächste Block terminiert.</p><p>Im Pokal trägt ein Sieg den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen, das über dem Spielstand steht. Ein Freilos ist keine eigene Runde.</p></div>';
 }
 function renderRegeln(){
   const s=cur(), lid=S.ui.league;
@@ -8284,8 +8284,8 @@ function renderRegeln(){
   setActions(seasonActions(s));
   let h=rulesHTML();
   h+=inputHelpHTML();
-  if (lg) h+='<div class="box"><h3>Farben der '+esc(lg.name)+'</h3>'+legendHTML(lg, s)+'<p class="muted">Die Farben stehen an der Tabelle. Diese Erklärung bleibt hier.</p></div>';
-  h+='<div class="box"><h3>Europa</h3><p>Champions League: Plätze 1 bis 4. Europa League: Plätze 5 und 6. Conference League: Platz 7. Platz 8 bekommt dieselbe grüne Zone, sobald jeder noch mögliche DFB-Sieger dieser Saison in den aktuellen Top 7 steht. Das ist eine Vorschau und keine Garantie. Erst der abgeschlossene Endstand vergibt die Qualifikation. Steht der Pokalsieger dann in den Top 7, behält er seinen Ligaplatz und Platz 8 erhält die Conference League. Steht er außerhalb, bekommt er selbst im Folgejahr Conference League und (P), egal in welcher Liga, und Platz 8 nicht. (P) steht in der Tabelle als letztes Kürzel und im DFB-Spielplan außen. Der Ligaspielplan trägt keine Statuskürzel.</p></div>';
+  if (lg) h+='<div class="box spread"><h3>Farben der '+esc(lg.name)+'</h3>'+legendHTML(lg, s)+'<p class="muted">Die Farben stehen an der Tabelle. Diese Erklärung bleibt hier.</p></div>';
+  h+='<div class="box spread"><h3>Europa</h3><p>Champions League: Plätze 1 bis 4. Europa League: Plätze 5 und 6. Conference League: Platz 7. Platz 8 bekommt dieselbe grüne Zone, sobald jeder noch mögliche DFB-Sieger dieser Saison in den aktuellen Top 7 steht. Das ist eine Vorschau und keine Garantie. Erst der abgeschlossene Endstand vergibt die Qualifikation. Steht der Pokalsieger dann in den Top 7, behält er seinen Ligaplatz und Platz 8 erhält die Conference League. Steht er außerhalb, bekommt er selbst im Folgejahr Conference League und (P), egal in welcher Liga, und Platz 8 nicht. (P) steht in der Tabelle als letztes Kürzel und im DFB-Spielplan außen. Der Ligaspielplan trägt keine Statuskürzel.</p></div>';
   $('#view').innerHTML=h;
 }
 function cupRulesHTML(cup){
@@ -8299,7 +8299,7 @@ function cupRulesHTML(cup){
 }
 function rulesHTML(){
   const s=cur();
-  let h='<div class="box"><h3>Ligensystem &amp; Gleichstand</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Die Tabelle sortiert genau so: Punkte, Tordifferenz, geschossene Tore. Sind diese drei gleich, zählt der direkte Vergleich: Punkte, Tordifferenz, geschossene Tore, Auswärtstore in diesen Spielen. Danach die Auswärtstore insgesamt. Ist danach noch alles gleich, entscheidet ein Hin- und Rückspiel, sobald die Saison beendet ist. Die interne Kennung legt nur die Anzeigereihenfolge fest, bis dieses Spiel steht. Sie ist keine sportliche Qualifikation. Eine historische Stärke entscheidet die Tabelle nicht.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
+  let h='<div class="box spread"><h3>Ligensystem &amp; Gleichstand</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Die Tabelle sortiert genau so: Punkte, Tordifferenz, geschossene Tore. Sind diese drei gleich, zählt der direkte Vergleich: Punkte, Tordifferenz, geschossene Tore, Auswärtstore in diesen Spielen. Danach die Auswärtstore insgesamt. Ist danach noch alles gleich, entscheidet ein Hin- und Rückspiel, sobald die Saison beendet ist. Die interne Kennung legt nur die Anzeigereihenfolge fest, bis dieses Spiel steht. Sie ist keine sportliche Qualifikation. Eine historische Stärke entscheidet die Tabelle nicht.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
   LEAGUES.forEach(l=>{
     const p=relegationProfile(s, l.id);
     const upNow=promotionCount(s, l.id);
