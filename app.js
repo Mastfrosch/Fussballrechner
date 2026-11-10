@@ -3493,6 +3493,8 @@ function ensureCups(season){
   return season.cups;
 }
 function ensureAllCups(){ (S.seasons||[]).forEach(ensureCups); }
+// 0 ist das kleinste, 100 das größte Ansehen der Wertung. Die Summe mal 0,35
+// bleibt damit in derselben Größenordnung wie der frühere Stärke-Anteil.
 function cupAnsehenUnit(st, id){
   if (!st._anScale || st._anScale.gen!==ansehenGen){
     const ids=[];
@@ -5975,15 +5977,15 @@ function topDesire(cat, q){
   if (cat==='ansehen') return 55000+(q||0)*4000;
   return q||0;
 }
-function scheduleAppeal(id, snap){
-  const info=snap&&snap.info&&snap.info[id];
-  if (info && info.appeal!=null && isFinite(info.appeal)) return info.appeal;
-  if (info && info.sp>0 && info.sport!=null && info.ansehen!=null) return 0.65*(info.sport*100)+0.35*info.ansehen;
+function rescueAnsehen(id, snap){
+  const raw=snap && snap.raw && snap.raw[id];
+  if (raw!=null && isFinite(raw)) return raw;
+  const info=snap && snap.info && snap.info[id];
   if (info && info.ansehen!=null && isFinite(info.ansehen)) return info.ansehen;
   try{ return ansehenValue(id)||0; }catch(e){ return 0; }
 }
 function rankedIds(ids, snap){
-  return (ids||[]).slice().sort((a,b)=>scheduleAppeal(a, snap)-scheduleAppeal(b, snap) || byRang(a,b));
+  return (ids||[]).slice().sort((a,b)=>rescueAnsehen(a, snap)-rescueAnsehen(b, snap) || byRang(a,b));
 }
 function firstTopTarget(id, ids, total, snap){
   const order=rankedIds(ids, snap);
@@ -12832,17 +12834,15 @@ function terminSelfTest(){
   const open={info:{tA:{id:'tA', sp:0, ansehen:80, sport:null}, tB:{id:'tB', sp:0, ansehen:20, sport:null}}, total:38, table:[], zones:blZones};
   const start=matchValue('tA','tB', open, 0);
   check('Saisonstart ohne Tabelle hat keinen Sportbonus', start.sport===0 && start.wh===0.6 && start.ws===0.4, start.sport+'/'+start.wh);
-  const appealOf=(id, ansehen, sport, sp)=>{
-    const sportN=sport==null?null:sport;
-    const appeal=sportN==null?ansehen:(0.65*(sportN*100)+0.35*ansehen);
-    return {id, ansehen, sport:sportN, sp:sp||0, appeal, pkt:0, form:[]};
-  };
+  const rowAn=(id, ansehen, sport, sp)=>({id, ansehen, sport, sp, pkt:sp?30:0, form:[]});
   const orderSnap=info=>({info});
   const frühIds=['t001','t919'];
-  const früh=orderSnap({t001:appealOf('t001', 90, null, 0), t919:appealOf('t919', 12, null, 0)});
-  const spät=orderSnap({t001:appealOf('t001', 90, 0.15, 20), t919:appealOf('t919', 12, 0.95, 20)});
-  check('vor dem ersten Spieltag reiht das kleinere Ansehen früher ein', rankedIds(frühIds, früh)[0]==='t919' && firstTopTarget('t919', frühIds, 38, früh)<firstTopTarget('t001', frühIds, 38, früh));
-  check('die Tabelle kann die Topspiel-Reihe drehen', rankedIds(frühIds, spät)[0]==='t001' && scheduleAppeal('t001', spät)<scheduleAppeal('t919', spät));
+  const früh=orderSnap({t001:rowAn('t001', 90, null, 0), t919:rowAn('t919', 12, null, 0)});
+  const spät=orderSnap({t001:rowAn('t001', 90, 0.15, 20), t919:rowAn('t919', 12, 0.95, 20)});
+  check('ohne Topspiel rückt das kleinere Ansehen früher nach', rankedIds(frühIds, früh)[0]==='t919' && firstTopTarget('t919', frühIds, 38, früh)<firstTopTarget('t001', frühIds, 38, früh));
+  check('die Tabelle ändert die Nachrück-Reihe nicht', rankedIds(frühIds, spät).join()===rankedIds(frühIds, früh).join() && firstTopTarget('t919', frühIds, 38, spät)===firstTopTarget('t919', frühIds, 38, früh));
+  const stichtag={raw:{t001:10, t919:80}, info:spät.info};
+  check('Nachrücken liest das Ansehen zum Termin-Stichtag', rankedIds(frühIds, stichtag)[0]==='t001');
   const spitzeInfo={};
   ladder.forEach(r=>{ spitzeInfo[r.id]={id:r.id, sportPlace:r.pl, pkt:r.pkt, sp:34, ansehen:30, sport:sportSignal(r.pkt, 34), form:[]}; });
   const withAn=(a,b)=>Object.assign({}, spitzeInfo, {p1:Object.assign({}, spitzeInfo.p1, {ansehen:a}), p2:Object.assign({}, spitzeInfo.p2, {ansehen:b}), p10:Object.assign({}, spitzeInfo.p10, {ansehen:a}), p11:Object.assign({}, spitzeInfo.p11, {ansehen:b})});
