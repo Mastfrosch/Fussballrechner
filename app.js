@@ -2720,6 +2720,26 @@ function leagueProgress(season, lid){
   let done=0,total=0; lg.md.forEach(md=>md.forEach(m=>{total++; if(m[2]!=null&&m[3]!=null) done++;})); return {done,total};
 }
 function seasonProgress(season){ let d=0,t=0; LEAGUES.forEach(l=>{const p=leagueProgress(season,l.id); d+=p.done; t+=p.total;}); return {done:d,total:t}; }
+function marksSettled(season, lid){
+  const lg=L[lid];
+  if (!lg || lg.level<=4) return true;
+  if (!season || !season.leagues || !leagueFinished(season, 'L4')) return false;
+  if (lg.level===5) return true;
+  if (!leagueFinished(season, lg.upTo)) return false;
+  let plan=null;
+  try{ plan=promotionPlan(season, lid); }catch(e){ plan=null; }
+  return !(plan && plan.open);
+}
+// Vizemeister und Relegationssieger: nur die 4. Liga, bei k = 1 zusätzlich die Relegation.
+// Die Zusatzabsteiger bleiben bei marksSettled und warten auf die 5. Liga.
+function viceMarksSettled(season, lid){
+  const lg=L[lid];
+  if (!lg || lg.level!==6) return true;
+  if (!season || !season.leagues || !leagueFinished(season, 'L4')) return false;
+  let plan=null;
+  try{ plan=promotionPlan(season, lid); }catch(e){ plan=null; }
+  return !(plan && plan.open);
+}
 function zoneOf(lg, pl, n, down, eighth){
   if (!lg) return '';
   const d = down==null ? (lg.down||0) : down;
@@ -2733,11 +2753,14 @@ function zoneOf(lg, pl, n, down, eighth){
   }
   const up=lg.upShow!=null?lg.upShow:(lg.up||0);
   const fixDown=lg.level>=5?2:d;
+  const settled=lg.settled!==false;
+  const viceSettled=lg.viceSettled==null ? settled : lg.viceSettled!==false;
+  if (lg.level===6 && pl===2 && up>1 && !viceSettled) return 'auf-aus';
   if (lg.viceOpen && pl===2) return 'auf-aus';
   if (up && pl<=up) return 'auf';
   if (d && pl>n-d){
-    if (lg.level>=5 && d<fixDown) return 'ab-aus';
-    if (lg.level>=5 && d>fixDown && pl<=n-fixDown) return 'ab-aus';
+    if (!settled && lg.level>=5 && d<fixDown) return 'ab-aus';
+    if (!settled && lg.level>=5 && d>fixDown && pl<=n-fixDown) return 'ab-aus';
     return 'ab';
   }
   return '';
@@ -3961,7 +3984,9 @@ function tableHTML(rows, lg, opts={}){
   if (lg && lg.level===6 && opts.zones!==false){
     try{ const plan=promotionPlan(season, lg.id); viceOpen=!!(plan && plan.open && (plan.up|0)<2); }catch(e){ viceOpen=false; }
   }
-  const lgZone = lg ? Object.assign({}, lg, {upShow:upNow, viceOpen:viceOpen}) : lg;
+  const settled=!lg || opts.zones===false ? true : marksSettled(season, lg.id);
+  const viceSettled=!lg || opts.zones===false ? true : viceMarksSettled(season, lg.id);
+  const lgZone = lg ? Object.assign({}, lg, {upShow:upNow, viceOpen:viceOpen, settled:settled, viceSettled:viceSettled}) : lg;
   const th=sortHead, td=sortCell;
   const nf=(n, html, w, cls)=>td(n, '<span class="nfix '+w+'">'+html+'</span>', cls);
   const moves=opts.move && lg ? moveMarks(season, lg.id) : null;
@@ -3972,8 +3997,9 @@ function tableHTML(rows, lg, opts={}){
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lgZone, r.pl, n, down, eighth);
-    if (flag==='up') z='sure-up';
-    else if (flag==='down') z='sure-down';
+    const provisional=z==='auf-aus' || z==='ab-aus';
+    if (!provisional && flag==='up') z='sure-up';
+    else if (!provisional && flag==='down') z='sure-down';
     const delta=moves && moves[r.id]!=null ? moves[r.id]-r.pl : null;
     let marks=opts.markers===false||!(season.markers&&season.markers[r.id])?[]:[].concat(season.markers[r.id]).filter(Boolean);
     if (pokalId && r.id===pokalId && marks.indexOf('P')<0) marks.push('P');
@@ -4015,23 +4041,25 @@ function legendHTML(lg, season){
     it.push(legendSwatch('ab','Abstiegszone, noch offen'));
   } else {
     const upNow=promotionCount(season||cur(), lg.id);
+    const settled=marksSettled(season||cur(), lg.id);
     if (lg.level===6){
       it.push(legendSwatch('auf','Meister, fest → '+leagueName(lg.upTo)));
       let plan=null;
       try{ plan=promotionPlan(season||cur(), lg.id); }catch(e){ plan=null; }
-      if (plan && plan.open && upNow<2) it.push(legendSwatch('auf-aus','Vizemeister, Relegation'));
-      else if (upNow>1) it.push(legendSwatch('auf','Vizemeister steigt mit auf'));
+      if (plan && plan.open) it.push(legendSwatch('auf-aus','Vizemeister, Relegation, provisorisch'));
+      else if (upNow>1 && !viceMarksSettled(season||cur(), lg.id)) it.push(legendSwatch('auf-aus','Vizemeister, provisorisch bis die 4. Liga feststeht'));
+      else if (upNow>1) it.push(legendSwatch('auf','Vizemeister, fest'));
     }
     else if (upNow===1) it.push(legendSwatch('auf','Meister &amp; Aufstieg → '+leagueName(lg.upTo)));
     else if (upNow>1) it.push(legendSwatch('auf','Aufstieg, fest → '+leagueName(lg.upTo)));
     if (upNow) it.push(legendSwatch('sure-up','Aufstieg rechnerisch sicher'));
     if (lg.down || (prof && prof.down)){
       if (lg.level>=5 && prof){
-        if (prof.down>2){
+        if (!settled && prof.down>2){
           it.push(legendSwatch('ab','Zwei feste Absteiger'));
-          it.push(legendSwatch('ab-aus','Ausgleich, diesmal '+(prof.down-2)+' weitere'));
-        } else if (prof.down<2) it.push(legendSwatch('ab-aus','Ausgleich, diesmal '+prof.down+' statt 2'));
-        else it.push(legendSwatch('ab','Zwei feste Absteiger'));
+          it.push(legendSwatch('ab-aus','Provisorisch, hängt von der Liga darüber ab'));
+        } else if (!settled && prof.down<2) it.push(legendSwatch('ab-aus','Provisorisch, diesmal '+prof.down+' statt 2'));
+        else it.push(legendSwatch('ab', prof.down===2?'Zwei feste Absteiger':prof.down+' Absteiger, fest'));
       } else {
         const ab=prof && prof.down!==lg.down ? 'Abstiegszone (diesmal '+prof.down+' statt '+lg.down+')' : 'Abstiegszone, noch offen';
         it.push(legendSwatch('ab', ab));
@@ -10936,6 +10964,115 @@ function uiSelfTestBody(fails){
   });
   const ruleText=rulesHTML();
   check('Regel nennt Relegation ohne Verlängerung', ruleText.indexOf('ohne Verlängerung')>=0 && ruleText.indexOf('Elfmeterschießen')>=0 && ruleText.indexOf('beide Vizemeister')>=0);
+  const openLg={level:6, upShow:1, viceOpen:false, settled:false, down:2};
+  const nRl=18;
+  check('provisorische Absteiger bleiben schraffiert', zoneOf(openLg, 14, nRl, 4)==='' && zoneOf(openLg, 15, nRl, 4)==='ab-aus' && zoneOf(openLg, 16, nRl, 4)==='ab-aus' && zoneOf(openLg, 17, nRl, 4)==='ab' && zoneOf(openLg, 18, nRl, 4)==='ab');
+  const shutLg={level:6, upShow:1, viceOpen:false, settled:true, down:2};
+  check('feststehende zusätzliche Absteiger werden fest', zoneOf(shutLg, 14, nRl, 4)==='' && zoneOf(shutLg, 15, nRl, 4)==='ab' && zoneOf(shutLg, 16, nRl, 4)==='ab' && zoneOf(shutLg, 17, nRl, 4)==='ab');
+  const openUp={level:6, upShow:2, viceOpen:false, settled:false};
+  const shutUp={level:6, upShow:2, viceOpen:false, settled:true};
+  check('provisorischer Vizemeister wird fest, sobald die 4. Liga steht', zoneOf(openUp, 1, nRl, 2)==='auf' && zoneOf(openUp, 2, nRl, 2)==='auf-aus' && zoneOf(shutUp, 2, nRl, 2)==='auf');
+  const lost={level:6, upShow:1, viceOpen:false, settled:true};
+  check('ausgeschiedener Vizemeister verliert die Markierung', zoneOf(lost, 2, nRl, 2)==='');
+  const splitLg={level:6, upShow:2, viceOpen:false, settled:false, viceSettled:true};
+  check('Vizemeister wird fest, während die Zusatzabsteiger offen bleiben', zoneOf(splitLg, 1, nRl, 4)==='auf' && zoneOf(splitLg, 2, nRl, 4)==='auf' && zoneOf(splitLg, 15, nRl, 4)==='ab-aus' && zoneOf(splitLg, 17, nRl, 4)==='ab');
+  (()=>{
+    const used=new Set();
+    const pool=()=>Object.keys(TEAMS).filter(id=>!used.has(id)).sort();
+    const take=(pred, n, high)=>{
+      const ids=pool().filter(pred);
+      const out=(high?ids.slice(-n):ids.slice(0,n));
+      if (out.length<n) return null;
+      out.forEach(id=>used.add(id));
+      return out;
+    };
+    const isNO=id=>BL_L5[TEAMS[id].bl]==='L5NO';
+    const isSW=id=>BL_L5[TEAMS[id].bl]==='L5SW';
+    const isRL=rl=>id=>BL_RL[TEAMS[id].bl]===rl;
+    const drawn=ids=>{
+      const round=[];
+      for (let i=0;i<ids.length;i+=2) round.push([i, i+1, 0, 0]);
+      return {teams:ids.slice(), md:[round]};
+    };
+    const opened=lg=>({teams:lg.teams.slice(), md:lg.md.map(r=>r.map(m=>m.slice())).concat([[[0,1,null,null]]])});
+    const under=(high, low)=>low.slice().sort().pop()<high.slice().sort()[0];
+    const zoneAt=(html, id)=>{
+      const hit=html.match(new RegExp('data-tid="'+id+'" class="([^"]*)"'));
+      return hit?hit[1]:'fehlt';
+    };
+    const rowZone=(season, lid)=>{
+      const table=leagueTable(season, lid);
+      const html=tableHTML(table, L[lid], {season, form:false});
+      return {table, html, at:id=>zoneAt(html, id), legend:legendHTML(L[lid], season)};
+    };
+    const bottomL4=take(id=>TEAMS[id].bl==='Bayern', 4, true);
+    const bottomSW=take(id=>TEAMS[id].bl==='Bayern', 4, true);
+    const restL4=take(()=>true, 16, false);
+    const restSW=take(isSW, 18, false);
+    const teamsNO=take(isNO, 22, false);
+    const teamsN=take(isRL('RLN'), 18, false);
+    const teamsS=take(isRL('RLS'), 18, false);
+    const built=bottomL4&&bottomSW&&restL4&&restSW&&teamsNO&&teamsN&&teamsS&&under(bottomL4, restL4)&&under(bottomSW, restSW);
+    check('Fenster 4. Liga fertig lässt sich aufbauen', !!built);
+    if (!built) return;
+    const zero={name:'2096/97', status:'running', leagues:{
+      L4:drawn(restL4.concat(bottomL4)),
+      L5NO:opened(drawn(teamsNO)),
+      L5SW:opened(drawn(restSW.concat(bottomSW))),
+      RLN:opened(drawn(teamsN)),
+      RLS:opened(drawn(teamsS))
+    }};
+    const early={name:'2096/97', status:'running', leagues:Object.assign({}, zero.leagues, {L4:opened(zero.leagues.L4)})};
+    const earlyN=rowZone(early, 'RLN');
+    const earlyVice=earlyN.table[1];
+    check('vor der 4. Liga bleibt der Vizemeister provisorisch', leagueFinished(early, 'L4')===false && earlyN.at(earlyVice.id)==='z-auf-aus' && earlyN.legend.indexOf('provisorisch bis die 4. Liga feststeht')>=0);
+    const planN=promotionPlan(zero, 'RLN');
+    const planS=promotionPlan(zero, 'RLS');
+    const nord=rowZone(zero, 'RLN');
+    const sued=rowZone(zero, 'RLS');
+    const viceN=nord.table[1], profS=relegationProfile(zero, 'RLS');
+    const extraS=sued.table.filter(r=>r.pl>sued.table.length-profS.down && r.pl<=sued.table.length-2);
+    const fixedS=sued.table.filter(r=>r.pl>sued.table.length-2);
+    check('k=0: Vizemeister ist fest, obwohl die 5. Liga offen ist', leagueFinished(zero, 'L4') && !leagueFinished(zero, 'L5NO') && planN.k===0 && planN.up===2 && !planN.open && viceMarksSettled(zero, 'RLN') && !marksSettled(zero, 'RLN') && nord.at(nord.table[0].id)==='z-auf' && nord.at(viceN.id)==='z-auf' && nord.legend.indexOf('Vizemeister, fest')>=0 && nord.legend.indexOf('provisorisch bis die 4. Liga')<0 && nord.legend.indexOf('Relegation, provisorisch')<0, 'k '+planN.k+' klasse '+nord.at(viceN.id));
+    check('k>=2: Vizemeister verliert die Markierung, der Ausgleich wartet auf die 5. Liga', planS.k>=2 && planS.up===1 && !planS.open && viceMarksSettled(zero, 'RLS') && !marksSettled(zero, 'RLS') && !leagueFinished(zero, 'L5SW') && profS.down>2 && sued.at(sued.table[1].id)==='' && extraS.length>0 && extraS.every(r=>sued.at(r.id)==='z-ab-aus') && fixedS.every(r=>sued.at(r.id)==='z-ab') && sued.legend.indexOf('Vizemeister')<0 && sued.legend.indexOf('Provisorisch, hängt von der Liga darüber ab')>=0 && sued.legend.indexOf('Zwei feste Absteiger')>=0, 'k '+planS.k+' ab '+profS.down+' platz2 '+sued.at(sued.table[1].id));
+    used.clear();
+    const oneNO=take(id=>TEAMS[id].bl==='Hamburg', 1, true);
+    const threeSW=take(id=>TEAMS[id].bl==='Bayern', 3, true);
+    const dropNO=take(id=>TEAMS[id].bl==='Niedersachsen', 2, true);
+    const lowL4=take(()=>true, 16, false);
+    const dropCeil=dropNO?dropNO.slice().sort()[0]:'';
+    const lowNO=take(id=>isNO(id) && id<dropCeil, 20, false);
+    const playN=take(isRL('RLN'), 18, false);
+    const playO=take(id=>TEAMS[id].bl==='Brandenburg', 18, false);
+    const relayBuilt=oneNO&&threeSW&&dropNO&&lowL4&&lowNO&&playN&&playO&&under(oneNO.concat(threeSW), lowL4)&&under(dropNO, lowNO);
+    check('Fenster mit k=1 lässt sich aufbauen', !!relayBuilt);
+    if (!relayBuilt) return;
+    const one={name:'2095/96', status:'running', leagues:{
+      L4:drawn(lowL4.concat(oneNO, threeSW)),
+      L5NO:opened(drawn(lowNO.concat(dropNO))),
+      RLN:drawn(playN),
+      RLO:drawn(playO)
+    }};
+    const openPlan=promotionPlan(one, 'RLN');
+    const openNord=rowZone(one, 'RLN');
+    const openOst=rowZone(one, 'RLO');
+    check('k=1: Relegation bleibt provisorisch, solange sie offen ist', leagueFinished(one, 'L4') && !leagueFinished(one, 'L5NO') && openPlan.k===1 && openPlan.open && !viceMarksSettled(one, 'RLN') && openNord.at(openNord.table[1].id)==='z-auf-aus' && openOst.at(openOst.table[1].id)==='z-auf-aus' && openNord.legend.indexOf('Vizemeister, Relegation, provisorisch')>=0 && openNord.legend.indexOf('Vizemeister, fest')<0 && openNord.legend.indexOf('bis die 4. Liga')<0, 'k '+openPlan.k+' offen '+openPlan.open);
+    const rel=one.relay && one.relay.L5NO;
+    const leg1=rel&&rel.matches.find(m=>m.leg===1), leg2=rel&&rel.matches.find(m=>m.leg===2);
+    if (leg1&&leg2){ leg1.hg=1; leg1.ag=0; leg2.hg=0; leg2.ag=0; }
+    const decided=promotionPlan(one, 'RLO');
+    const won=rowZone(one, 'RLO');
+    const stayed=rowZone(one, 'RLN');
+    const stayedDown=relegationProfile(one, 'RLN');
+    const stayedExtra=stayed.table.filter(r=>r.pl>stayed.table.length-stayedDown.down && r.pl<=stayed.table.length-2);
+    const winner=rel&&relayWinner(rel);
+    check('k=1: Relegationssieger ist fest, der Verlierer frei, der Ausgleich wartet', !!rel && winner===rel.worse && decided.k===1 && !decided.open && decided.up===2 && viceMarksSettled(one, 'RLO') && viceMarksSettled(one, 'RLN') && !marksSettled(one, 'RLN') && !leagueFinished(one, 'L5NO') && won.at(won.table[1].id)==='z-auf' && won.table[1].id===winner && stayed.at(stayed.table[1].id)==='' && stayedDown.down>2 && stayedExtra.length>0 && stayedExtra.every(r=>stayed.at(r.id)==='z-ab-aus') && won.legend.indexOf('Vizemeister, fest')>=0 && won.legend.indexOf('provisorisch')<0 && stayed.legend.indexOf('Vizemeister')<0 && stayed.legend.indexOf('Provisorisch, hängt von der Liga darüber ab')>=0, 'sieger '+(winner===rel.worse)+' auf '+decided.up+' ab '+stayedDown.down+' klasse '+won.at(won.table[1].id)+'/'+stayed.at(stayed.table[1].id));
+  })();
+  const navBar=document.querySelector('.topnav');
+  const navLink=navBar&&navBar.querySelector('.nav-link');
+  const navCs=navBar?getComputedStyle(navBar):null;
+  const linkCs=navLink?getComputedStyle(navLink):null;
+  check('Leiste verteilt die Links', !!navCs && navCs.justifyContent==='space-between' && !!linkCs && parseFloat(linkCs.fontSize)>=12);
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);
