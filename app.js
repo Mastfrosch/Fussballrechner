@@ -11095,7 +11095,9 @@ function uiSelfTestBody(fails){
     for (let i=1;i<row.length;i++) navMin=Math.min(navMin, row[i].left-row[i-1].right);
   });
   const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
+  const navScreen=window.innerWidth||0;
   check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
+  if (navScreen>=2400 && navWide) check('breite Leiste bleibt eine Zeile mit größerer Schrift', Object.keys(navRows).length===1 && parseFloat(linkCs.fontSize)>=14 && navMin>=12, 'zeilen '+Object.keys(navRows).length+' schrift '+(linkCs?linkCs.fontSize:''));
   const info=ansehenInfo('t001');
   const seasonRows=ansehenSeasonRows(info);
   check('Saisonzeilen ergeben das Ansehen', ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))===info.value, ansehenRound2(seasonRows.reduce((s,r)=>s+r.sum,0))+' gegen '+info.value);

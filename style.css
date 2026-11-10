@@ -20,6 +20,10 @@ body{margin:0;font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;fon
 .nav-menu-btn,.nav-link{border:0;border-bottom:2px solid transparent;background:transparent;padding:0 5px;cursor:pointer;color:#5c6570;font-size:12px;letter-spacing:0;white-space:nowrap;text-decoration:none;display:flex;align-items:center;gap:2px}
 .topnav>.nav-link,.topnav>.nav-menu{flex:0 0 auto;min-width:max-content}
 .topnav>.nav-link,.topnav>.nav-menu>.nav-menu-btn{padding:0 2px;font-size:12px}
+@media (min-width:1600px){
+  .topnav{column-gap:12px}
+  .topnav>.nav-link,.topnav>.nav-menu>.nav-menu-btn{padding:5px 4px;font-size:15px}
+}
 .nav-menu-btn:hover,.nav-link:hover{color:var(--ink);background:#f4f6f7}
 .nav-menu-btn.active,.nav-link.active,.nav-menu.open>.nav-menu-btn,.top-tools.open>.nav-menu-btn{color:var(--ink);font-weight:650;border-bottom-color:var(--green);background:#f3f7f4}
 .nav-cnt{color:var(--muted);font-size:11px}
