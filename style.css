@@ -149,6 +149,7 @@ table.tbl.stand th.sort-asc::after,table.tbl.stand th.sort-desc::after{position:
 #tableCard > table.tbl.stand td:nth-child(10){width:104px}
 #tableCard > table.tbl.stand th:nth-child(11),
 #tableCard > table.tbl.stand td:nth-child(11){width:92px}
+#tableCard > table.tbl.stand td{vertical-align:middle}
 #tableCard > table.tbl.stand td.l{overflow:hidden}
 #tableCard .club .nm:has(.mk){display:flex;align-items:baseline;gap:3px;min-width:0}
 #tableCard .club .mk{flex:0 0 auto}
