@@ -83,7 +83,7 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
   .top-tools{order:3}
   .head-actions{order:4}
   .season-field{order:5}
-  .topnav{order:6;flex:1 1 100%;flex-wrap:wrap}
+  .topnav{order:6;flex:1 1 100%;flex-wrap:wrap;padding-right:16px}
 }
 @media (min-width:2200px){
   #topbar{flex-wrap:nowrap;column-gap:12px}
@@ -531,7 +531,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .br-m .ln.win{font-weight:700}
 .br-m .bye{color:var(--muted);font-size:11px}
 .cup-note{font-size:12px;color:#444;margin:0 0 8px}
-.relay-card{margin-top:8px}
+.relay-card{grid-column:1 / -1;margin-top:8px}
 .relay-card .cup-note,.relay-card .muted{margin:4px 10px;line-height:1.3}
 .feat-settings{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;font-size:12px}
 .feat-settings label{display:flex;gap:6px;align-items:center}
@@ -802,8 +802,14 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   #main{overflow-x:hidden}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
-@media (min-width:2200px){
-  .split{grid-template-columns:minmax(0,1fr) 860px}
+@media (min-width:2000px){
+  .split{grid-template-columns:minmax(0,1fr) minmax(660px,32%)}
+  .split:has(.relay-card){grid-template-columns:minmax(0,1fr) clamp(500px,22%,640px) clamp(300px,18%,460px)}
+  .split>.relay-card{grid-column:auto;margin-top:0;align-self:start}
+  .split:has(.relay-card) #spCard .sp-tools{gap:4px;padding:2px 4px}
+  .split:has(.relay-card) #spCard .sp-tools .btn{font-size:11px;padding:1px 4px}
+  .split:has(.relay-card) #spCard .slot-head{padding-top:0;padding-bottom:0}
+  .split:has(.relay-card) #spCard .match{padding-top:0;padding-bottom:0}
   #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
   #tableCard>table.tbl.stand th:nth-child(1),
   #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
