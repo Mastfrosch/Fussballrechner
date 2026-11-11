@@ -5025,7 +5025,7 @@ function currentMd(s,lid){
 }
 function viewTabelle(s,lid){
   try{ syncRelay(s); }catch(e){}
-  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div></div>'+relayHTML(s,lid);
+  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div>'+relayHTML(s,lid)+'</div>';
 }
 function alignStandToPlan(){
   const card=document.getElementById('tableCard');
