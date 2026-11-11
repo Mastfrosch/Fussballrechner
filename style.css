@@ -590,7 +590,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
 .sieger-box{overflow:visible}
-.sieger-row{display:grid;grid-template-columns:7.4rem minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr);column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
+.sieger-row{display:grid;grid-template-columns:7.4rem minmax(0,1fr) minmax(0,1fr) max-content;column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
 .title-who{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .title-who .ml-crest{width:28px;height:28px;flex:0 0 28px;object-fit:contain}
 .title-who .muted{font-size:12px}
@@ -598,8 +598,15 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
 .sieger-who{min-width:0}
 .sieger-who .club{max-width:100%}
-.sieger-final{min-width:0}
-.sieger-final .match{border:0;padding:0;width:100%}
+.sieger-final{min-width:0;justify-self:center}
+.sieger-final .match{border:0;padding:0;width:max-content;margin:0 auto}
+.sieger-final .match.cup,.sieger-final .match.cup.match-nodel{grid-template-columns:max-content max-content max-content;width:max-content;justify-content:center;gap:8px}
+.sieger-final .side{overflow:visible;gap:6px}
+.sieger-final .liga-edge{max-width:none}
+.sieger-final .scorecol{width:auto}
+#tableCard tr.pot-line>td,#tableCard tr.cup-line>td{box-shadow:inset 0 -2px 0 #3d6b4f}
+#tableCard tr.pot-keep>td,#tableCard tr.cup-keep>td{box-shadow:inset 0 -2px 0 #b7c9be}
+.cup-cut{margin-left:6px;font-size:11px;font-weight:650;color:#2f6a49;letter-spacing:.02em;white-space:nowrap}
 .sieger-final .nm-home,.sieger-final .nm-away{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
 .sieger-final .nm-home{text-align:right}
 .sieger-final .nm-away{text-align:left}
@@ -803,7 +810,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
 @media (min-width:2000px){
-  .split{grid-template-columns:minmax(0,1fr) minmax(660px,32%)}
+  .split{grid-template-columns:minmax(0,1fr) minmax(715px,calc(32% + 55px))}
   #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
   #tableCard>table.tbl.stand th:nth-child(1),
   #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
