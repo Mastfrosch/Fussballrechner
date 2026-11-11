@@ -803,7 +803,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
 @media (min-width:2200px){
-  .split{grid-template-columns:minmax(0,1fr) 960px}
+  .split{grid-template-columns:minmax(0,1fr) 860px}
   #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
   #tableCard>table.tbl.stand th:nth-child(1),
   #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
