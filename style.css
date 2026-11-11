@@ -804,12 +804,6 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 }
 @media (min-width:2000px){
   .split{grid-template-columns:minmax(0,1fr) minmax(660px,32%)}
-  .split:has(.relay-card){grid-template-columns:minmax(0,1fr) clamp(500px,22%,640px) clamp(300px,18%,460px)}
-  .split>.relay-card{grid-column:auto;margin-top:0;align-self:start}
-  .split:has(.relay-card) #spCard .sp-tools{gap:4px;padding:2px 4px}
-  .split:has(.relay-card) #spCard .sp-tools .btn{font-size:11px;padding:1px 4px}
-  .split:has(.relay-card) #spCard .slot-head{padding-top:0;padding-bottom:0}
-  .split:has(.relay-card) #spCard .match{padding-top:0;padding-bottom:0}
   #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
   #tableCard>table.tbl.stand th:nth-child(1),
   #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
