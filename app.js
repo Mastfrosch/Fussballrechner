@@ -1994,7 +1994,104 @@ function canonicalByeHalf(n){
   CANON_SCHEDULE[key]=bad?{rounds:null, bad, unsolved:true}:{rounds:first, bad:0, unsolved:false};
   return CANON_SCHEDULE[key];
 }
-function makeSchedule(n){
+const BREAK_HALF_SRC={
+18:"17,0;16,1;2,15;14,3;4,13;12,5;6,11;10,7;8,9|1,17;0,2;3,16;15,4;5,14;13,6;7,12;11,8;9,10|17,2;1,3;4,0;16,5;6,15;14,7;8,13;12,9;10,11|3,17;2,4;5,1;0,6;7,16;15,8;9,14;13,10;11,12|17,4;3,5;6,2;1,7;8,0;16,9;10,15;14,11;12,13|5,17;4,6;7,3;2,8;9,1;0,10;11,16;15,12;13,14|17,6;5,7;8,4;3,9;10,2;1,11;12,0;16,13;14,15|7,17;6,8;9,5;4,10;11,3;2,12;13,1;0,14;15,16|17,8;7,9;10,6;5,11;12,4;3,13;14,2;1,15;16,0|9,17;8,10;11,7;6,12;13,5;4,14;15,3;2,16;0,1|17,10;9,11;12,8;7,13;14,6;5,15;16,4;3,0;1,2|11,17;10,12;13,9;8,14;15,7;6,16;0,5;4,1;2,3|17,12;11,13;14,10;9,15;16,8;7,0;1,6;5,2;3,4|13,17;12,14;15,11;10,16;0,9;8,1;2,7;6,3;4,5|17,14;13,15;16,12;11,0;1,10;9,2;3,8;7,4;5,6|17,15;14,16;0,13;12,1;2,11;10,3;4,9;8,5;6,7|16,17;15,0;1,14;13,2;3,12;11,4;5,10;9,6;7,8",
+20:"19,0;18,1;2,17;16,3;4,15;14,5;6,13;12,7;8,11;10,9|1,19;0,2;3,18;17,4;5,16;15,6;7,14;13,8;9,12;11,10|19,2;1,3;4,0;18,5;6,17;16,7;8,15;14,9;10,13;12,11|3,19;2,4;5,1;0,6;7,18;17,8;9,16;15,10;11,14;13,12|19,4;3,5;6,2;1,7;8,0;18,9;10,17;16,11;12,15;14,13|5,19;4,6;7,3;2,8;9,1;0,10;11,18;17,12;13,16;15,14|19,6;5,7;8,4;3,9;10,2;1,11;12,0;18,13;14,17;16,15|7,19;6,8;9,5;4,10;11,3;2,12;13,1;0,14;15,18;17,16|19,8;7,9;10,6;5,11;12,4;3,13;14,2;1,15;16,0;18,17|9,19;8,10;11,7;6,12;13,5;4,14;15,3;2,16;17,1;0,18|19,10;9,11;12,8;7,13;14,6;5,15;16,4;3,17;18,2;1,0|11,19;10,12;13,9;8,14;15,7;6,16;17,5;4,18;0,3;2,1|19,12;11,13;14,10;9,15;16,8;7,17;18,6;5,0;1,4;3,2|13,19;12,14;15,11;10,16;17,9;8,18;0,7;6,1;2,5;4,3|19,14;13,15;16,12;11,17;18,10;9,0;1,8;7,2;3,6;5,4|15,19;14,16;17,13;12,18;0,11;10,1;2,9;8,3;4,7;6,5|19,16;15,17;18,14;13,0;1,12;11,2;3,10;9,4;5,8;7,6|19,17;16,18;0,15;14,1;2,13;12,3;4,11;10,5;6,9;8,7|18,19;17,0;1,16;15,2;3,14;13,4;5,12;11,6;7,10;9,8",
+22:"21,0;20,1;2,19;18,3;4,17;16,5;6,15;14,7;8,13;12,9;10,11|1,21;0,2;3,20;19,4;5,18;17,6;7,16;15,8;9,14;13,10;11,12|21,2;1,3;4,0;20,5;6,19;18,7;8,17;16,9;10,15;14,11;12,13|3,21;2,4;5,1;0,6;7,20;19,8;9,18;17,10;11,16;15,12;13,14|21,4;3,5;6,2;1,7;8,0;20,9;10,19;18,11;12,17;16,13;14,15|5,21;4,6;7,3;2,8;9,1;0,10;11,20;19,12;13,18;17,14;15,16|21,6;5,7;8,4;3,9;10,2;1,11;12,0;20,13;14,19;18,15;16,17|7,21;6,8;9,5;4,10;11,3;2,12;13,1;0,14;15,20;19,16;17,18|21,8;7,9;10,6;5,11;12,4;3,13;14,2;1,15;16,0;20,17;18,19|9,21;8,10;11,7;6,12;13,5;4,14;15,3;2,16;17,1;0,18;19,20|21,10;9,11;12,8;7,13;14,6;5,15;16,4;3,17;18,2;1,19;20,0|11,21;10,12;13,9;8,14;15,7;6,16;17,5;4,18;19,3;2,20;0,1|21,12;11,13;14,10;9,15;16,8;7,17;18,6;5,19;20,4;3,0;1,2|13,21;12,14;15,11;10,16;17,9;8,18;19,7;6,20;0,5;4,1;2,3|21,14;13,15;16,12;11,17;18,10;9,19;20,8;7,0;1,6;5,2;3,4|15,21;14,16;17,13;12,18;19,11;10,20;0,9;8,1;2,7;6,3;4,5|21,16;15,17;18,14;13,19;20,12;11,0;1,10;9,2;3,8;7,4;5,6|17,21;16,18;19,15;14,20;0,13;12,1;2,11;10,3;4,9;8,5;6,7|21,18;17,19;20,16;15,0;1,14;13,2;3,12;11,4;5,10;9,6;7,8|21,19;18,20;0,17;16,1;2,15;14,3;4,13;12,5;6,11;10,7;8,9|20,21;19,0;1,18;17,2;3,16;15,4;5,14;13,6;7,12;11,8;9,10"
+};
+const BREAK_HALF={};
+function parsedHalf(n){
+  if (BREAK_HALF[n]) return BREAK_HALF[n];
+  const src=BREAK_HALF_SRC[n];
+  if (!src) return null;
+  BREAK_HALF[n]=src.split('|').map(round=>round.split(';').map(p=>{ const c=p.split(','); return [+c[0], +c[1]]; }));
+  return BREAK_HALF[n];
+}
+function evenHalf(n){
+  const saved=parsedHalf(n);
+  if (saved) return saved;
+  if (n%2===0 && n>=6){
+    const canon=canonicalFirstHalf(n);
+    return canon && canon.rounds ? canon.rounds : null;
+  }
+  return null;
+}
+function materializeHalf(rounds, perm, flip){
+  return rounds.map(ps=>ps.map(([h,a])=>{
+    let H=perm[h], A=perm[a];
+    if (flip){ const t=H; H=A; A=t; }
+    return [H, A, null, null];
+  }));
+}
+function appealOf(rounds, perm, flip, appeal){
+  let score=0;
+  rounds.forEach((ps, r)=>{
+    ps.forEach(([h,a])=>{
+      let H=perm[h], A=perm[a];
+      if (flip){ const t=H; H=A; A=t; }
+      score+=(r+1)*Math.min(appeal[H]||0, appeal[A]||0);
+    });
+  });
+  return score;
+}
+function scheduleFromHalf(rounds, perm, flip){
+  const hin=materializeHalf(rounds, perm, flip);
+  const rueck=hin.map(ps=>ps.map(m=>[m[1], m[0], null, null]));
+  return hin.concat(rueck);
+}
+let planProbe=false;
+function planFits(md, lid, teams, name){
+  if (planProbe || !lid || !teams || !md) return true;
+  planProbe=true;
+  try{
+    const probeMd=md.map(round=>round.map(m=>m.slice()));
+    const season={name:name||'2099/00', status:'running', leagues:{[lid]:{teams:teams.slice(), md:probeMd}}, pools:{}, kickoffs:{}};
+    return !!scheduleNextBlock(season, lid);
+  }catch(e){ return false; }
+  finally{ planProbe=false; }
+}
+function permFactory(seed, n){
+  let a=seed>>>0 || 1;
+  const rnd=()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  return ()=>{
+    const perm=Array.from({length:n},(_,i)=>i);
+    for (let i=perm.length-1;i>0;i--){
+      const j=Math.floor(rnd()*(i+1));
+      const tmp=perm[i]; perm[i]=perm[j]; perm[j]=tmp;
+    }
+    return {perm, flip:rnd()<0.5};
+  };
+}
+function seedFromPerm(perm){
+  let s=2166136261;
+  perm.forEach(v=>{ s^=v+1; s=Math.imul(s, 16777619); });
+  return s>>>0;
+}
+function takeFitting(rounds, ranked, host){
+  const seen={};
+  const tryOne=c=>{
+    const key=c.perm.join('.')+(c.flip?'f':'');
+    if (seen[key]) return null;
+    seen[key]=1;
+    const md=scheduleFromHalf(rounds, c.perm, c.flip);
+    if (!host || planFits(md, host.lid, host.teams, host.name)) return md;
+    return null;
+  };
+  const cap=host?12:1;
+  for (let i=0;i<ranked.length && i<cap;i++){
+    const md=tryOne(ranked[i]);
+    if (md) return md;
+  }
+  if (host && ranked.length){
+    const next=permFactory(seedFromPerm(ranked[0].perm), ranked[0].perm.length);
+    for (let k=0;k<48;k++){
+      const md=tryOne(next());
+      if (md) return md;
+    }
+  }
+  return scheduleFromHalf(rounds, ranked[0].perm, ranked[0].flip);
+}
+function makeSchedule(n, appeal, host){
   if (n && n%2 && n>=3){
     const canon=canonicalByeHalf(n);
     if (!canon.rounds || canon.unsolved || canon.bad){
@@ -2014,20 +2111,33 @@ function makeSchedule(n){
     const rueck=returnRoundOrder(n).map(r=>rounds[r].map(([h,a])=>[perm[a],perm[h],null,null]));
     return hin.concat(rueck);
   }
-  const canon=canonicalFirstHalf(n);
-  if (!canon.rounds || canon.unsolved || canon.bad){
-    const err=new Error(n<6
-      ? 'Vier Vereine: Spiegelung und höchstens zwei gleiche Platzseiten sind zugleich unlösbar.'
-      : 'Spielplan für '+n+' Vereine hält die Serie 2 nicht (Rest '+(canon.bad||0)+').');
-    err.scheduleUnsolved=true;
-    err.size=n;
-    err.bad=canon.bad||0;
-    throw err;
+  const rounds=evenHalf(n);
+  if (!rounds){
+    const canon=canonicalFirstHalf(n);
+    if (!canon.rounds || canon.unsolved || canon.bad){
+      const err=new Error(n<6
+        ? 'Vier Vereine: Spiegelung und höchstens zwei gleiche Platzseiten sind zugleich unlösbar.'
+        : 'Spielplan für '+n+' Vereine hält die Serie 2 nicht (Rest '+(canon.bad||0)+').');
+      err.scheduleUnsolved=true;
+      err.size=n;
+      err.bad=canon.bad||0;
+      throw err;
+    }
+    const perm=shuffle(Array.from({length:n},(_,i)=>i));
+    const hin=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[h],perm[a],null,null]));
+    const rueck=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[a],perm[h],null,null]));
+    return hin.concat(rueck);
   }
-  const perm=shuffle(Array.from({length:n},(_,i)=>i));
-  const hin=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[h],perm[a],null,null]));
-  const rueck=canon.rounds.map(ps=>ps.map(([h,a])=>[perm[a],perm[h],null,null]));
-  return hin.concat(rueck);
+  const tries=appeal && appeal.length===n ? 360 : 1;
+  const ranked=[];
+  for (let t=0;t<tries;t++){
+    const perm=shuffle(Array.from({length:n},(_,i)=>i));
+    const flip=tries>1 && Math.random()<0.5;
+    const score=tries>1 ? appealOf(rounds, perm, flip, appeal) : 0;
+    ranked.push({perm:perm.slice(), flip, score});
+  }
+  ranked.sort((a,b)=>b.score-a.score);
+  return takeFitting(rounds, ranked, host||null);
 }
 
 // ---------- Zustand ----------
@@ -2070,12 +2180,86 @@ function buildInitialSquads(){
     return {leagues, pools, used:used.size, total:ids.length};
   });
 }
+function schedulePending(season, lid){
+  const lg=season && season.leagues && season.leagues[lid];
+  if (!lg || lg.md || season.compact) return false;
+  if (lg.tables && lg.tables.all && lg.tables.all.length) return false;
+  return !!(lg.teams && lg.teams.length);
+}
+function ensureLeagueSchedule(season, lid){
+  if (planProbe || !schedulePending(season, lid)) return false;
+  const lg=season.leagues[lid];
+  const appeal=lg.teams.map(id=>{ try{ return ansehenValue(id)||0; }catch(e){ return 0; } });
+  lg.md=makeSchedule(lg.teams.length, appeal, {lid, teams:lg.teams, name:season.name});
+  return true;
+}
+let planJob=null;
+function beginLeagueSchedule(lid){
+  if (planJob || !S || !isEditable()) return;
+  const season=cur();
+  if (!schedulePending(season, lid)) return;
+  const teams=season.leagues[lid].teams;
+  const n=teams.length;
+  const rounds=evenHalf(n);
+  if (!rounds){
+    ensureLeagueSchedule(season, lid);
+    save(); render();
+    return;
+  }
+  const appeal=teams.map(id=>{ try{ return ansehenValue(id)||0; }catch(e){ return 0; } });
+  const total=360;
+  planJob={lid, done:0, total, best:[], phase:'appeal'};
+  const keepBest=c=>{
+    planJob.best.push(c);
+    planJob.best.sort((a,b)=>b.score-a.score);
+    if (planJob.best.length>12) planJob.best.length=12;
+  };
+  const finish=md=>{
+    planJob=null;
+    const lg=cur() && cur().leagues && cur().leagues[lid];
+    if (lg && !lg.md) lg.md=md;
+    save(); render();
+  };
+  const step=()=>{
+    if (!planJob || planJob.lid!==lid) return;
+    const batch=30;
+    for (let i=0;i<batch && planJob.done<planJob.total;i++){
+      const perm=shuffle(Array.from({length:n},(_,k)=>k));
+      const flip=Math.random()<0.5;
+      keepBest({perm:perm.slice(), flip, score:appealOf(rounds, perm, flip, appeal)});
+      planJob.done++;
+    }
+    const el=document.getElementById('planProgress');
+    if (el) el.textContent='Spielplan wird erstellt … '+Math.round(100*planJob.done/planJob.total)+' %';
+    if (planJob.done<planJob.total){ setTimeout(step, 0); return; }
+    planJob.phase='fit';
+    planJob.fit=0;
+    planJob.extra=permFactory(seedFromPerm(planJob.best[0].perm), n);
+    planJob.extraN=0;
+    setTimeout(fitStep, 0);
+  };
+  const fitStep=()=>{
+    if (!planJob || planJob.lid!==lid) return;
+    let c;
+    if (planJob.fit<planJob.best.length) c=planJob.best[planJob.fit++];
+    else if (planJob.extraN<48){ c=planJob.extra(); planJob.extraN++; }
+    else c=planJob.best[0];
+    const md=scheduleFromHalf(rounds, c.perm, c.flip);
+    const last=planJob.fit>=planJob.best.length && planJob.extraN>=48;
+    if (planFits(md, lid, teams, cur().name) || last){ finish(md); return; }
+    const el=document.getElementById('planProgress');
+    if (el) el.textContent='Spielplan wird erstellt … Anstöße werden geprüft';
+    setTimeout(fitStep, 0);
+  };
+  render();
+  setTimeout(step, 0);
+}
 function newGame(){
   const squads=buildInitialSquads();
   const season={name:'2026/27', status:'running', leagues:{}, pools:{}, markers:{}, seed:'ansehen'};
   LEAGUES.forEach(l=>{
     const teams=squads.leagues[l.id].slice();
-    season.leagues[l.id]={teams, md:makeSchedule(teams.length)};
+    season.leagues[l.id]={teams, md:null};
   });
   POOLS.forEach(pp=>{ season.pools[pp.id]=squads.pools[pp.id].slice(); });
   season.cups=withHistoryOnly(()=>buildCups(season, null));
@@ -2755,7 +2939,9 @@ function simShootout(){
   return [peh, pea];
 }
 function simLeague(season, lid, mdIdx){
-  const lg=season.leagues[lid]; let c=0;
+  try{ ensureLeagueSchedule(season, lid); }catch(e){}
+  const lg=season.leagues[lid]; if(!lg||!lg.md) return 0;
+  let c=0;
   const fill=mi=>{ if(!isScheduled(season,lid,mi)) return; lg.md[mi].forEach(m=>{ if(m[2]==null||m[3]==null){const r=simMatch(lg.teams[m[0]],lg.teams[m[1]]); m[2]=r[0]; m[3]=r[1]; c++;} }); };
   if (mdIdx!=null){ fill(mdIdx); maybeAdvance(season, lid); return c; }
   if (lastScheduled(season, lid)<0) scheduleNextBlock(season, lid);
@@ -3294,7 +3480,7 @@ function finalizeSeason(opts){
   for (const ol in e.picks){ e.picks[ol].forEach(id=>{ for(const pid in pools){ const i=pools[pid].indexOf(id); if(i>=0) pools[pid].splice(i,1);} newT[ol].push(id); }); }
   const bad = LEAGUES.filter(l=>newT[l.id].length!==l.size);
   if (bad.length){ if (!quiet) alert('Fehler: falsche Teamzahl in '+bad.map(l=>l.name+' ('+newT[l.id].length+')').join(', ')); return; }
-  LEAGUES.forEach(l=>{ const teams=newT[l.id].sort(byRang); ns.leagues[l.id]={teams, md:makeSchedule(teams.length)}; });
+  LEAGUES.forEach(l=>{ const teams=newT[l.id].sort(byRang); ns.leagues[l.id]={teams, md:null}; });
   POOLS.forEach(p=>ns.pools[p.id]=pools[p.id].sort(byRang));
   // Markierungen: (Auf) Aufsteiger, (Ab) Absteiger, (M) Vorjahresmeister
   const mk=(id,x)=>{ (ns.markers[id]||(ns.markers[id]=[])).push(x); };
@@ -5190,6 +5376,11 @@ function relayHTML(season, lid){
 let shownMd=0;
 function spielplanHTML(s,lid){
   const lg=s.leagues[lid];
+  if (planJob && planJob.lid===lid) return '<div class="card-title"><span>Spielplan</span></div><div class="plan-create"><p id="planProgress">Spielplan wird erstellt … '+Math.round(100*planJob.done/planJob.total)+' %</p></div>';
+  if (schedulePending(s, lid)){
+    const btn=isEditable()?'<button type="button" class="btn primary" data-act="makePlan">Spielplan erstellen</button>':'';
+    return '<div class="card-title"><span>Spielplan</span></div><div class="plan-create"><p>Für diese Liga ist noch kein Spielplan erstellt. Danach stehen die Paarungen fest.</p>'+btn+'</div>';
+  }
   if (!lg || !lg.md) return '<div class="card-title"><span>Spielplan</span></div><p class="muted">Die einzelnen Spiele dieser Saison sind nicht mehr gespeichert. Tabelle, Heim/Auswärts und Hin/Rückrunde bleiben erhalten.</p>';
   const mi=currentMd(s,lid);
   shownMd=mi; S.ui.md[S.view+':'+lid]=mi;
@@ -7530,8 +7721,11 @@ function seatFeatured(season, lid, from, to, snap){
   }
 }
 function scheduleNextBlock(season, lid){
+  try{ ensureLeagueSchedule(season, lid); }catch(e){}
   const tr=window.FR_TIMING; const t0=tr?performance.now():0;
-  const lg=season.leagues[lid], n=lg.teams.length;
+  const lg=season.leagues[lid];
+  if (!lg || !lg.md) return null;
+  const n=lg.teams.length;
   const from=lastScheduled(season, lid)+1;
   const range=nextBlockRange(n, from);
   if (!range) return null;
@@ -10020,6 +10214,7 @@ document.addEventListener('click', ev=>{
   else if (act==='mdPrev'||act==='mdNext'){ const n=s.leagues[lid].md.length; let i=currentMd(s,lid)+(act==='mdNext'?1:-1); i=Math.max(0,Math.min(n-1,i)); S.ui.md[S.view+':'+lid]=i; save(); render(); }
   else if (act==='goal'){ adjustGoal(+a.dataset.k, +a.dataset.side, +a.dataset.dir); }
   else if (act==='del'){ applyScore(+a.dataset.k, null, null); }
+  else if (act==='makePlan'){ beginLeagueSchedule(lid); }
   else if (act==='termBlock'){ const r=scheduleNextBlock(s,lid); save(); render(); if(r) toast('Spieltage '+(r[0]+1)+'–'+(r[1]+1)+' terminiert.'); }
   else if (act==='termPrev'||act==='termNext'){
     const key=S.view+':'+lid;
@@ -10383,6 +10578,11 @@ function uiSelfTest(){
 }
 function uiSelfTestBody(fails){
   const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  if (S && cur()){
+    let made=false;
+    LEAGUES.forEach(l=>{ if (ensureLeagueSchedule(cur(), l.id)) made=true; });
+    if (made) render();
+  }
   const matches=[
     {md:0,h:'t001',a:'t002',hg:1,ag:0},
     {md:1,h:'t002',a:'t001',hg:0,ag:2},
@@ -11958,7 +12158,7 @@ function terminSelfTest(){
     try{
       seedRandom(17);
       const teams=squad.leagues.BL.slice();
-      const md=makeSchedule(teams.length);
+      const md=makeSchedule(teams.length, null, {lid:'BL', teams});
       Math.random=prevRandom;
       const other=md[0].find(m=>m[0]!==0 && m[1]!==0);
       const b=other[0]===0?other[1]:other[0];
@@ -12018,7 +12218,7 @@ function terminSelfTest(){
   function runOne(lid, seed){
     seedRandom(seed);
     const teams=squad.leagues[lid].slice();
-    const md=makeSchedule(teams.length);
+    const md=makeSchedule(teams.length, null, {lid, teams});
     const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}, cups:{dfb:{entrants:teams.slice(0,8), rounds:[
       {name:'Achtelfinale', drawn:true, matches:[{h:teams[0], a:teams[1], hg:2, ag:1, at:0, peh:null, pea:null}]},
       {name:'Finale', drawn:true, matches:[{h:teams[2], a:teams[3], hg:1, ag:0, at:40, peh:3, pea:3}]}
@@ -12302,7 +12502,7 @@ function terminSelfTest(){
   }
   const closingKeepsSlots=(lid, seed)=>{
     seedRandom(seed);
-    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length);
+    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length, null, {lid, teams});
     Math.random=prevRandom;
     const season={name:'2097/98', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
     const total=md.length;
@@ -12329,7 +12529,7 @@ function terminSelfTest(){
   const leak=(()=>{
     const build=()=>{
       seedRandom(77);
-      const teams=squad.leagues.RLN.slice(), md=makeSchedule(teams.length);
+      const teams=squad.leagues.RLN.slice(), md=makeSchedule(teams.length, null, {lid:'RLN', teams});
       const parentTeams=squad.leagues.L4.slice(), parentMd=makeSchedule(parentTeams.length);
       Math.random=prevRandom;
       return {name:'2099/00', status:'running', leagues:{RLN:{teams, md}, L4:{teams:parentTeams, md:parentMd}}, pools:{}, kickoffs:{}, cups:{dfb:{entrants:[teams[0], teams[1]], rounds:[{name:'Finale', matches:[{h:teams[0], a:teams[1], hg:null, ag:null}]}]}}};
@@ -12362,7 +12562,7 @@ function terminSelfTest(){
   check('vorgefüllte Zukunft ändert die erste Terminierung nicht', leak);
   const booted=(()=>{
     seedRandom(5);
-    const teams=squad.leagues.BL.slice(), md=makeSchedule(teams.length);
+    const teams=squad.leagues.BL.slice(), md=makeSchedule(teams.length, null, {lid:'BL', teams});
     Math.random=prevRandom;
     const season={name:'2099/00', status:'running', leagues:{BL:{teams, md}}, pools:{}, kickoffs:{}};
     const first=scheduleNextBlock(season, 'BL');
@@ -12723,7 +12923,7 @@ function terminSelfTest(){
   })();
   ['L3','L4'].forEach(lid=>{
     seedRandom(4100+(lid==='L3'?0:17));
-    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length);
+    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length, null, {lid, teams});
     Math.random=prevRandom;
     const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
     let g=0; while(g++<24){ const range=scheduleNextBlock(season, lid); if(!range) break; for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } }); }
@@ -12746,7 +12946,7 @@ function terminSelfTest(){
   (()=>{
     seedRandom(4100);
     const lid='L5NO';
-    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length);
+    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length, null, {lid, teams});
     Math.random=prevRandom;
     const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
     let g=0; while(g++<24){ const range=scheduleNextBlock(season, lid); if(!range) break; for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } }); }
@@ -12855,5 +13055,106 @@ function terminSelfTest(){
   return {ok:!fails.length, fails, report};
 
 }
-window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, l5Balance, L5_IDS, RL_IDS, L5_FEED, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+function scheduleBreaks(md){
+  const games=md[0].length, n=games*2, half=n-1;
+  const seq=Array.from({length:n},()=>'');
+  md.forEach(round=>round.forEach(m=>{ seq[m[0]]+='H'; seq[m[1]]+='A'; }));
+  const halfOf=s=>{ let b=0; const h=s.slice(0,half); for (let i=1;i<h.length;i++) if (h[i]===h[i-1]) b++; return b; };
+  const fullOf=s=>{ let b=0, run=1; for (let i=1;i<s.length;i++){ if (s[i]===s[i-1]) b++; run=s[i]===s[i-1]?run+1:1; if (run>3) b+=100; } return b; };
+  const halfPer=seq.map(halfOf), fullPer=seq.map(fullOf);
+  return {half:halfPer.reduce((a,b)=>a+b,0), full:fullPer.reduce((a,b)=>a+b,0), maxHalf:Math.max.apply(null, halfPer), maxFull:Math.max.apply(null, fullPer)};
+}
+function scheduleSelfTest(){
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  [18,20,22].forEach(n=>{
+    let minH=999, maxH=0, sumH=0;
+    for (let i=0;i<30;i++){
+      const md=makeSchedule(n);
+      const br=scheduleBreaks(md);
+      const fx=validateFixtures(md);
+      minH=Math.min(minH, br.maxHalf); maxH=Math.max(maxH, br.maxHalf); sumH+=br.half;
+      if (!(br.half===n-2 && br.maxHalf<=1 && fx.ok && scheduleMirrorHolds(md) && br.maxFull<=3)){
+        check('Minimum-Breaks '+n, false, br.half+'/'+br.maxHalf+'/'+br.maxFull+' '+(fx.issues||[]).slice(0,2).join(','));
+        return;
+      }
+    }
+    check('Minimum-Breaks '+n+' über 30 Pläne', minH<=1 && maxH<=1 && sumH===30*(n-2));
+  });
+  const appeal=Array.from({length:20},(_,i)=>i<2?1000:1);
+  let late=0, early=0;
+  for (let i=0;i<24;i++){
+    const md=makeSchedule(20, appeal);
+    for (let r=0;r<19;r++) md[r].forEach(m=>{
+      if ((m[0]===0 && m[1]===1) || (m[0]===1 && m[1]===0)){ if (r>=9) late++; else early++; }
+    });
+  }
+  check('hohes Ansehen trifft sich in der Tendenz später', late>early, late+' später, '+early+' früher');
+  const season={name:'2099/00', status:'running', leagues:{BL:{teams:Array.from({length:20},(_,i)=>'t'+String(i+1).padStart(3,'0')), md:null}}, pools:{}, markers:{}};
+  const html=spielplanHTML(season, 'BL');
+  check('ohne Spielplan steht der Knopf', html.indexOf('>Spielplan erstellen<')>=0 && html.indexOf('data-act="makePlan"')>=0);
+  ensureLeagueSchedule(season, 'BL');
+  const before=season.leagues.BL.md.map(r=>r.map(m=>m[0]+'>'+m[1]).join(',')).join(';');
+  check('der Knopf-Pfad erzeugt einen Spiegelplan', scheduleMirrorHolds(season.leagues.BL.md) && scheduleBreaks(season.leagues.BL.md).half===18);
+  simLeague(season, 'BL');
+  const after=season.leagues.BL.md.map(r=>r.map(m=>m[0]+'>'+m[1]).join(',')).join(';');
+  check('Simulation lässt die Paarungen auf ihrem Spieltag', before===after);
+  const oldHtml=spielplanHTML({name:'alt', status:'done', compact:true, leagues:{BL:{teams:['t001'], tables:{all:[{id:'t001',pl:1}]}}}}, 'BL');
+  check('abgelegte Saison bleibt ohne Knopf', oldHtml.indexOf('Spielplan erstellen')<0 && oldHtml.indexOf('nicht mehr gespeichert')>=0);
+  return {ok:!fails.length, fails};
+}
+function scheduleMassTest(seasons){
+  const N=seasons||100;
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  const old={};
+  [18,20,22].forEach(n=>{
+    const canon=canonicalFirstHalf(n);
+    const perm=Array.from({length:n},(_,i)=>i);
+    old[n]=canon&&canon.rounds?scheduleBreaks(scheduleFromHalf(canon.rounds, perm, false)):null;
+  });
+  const squad=buildInitialSquads();
+  const lids=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'];
+  const by={};
+  lids.forEach(lid=>{
+    const teams=squad.leagues[lid].slice();
+    const n=teams.length;
+    const acc={n, seasons:0, halfMin:999, halfMax:0, halfSum:0, fullMin:999, fullMax:0, fullSum:0, clubMin:999, clubMax:0, moved:0, repair:0, mirror:0, gap:0, below:0};
+    for (let s=0;s<N;s++){
+      const md=makeSchedule(n, null, {lid, teams, name:'2099/00'});
+      const br=scheduleBreaks(md);
+      const fx=validateFixtures(md);
+      acc.halfMin=Math.min(acc.halfMin, br.half); acc.halfMax=Math.max(acc.halfMax, br.half); acc.halfSum+=br.half;
+      acc.fullMin=Math.min(acc.fullMin, br.full); acc.fullMax=Math.max(acc.fullMax, br.full); acc.fullSum+=br.full;
+      acc.clubMin=Math.min(acc.clubMin, br.maxHalf); acc.clubMax=Math.max(acc.clubMax, br.maxHalf);
+      if (!scheduleMirrorHolds(md) || !fx.ok) acc.mirror++;
+      const seen=md.map(()=>({}));
+      md.forEach((round,i)=>round.forEach(m=>{ seen[i][m[0]]=1; seen[i][m[1]]=1; }));
+      if (seen.some(map=>Object.keys(map).length!==n)) acc.gap++;
+      const before=md.map(r=>r.map(m=>m[0]+'>'+m[1]).join(',')).join(';');
+      const season={name:'2099/00', status:'running', leagues:{[lid]:{teams:teams.slice(), md}}, pools:{}, kickoffs:{}};
+      let guard=0;
+      while (lastScheduled(season, lid)<md.length-1 && guard++<24){
+        const range=scheduleNextBlock(season, lid);
+        if (!range) break;
+        for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } });
+      }
+      const after=md.map(r=>r.map(m=>m[0]+'>'+m[1]).join(',')).join(';');
+      if (before!==after) acc.moved++;
+      if ((season.termRepair[lid]||[]).some(r=>!r.ok) || lastScheduled(season, lid)<md.length-1) acc.repair++;
+      const tall=slotTally(season, lid), need=confHalf(md.length, season.leagues[lid]);
+      teams.forEach(id=>{ if ((tall[id].konferenz||0)<need) acc.below++; });
+      acc.seasons++;
+    }
+    acc.halfMean=Math.round(acc.halfSum/N*10)/10;
+    acc.fullMean=Math.round(acc.fullSum/N*10)/10;
+    acc.oldHalf=old[n]?old[n].half:null;
+    acc.oldFull=old[n]?old[n].full:null;
+    acc.oldClub=old[n]?old[n].maxHalf:null;
+    by[lid]=acc;
+    check(lid+' hundert Saisons Minimum, Spiegel, ein Spiel, Paarungen fest', acc.seasons===N && acc.halfMin===n-2 && acc.halfMax===n-2 && acc.clubMax<=1 && acc.mirror===0 && acc.gap===0 && acc.moved===0 && acc.repair===0 && acc.below===0, JSON.stringify(acc));
+  });
+  return {ok:!fails.length, fails, by, seasons:N};
+}
+window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, l5Balance, L5_IDS, RL_IDS, L5_FEED, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, ensureLeagueSchedule, schedulePending, scheduleSelfTest, scheduleMassTest, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
