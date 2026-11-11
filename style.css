@@ -803,7 +803,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
   .rec-table th,.rec-table td{padding:6px 8px}
 }
 @media (min-width:2000px){
-  .split{grid-template-columns:minmax(0,1fr) minmax(660px,32%)}
+  .split{grid-template-columns:minmax(0,1fr) minmax(520px,32%)}
   #tableCard>table.tbl.stand{width:100%;table-layout:fixed}
   #tableCard>table.tbl.stand th:nth-child(1),
   #tableCard>table.tbl.stand td:nth-child(1){width:2.8em}
@@ -877,3 +877,83 @@ select,input[type="text"],input[type="search"],.searchbox{border-color:#ddd6cb;b
 .modal{background:rgba(28,33,30,.28)}
 .modal-box{background:var(--card)}
 .fixed-row{background:#faf8f4}
+
+.frame{display:flex;align-items:stretch;flex:1;min-width:0;min-height:0}
+#leagueNav.side-nav{width:220px;flex:0 0 220px;background:var(--card);border-right:1px solid var(--line);padding:8px;overflow:auto}
+.side-label{margin:12px 8px 4px;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.side-sec:first-child .side-label{margin-top:4px}
+#leagueNav .nav-link{display:flex;align-items:center;width:100%;border:0;border-radius:8px;padding:6px 8px;background:transparent;color:var(--text);font-size:13px;font-weight:450;text-align:left}
+#leagueNav .nav-link.nav-sub{padding-left:20px;color:#4e564f}
+#leagueNav .nav-link:hover{background:#f4f1ea;color:var(--ink)}
+#leagueNav .nav-link.active{background:#e7f2eb;color:var(--ink);font-weight:650}
+#topbar{align-items:stretch;height:48px;min-height:48px;padding:0 16px;gap:12px}
+.brand{margin-right:auto}
+.tabs{border-bottom:0;gap:4px;margin:0 0 8px}
+.tab{border:0;border-radius:8px;padding:6px 10px;margin:0}
+.tab.active{background:#e7f2eb;border:0;box-shadow:none}
+#tableCard tr.z-meister td,#tableCard tr.z-champ td,#tableCard tr.z-cl td,#tableCard tr.z-el td,#tableCard tr.z-ecl td,#tableCard tr.z-auf td,#tableCard tr.z-ab td,#tableCard tr.z-auf-aus td,#tableCard tr.z-ab-aus td,#tableCard tr.z-sure-up td,#tableCard tr.z-sure-down td{background:transparent;color:inherit}
+#tableCard tr.z-meister td:first-child{box-shadow:inset 4px 0 var(--z-bar-m)}
+#tableCard tr.z-champ td:first-child{box-shadow:inset 4px 0 #8a7030}
+#tableCard tr.z-cl td:first-child{box-shadow:inset 4px 0 var(--z-bar-cl)}
+#tableCard tr.z-el td:first-child{box-shadow:inset 4px 0 var(--z-bar-el)}
+#tableCard tr.z-ecl td:first-child{box-shadow:inset 4px 0 var(--z-bar-ecl)}
+#tableCard tr.z-auf td:first-child,#tableCard tr.z-sure-up td:first-child{box-shadow:inset 4px 0 #3d8f55}
+#tableCard tr.z-ab td:first-child,#tableCard tr.z-sure-down td:first-child{box-shadow:inset 4px 0 #b15a52}
+#tableCard tr.z-auf-aus td:first-child{box-shadow:inset 4px 0 #c5ddcf}
+#tableCard tr.z-ab-aus td:first-child{box-shadow:inset 4px 0 #e4c4be}
+#tableCard .tbl td,#tableCard .tbl th{border-left:0;border-right:0}
+#tableCard td:not(.l),#tableCard th:not(.l){text-align:right}
+.form>span.f-S,.form>span.f-U,.form>span.f-N,.form-bit{border-radius:50%}
+.match.sp-line.with-an,.match.sp-line.with-an.match-nodel{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 18px}
+.ml-under{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;max-width:100%}
+.side-away .ml-under{justify-content:flex-start}
+.ml-under .ml-an,.ml-under .ml-bl{font-size:11px;font-weight:450;color:var(--muted);line-height:1.2}
+.card,.btn,.tab,.modal-box,#leagueNav .nav-link,.match.sp-line .score{border-radius:8px}
+.card{background:#fff}
+#tableCard>table.tbl.stand,
+#tableCard>table.tbl.stand th,
+#tableCard>table.tbl.stand td,
+#tableCard .club .nm{font-size:15px}
+#tableCard .tbl td{border-top:1px solid #eceae4;border-left:0;border-right:0}
+#tableCard .tbl th{border-bottom:1px solid #eceae4;border-left:0;border-right:0;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+#tableCard td:not(.l),#tableCard th:not(.l){font-variant-numeric:tabular-nums}
+#tableCard .pts{font-weight:700}
+#tableCard tr.z-auf-aus td:first-child{
+  box-shadow:none;
+  background-image:repeating-linear-gradient(#3d8f55 0 3px, #d7ebe0 3px 6px);
+  background-size:4px 100%;
+  background-repeat:no-repeat;
+}
+#tableCard tr.z-ab-aus td:first-child{
+  box-shadow:none;
+  background-image:repeating-linear-gradient(#b15a52 0 3px, #f3ddd9 3px 6px);
+  background-size:4px 100%;
+  background-repeat:no-repeat;
+}
+#tableCard .form-bit,#tableCard .form>span{width:8px;height:8px;min-width:8px;font-size:0;line-height:0;color:transparent;border-radius:50%;overflow:hidden}
+.slot-head{background:transparent;color:var(--muted);font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;padding:8px 8px 4px;border-top:0;text-align:left}
+.slot-head.cup-slot{text-align:center;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);font-weight:650;padding:8px}
+.sp-tools{background:transparent;justify-content:flex-end;gap:0;padding:8px}
+.sp-tools .btn{border-radius:0;background:#fff;color:var(--ink);border-color:var(--line);font-size:11px;font-weight:450}
+.sp-tools .btn+.btn{margin-left:-1px}
+.sp-tools .btn:first-child{border-radius:8px 0 0 8px}
+.sp-tools .btn:last-child{border-radius:0 8px 8px 0}
+.sp-tools .btn.primary{background:#fff;color:var(--green)}
+.ml-under .km-line{font-size:11px;color:var(--muted);text-align:inherit;line-height:1.2}
+.match.sp-line{padding:6px 8px}
+.match .side{min-width:0}
+#spCard .match.sp-line .ml-name,.match.cup .ml-name{font-size:13px}
+.match.sp-line{gap:2px;padding:4px 4px}
+.tbl td,.tbl th{border-left:0;border-right:0}
+.box,.sieger-box,.rec-scroll{background:#fff;border-radius:8px}
+#tableCard .fixed-row{display:flex;flex-wrap:nowrap;align-items:center;gap:2px;padding:4px 8px}
+#tableCard .fixed-row .fp{flex:1 1 0;min-width:0;height:24px;gap:2px}
+#tableCard .fixed-row .pl{flex:0 1 auto;min-width:0;font-size:11px}
+#tableCard .fixed-row img{width:16px;height:16px;flex-basis:16px}
+@media (min-width:801px){
+  #topbar{flex-wrap:nowrap;align-items:stretch;column-gap:12px}
+}
+@media (max-width:800px){
+  .frame{display:block}
+  #leagueNav.side-nav{display:none}
+}

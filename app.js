@@ -1098,9 +1098,9 @@ function ansehenSelfTestBody(fails){
   renderNav();
   const nav=$('#leagueNav').innerHTML;
   const mob=$('#mobileLeague').innerHTML;
-  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0 && nav.indexOf('>Regionalliga '+(id==='RLN'?'Nord':id==='RLO'?'Ost':id==='RLS'?'Süd':'West')+'<')>=0));
-  check('5. Liga steht direkt in der oberen Leiste', nav.indexOf('data-league="L5NO"')>=0 && nav.indexOf('data-league="L5SW"')>=0 && nav.indexOf('>5. Liga Nordost<')>=0 && nav.indexOf('>5. Liga Südwest<')>=0 && nav.indexOf('title="5. Liga Nordost"')>=0 && nav.indexOf('>Amateurliga<')>=0 && nav.indexOf('nav-cnt')<0 && nav.indexOf('>Oberliga<')<0 && nav.indexOf('OL Bayern')<0);
-  check('Pokal steht direkt oben', nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>Wettbewerbe<')<0 && nav.indexOf('>Pokal<')>=0);
+  check('Bundesliga und Regionalligen stehen in der Seitenleiste', nav.indexOf('>Ligen<')>=0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLN','RLO','RLS','RLW'].every(id=>nav.indexOf('data-league="'+id+'"')>=0 && nav.indexOf('>Regionalliga '+(id==='RLN'?'Nord':id==='RLO'?'Ost':id==='RLS'?'Süd':'West')+'<')>=0));
+  check('5. Liga steht in der Seitenleiste', nav.indexOf('data-league="L5NO"')>=0 && nav.indexOf('data-league="L5SW"')>=0 && nav.indexOf('>5. Liga Nordost<')>=0 && nav.indexOf('>5. Liga Südwest<')>=0 && nav.indexOf('title="5. Liga Nordost"')>=0 && nav.indexOf('>Amateurliga<')>=0 && nav.indexOf('nav-cnt')<0 && nav.indexOf('>Oberliga<')<0 && nav.indexOf('OL Bayern')<0);
+  check('Pokale stehen in der Seitenleiste', nav.indexOf('>Pokale<')>=0 && nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>DFB-Pokal<')>=0 && nav.indexOf('>Landespokale<')>=0 && nav.indexOf('>Wettbewerbe<')<0);
   check('schmale Auswahl enthält alle Staffeln und den Pokal', ['L5NO','L5SW','RLN','RLW','pokal','ansehen','info'].every(v=>mob.indexOf('value="'+v+'"')>=0) && mob.indexOf('5. Liga Nordost')>=0 && mob.indexOf('Oberliga')<0);
   S.ui.league='L5NO'; S.ui.tab='tabelle'; renderNav();
   check('aktive 5. Liga', $('#leagueNav a.nav-link.active[data-league="L5NO"]') && $('#leagueNav a.nav-link.active[data-league="L5NO"]').textContent==='5. Liga Nordost' && $('#leagueNav a.nav-link.active[data-league="L5NO"]').title==='5. Liga Nordost');
@@ -3842,8 +3842,12 @@ function matchLineHTML(o){
     let line=name;
     if (tags && o.markOut) line=side==='h'?'<span class="ml-line">'+tags+' '+name+'</span>':'<span class="ml-line">'+name+' '+tags+'</span>';
     else if (tags) line='<span class="ml-name" data-club="'+id+'">'+esc(TEAMS[id].name)+' '+tags+after+'</span>';
-    if (!o.bl) return line;
-    return '<span class="who">'+line+'<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span></span>';
+    const under=[];
+    if (o.ansehen) under.push(ansehenMark(id));
+    if (o.bl) under.push('<span class="ml-bl">'+esc(TEAMS[id].bl)+'</span>');
+    if (o.km!=null && side==='h') under.push('<span class="km-line">'+o.km+' km</span>');
+    if (!under.length) return line;
+    return '<span class="who">'+line+'<span class="ml-under">'+under.join('')+'</span></span>';
   };
   const outer=id=>{
     if (!o.markOuter || !o.marker || !o.marker[id]) return '';
@@ -3869,7 +3873,6 @@ function matchLineHTML(o){
   const score=o.open
     ? '<span class="tone-open">offen</span>'
     : '<span class="scoreline"><span class="goals" data-side="0">'+(played?o.hg:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(played?o.ag:'-')+'</span></span>';
-  const km=o.km!=null?'<div class="km-line">'+o.km+' km</div>':'';
   const edge=id=>{
     if (!((o.liga || o.ligaInName) && !o.ligaAfter)) return '';
     if (typeof o.ligaOf==='function'){
@@ -3895,9 +3898,7 @@ function matchLineHTML(o){
   const del=o.nodel?'':(o.del!=null?o.del:'<span></span>');
   const home=outer(h)+edge(h)+nm(h,'h')+crest(h);
   const away=crest(a)+nm(a,'a')+edge(a)+outer(a);
-  const anH=o.ansehen?ansehenMark(h):'';
-  const anA=o.ansehen?ansehenMark(a):'';
-  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'>'+anH+'<div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+km+'</div><div class="side side-away">'+away+'</div>'+anA+del+'</div>';
+  return '<div class="'+cls.join(' ')+'"'+(o.attr||'')+'><div class="side side-home">'+home+'</div><div class="scorecol">'+(above?above:'')+'<div class="score">'+step0+score+step1+'</div>'+(below?'<div class="under">'+below+'</div>':'')+'</div><div class="side side-away">'+away+'</div>'+del+'</div>';
 }
 function sortHead(label, key, cls){
   return '<th'+(cls?' class="'+cls+'"':'')+(key?' data-sort="'+key+'"':'')+'>'+label+'</th>';
@@ -4060,18 +4061,26 @@ function renderNav(){
   const tab=S.ui.tab, pokal=tab==='pokal', ansehen=tab==='ansehen', amateur=S.ui.league==='AM'||!!P[S.ui.league];
   const special=pokal||ansehen||tab==='verein'||tab==='supercup'||tab==='info';
   let amN=0; POOLS.forEach(p=>amN+=(cur().pools[p.id]||[]).length);
-  const item=(label, active, attrs, title)=>'<a class="nav-item'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
-  const top=(label, active, attrs, title)=>'<a class="nav-link'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
-  const menu=(id, title, on, body, wide)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop'+(wide?' wide':'')+'">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
-  let h='';
-  LEAGUES.forEach(l=>{ h+=top(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
-  h+='<span class="nav-break"></span>';
-  h+=top('Amateurliga', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
-  h+=top('Pokal', pokal, 'data-tab="pokal"', 'DFB-Pokal und Landespokale');
-  if (featOn('supercup')) h+=top('Supercup', tab==='supercup', 'data-tab="supercup"');
-  h+=top('Ansehen', ansehen, 'data-tab="ansehen"', 'Ansehen');
-  h+=top('Verein', tab==='info', 'data-tab="info"');
+  const side=(label, active, attrs, title, sub)=>'<a class="nav-link'+(sub?' nav-sub':'')+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
+  const onWelt=key=>!special && !amateur && S.ui.tab===key;
+  let h='<div class="side-sec"><div class="side-label">Ligen</div>';
+  LEAGUES.forEach(l=>{ h+=side(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"', l.name, l.level>=5); });
+  h+=side('Amateurliga', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
+  h+='</div><div class="side-sec"><div class="side-label">Pokale</div>';
+  const cupKey=S.ui.cup||'dfb';
+  h+=side('DFB-Pokal', pokal && cupKey==='dfb', 'data-tab="pokal" data-cup="dfb"', 'DFB-Pokal');
+  h+=side('Landespokale', pokal && cupKey!=='dfb', 'data-tab="pokal" data-cup="land"', 'Landespokale');
+  if (featOn('supercup')) h+=side('Supercup', tab==='supercup', 'data-tab="supercup"', 'Supercup');
+  h+='</div><div class="side-sec"><div class="side-label">Welt</div>';
+  h+=side('Ansehen', ansehen, 'data-tab="ansehen"', 'Ansehen');
+  h+=side('Karte', onWelt('karte'), 'data-tab="karte"', 'Karte');
+  h+=side('Historie', onWelt('historie'), 'data-tab="historie"', 'Historie');
+  h+=side('Rekorde', onWelt('rekorde'), 'data-tab="rekorde"', 'Rekorde');
+  h+=side('Ewige Tabelle', onWelt('ewig'), 'data-tab="ewig"', 'Ewige Tabelle');
+  h+=side('Regeln', onWelt('regeln'), 'data-tab="regeln"', 'Regeln');
+  h+=side('Verein', tab==='info', 'data-tab="info"', 'Verein');
+  h+='</div>';
   $('#leagueNav').innerHTML=h;
   const opt=(value, label, on)=>'<option value="'+value+'"'+(on?' selected':'')+'>'+esc(label)+'</option>';
   const group=(label, body)=>'<optgroup label="'+esc(label)+'">'+body+'</optgroup>';
@@ -9822,6 +9831,8 @@ document.addEventListener('click', ev=>{
   const tab=t.closest('[data-tab]'); if (tab){
     if (tab.dataset.tab==='terminierung' && S.ui.termBlock) delete S.ui.termBlock[S.view+':'+S.ui.league];
     if (tab.dataset.tab==='ansehen'){ S.ui.ansehenId=null; S.ui.ansehenSec=tab.dataset.sec==='wertung'?'wertung':'liste'; }
+    if (tab.dataset.tab==='pokal' && tab.dataset.cup==='dfb') S.ui.cup='dfb';
+    if (tab.dataset.tab==='pokal' && tab.dataset.cup==='land' && (!S.ui.cup || S.ui.cup==='dfb')) S.ui.cup=BL_ORDER[0];
     S.ui.tab=tab.dataset.tab; save(); render(); return;
   }
   const tg=t.closest('[data-toggle] button'); if (tg){ S.ui[tg.parentNode.dataset.toggle]=tg.dataset.v; save(); render(); return; }
@@ -10625,19 +10636,16 @@ function uiSelfTestBody(fails){
     const winner=rel&&relayWinner(rel);
     check('k=1: Relegationssieger ist fest, der Verlierer frei, der Ausgleich wartet', !!rel && winner===rel.worse && decided.k===1 && !decided.open && decided.up===2 && viceMarksSettled(one, 'RLO') && viceMarksSettled(one, 'RLN') && !marksSettled(one, 'RLN') && !leagueFinished(one, 'L5NO') && won.at(won.table[1].id)==='z-auf' && won.table[1].id===winner && stayed.at(stayed.table[1].id)==='' && stayedDown.down>2 && stayedExtra.length>0 && stayedExtra.every(r=>stayed.at(r.id)==='z-ab-aus') && won.legend.indexOf('Vizemeister, fest')>=0 && won.legend.indexOf('provisorisch')<0 && stayed.legend.indexOf('Vizemeister')<0 && stayed.legend.indexOf('Provisorisch, hängt von der Liga darüber ab')>=0, 'sieger '+(winner===rel.worse)+' auf '+decided.up+' ab '+stayedDown.down+' klasse '+won.at(won.table[1].id)+'/'+stayed.at(stayed.table[1].id));
   })();
-  const navBar=document.querySelector('.topnav');
+  const navBar=document.querySelector('#leagueNav');
   const navLink=navBar&&navBar.querySelector('.nav-link');
-  const navCs=navBar?getComputedStyle(navBar):null;
   const linkCs=navLink?getComputedStyle(navLink):null;
   const navNames=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','5. Liga Nordost','5. Liga Südwest','Regionalliga Nord','Regionalliga Ost','Regionalliga Süd','Regionalliga West','Amateurliga','Pokal','Supercup','Ansehen','Verein'];
   const navText=navBar?navBar.textContent:'';
-  check('Leiste nennt die vollen Namen', !!navBar && navNames.every(name=>navText.indexOf(name)>=0));
-  const navItems=navBar?[...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu')].map(el=>{
+  const navItems=navBar?[...navBar.querySelectorAll('.nav-link')].map(el=>{
     const r=el.getBoundingClientRect();
-    const label=el.matches('.nav-link')?el:el.querySelector('.nav-menu-btn');
-    return {top:Math.round(r.top), left:r.left, right:r.right, bottom:r.bottom, clip:!!(label && label.scrollWidth>label.clientWidth+1)};
-  }).sort((a,b)=>a.top-b.top || a.left-b.left):[];
-  let navMin=999, navOverlap=false;
+    return {top:Math.round(r.top), left:r.left, right:r.right, bottom:r.bottom, clip:el.scrollWidth>el.clientWidth+1};
+  }):[];
+  let navOverlap=false;
   navItems.forEach((a,i)=>{
     navItems.slice(i+1).forEach(b=>{
       const x=Math.min(a.right,b.right)-Math.max(a.left,b.left);
@@ -10645,15 +10653,10 @@ function uiSelfTestBody(fails){
       if (x>0.5 && y>0.5) navOverlap=true;
     });
   });
-  const navRows={};
-  navItems.forEach(b=>{ (navRows[b.top]||(navRows[b.top]=[])).push(b); });
-  Object.keys(navRows).forEach(k=>{
-    const row=navRows[k];
-    for (let i=1;i<row.length;i++) navMin=Math.min(navMin, row[i].left-row[i-1].right);
-  });
-  const navWide=!!(navBar && navBar.getBoundingClientRect().width>400);
   const navScreen=window.innerWidth||0;
-  check('Leiste hält einen Mindestabstand', !!navCs && navCs.justifyContent==='space-between' && parseFloat(navCs.columnGap)>=6 && !!linkCs && parseFloat(linkCs.fontSize)>=11 && (!navWide || (navItems.length>=14 && navMin>=6 && !navOverlap && navItems.every(b=>!b.clip))), navWide?('abstand '+Math.round(navMin)+' schrift '+ (linkCs?linkCs.fontSize:'') ):'schmal');
+  const side=navBar?navBar.getBoundingClientRect():null;
+  const mainBox=document.querySelector('#main')?document.querySelector('#main').getBoundingClientRect():null;
+  check('Leiste nennt die vollen Namen', !!navBar && navNames.every(name=>navText.indexOf(name)>=0) && !!linkCs && parseFloat(linkCs.fontSize)>=11 && navItems.length>=14 && !navOverlap && navItems.every(b=>!b.clip) && !!side && !!mainBox && side.right<=mainBox.left+1, navItems.filter(b=>b.clip).length+' beschnitten');
   const barBoxes=[...document.querySelectorAll('#topbar > *')].map(el=>el.getBoundingClientRect()).filter(r=>r.width>1 && r.height>1);
   let barOverlap=false, barGap=999, barRows={};
   barBoxes.forEach(r=>{ const k=Math.round(r.top); (barRows[k]||(barRows[k]=[])).push(r); });
@@ -10668,11 +10671,8 @@ function uiSelfTestBody(fails){
     if (x>0.5 && y>0.5) barOverlap=true;
   }
   const barWide=(window.innerWidth||0)>=1600;
-  const barOne=(window.innerWidth||0)>=2200;
   const brandBox=document.querySelector('.brand');
-  const brandTop=brandBox?Math.round(brandBox.getBoundingClientRect().top):0;
-  const navTop=navBar?Math.round(navBar.getBoundingClientRect().top):0;
-  check('Leiste überlappt nicht und hält 12 px', !barOverlap && (!barWide || barGap>=12) && (!barOne || navTop===brandTop) && (barOne || !barWide || navTop>brandTop), 'abstand '+Math.round(barGap)+' nav '+navTop+' marke '+brandTop);
+  check('Leiste überlappt nicht und hält 12 px', !barOverlap && (!barWide || barGap>=12) && !!brandBox && brandBox.closest('#topbar'), 'abstand '+Math.round(barGap));
   const barActs=document.querySelector('#headActions');
   check('Leiste ohne Knopf Saison simulieren', !!barActs && barActs.textContent.indexOf('Saison simulieren')<0 && barActs.textContent.indexOf('Saison abschließen')>=0);
   (()=>{
@@ -10692,21 +10692,16 @@ function uiSelfTestBody(fails){
     const ligaAt=planHtml.indexOf('Liga zu Ende simulieren'), saisonAt=planHtml.indexOf('Komplette Saison simulieren');
     check('Spielplan simuliert die komplette Saison neben der Liga', ligaAt>=0 && saisonAt>ligaAt);
   })();
-  if (navScreen>=2500 && navWide){
-    const brand=document.querySelector('.brand');
+  if (navScreen>=2500){
     const tools=document.querySelector('.top-tools');
     const actions=document.querySelector('#headActions');
     const season=document.querySelector('.season-field');
-    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
-    let edge=999;
-    for (let i=1;i<boxes.length;i++){
-      if (Math.abs(boxes[i].top-boxes[0].top)>2) continue;
-      edge=Math.min(edge, boxes[i].left-boxes[i-1].right);
-    }
-    const tops=boxes.map(b=>Math.round(b.top));
-    const verein=navItems[navItems.length-1];
-    const toolR=tools?tools.getBoundingClientRect():null;
-      check('breite Leiste ist eine Zeile zwischen Marke und Spielstand', tops.every(t=>t===tops[0]) && Object.keys(navRows).length===1 && edge>=12 && !!toolR && !!verein && verein.right<=toolR.left-12 && !!actions && actions.closest('#topbar') && !!season && season.closest('#topbar') && actions.textContent.indexOf('Saison simulieren')<0, 'abstand '+Math.round(edge)+' zeilen '+new Set(tops).size);
+    const headItems=[brandBox, tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect());
+    const headTops=headItems.map(b=>Math.round(b.top));
+    let headEdge=999;
+    const sorted=headItems.slice().sort((a,b)=>a.left-b.left);
+    for (let i=1;i<sorted.length;i++) if (Math.abs(sorted[i].top-sorted[0].top)<=2) headEdge=Math.min(headEdge, sorted[i].left-sorted[i-1].right);
+    check('Kopfzeile ist eine Zeile, die Seitenleiste steht links', headTops.every(t=>t===headTops[0]) && headEdge>=8 && !!actions && actions.closest('#topbar') && !!season && season.closest('#topbar') && actions.textContent.indexOf('Saison simulieren')<0 && !!side && side.left<=8 && side.width>=200 && side.width<=248, 'abstand '+Math.round(headEdge)+' breite '+Math.round(side?side.width:0)+' links '+Math.round(side?side.left:0));
   }
   if (navScreen>=1200 && navScreen<=1400){
     const keepTab=S.ui.tab, keepLeague=S.ui.league;
