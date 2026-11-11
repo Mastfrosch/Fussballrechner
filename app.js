@@ -3797,9 +3797,9 @@ function cupScoreBits(m){
 function moveSpan(delta){
   if (delta==null || !isFinite(+delta)) return '<span class="mv same"></span>';
   const n=+delta;
-  if (n>0) return '<span class="mv up" title="'+n+' '+(n===1?'Platz':'Plätze')+' nach oben">▲</span>';
-  if (n<0){ const d=-n; return '<span class="mv dn" title="'+d+' '+(d===1?'Platz':'Plätze')+' nach unten">▼</span>'; }
-  return '<span class="mv same" title="Platz gehalten">–</span>';
+  if (n>0) return '<span class="mv up" title="'+n+' '+(n===1?'Platz':'Plätze')+' nach oben">▲'+n+'</span>';
+  if (n<0){ const d=-n; return '<span class="mv dn" title="'+d+' '+(d===1?'Platz':'Plätze')+' nach unten">▼'+d+'</span>'; }
+  return '<span class="mv same" title="Platz gehalten"></span>';
 }
 function moveMarks(season, lid){
   try{
@@ -5025,7 +5025,7 @@ function currentMd(s,lid){
 }
 function viewTabelle(s,lid){
   try{ syncRelay(s); }catch(e){}
-  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div>'+relayHTML(s,lid)+'</div>';
+  return '<div class="split"><div class="card stand-card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card entry" id="spCard">'+spielplanHTML(s,lid)+'</div>'+relayHTML(s,lid)+'</div>';
 }
 function alignStandToPlan(){
   const card=document.getElementById('tableCard');
@@ -5122,7 +5122,7 @@ function spielplanHTML(s,lid){
   shownMd=mi; S.ui.md[S.view+':'+lid]=mi;
   const md=lg.md[mi], ed=isEditable();
   const done=md.filter(m=>m[2]!=null&&m[3]!=null).length;
-  let h='<div class="card-title"><span>Spielplan <span class="progress">('+done+'/'+md.length+' eingetragen)</span></span><span class="md-nav"><button class="btn" data-act="mdPrev" title="Vorheriger Spieltag">‹</button><select id="mdSelect">'+
+  let h='<div class="card-title"><span>Eintragen <span class="progress">'+done+' von '+md.length+'</span></span><span class="md-nav"><button class="btn" data-act="mdPrev" title="Vorheriger Spieltag">‹</button><select id="mdSelect">'+
     lg.md.map((d,i)=>{const c=d.every(m=>m[2]!=null&&m[3]!=null); return '<option value="'+i+'"'+(i===mi?' selected':'')+'>'+(i+1)+'. Spieltag'+(c?' ✓':'')+'</option>';}).join('')+
     '</select><button class="btn" data-act="mdNext" title="Nächster Spieltag">›</button></span></div>';
   const slots=isScheduled(s,lid,mi)?s.kickoffs[lid][mi]:null;
