@@ -3870,7 +3870,18 @@ function matchLineHTML(o){
     ? '<span class="tone-open">offen</span>'
     : '<span class="scoreline"><span class="goals" data-side="0">'+(played?o.hg:'-')+'</span><b>:</b><span class="goals" data-side="1">'+(played?o.ag:'-')+'</span></span>';
   const km=o.km!=null?'<div class="km-line">'+o.km+' km</div>':'';
-  const edge=id=>((o.liga || o.ligaInName) && !o.ligaAfter && o.season)?'<span class="liga-edge">'+esc(ligaEdge(o.season, id))+'</span>':'';
+  const edge=id=>{
+    if (!((o.liga || o.ligaInName) && !o.ligaAfter)) return '';
+    if (typeof o.ligaOf==='function'){
+      let text='';
+      try{ text=o.ligaOf(id)||''; }catch(e){ text=''; }
+      return text?'<span class="liga-edge" title="'+esc(text)+'">'+esc(text)+'</span>':'';
+    }
+    if (!(o.season && typeof o.season==='object')) return '';
+    let text='';
+    try{ text=ligaEdge(o.season, id)||''; }catch(e){ text=''; }
+    return '<span class="liga-edge">'+esc(text)+'</span>';
+  };
   const cls=['match'];
   if (o.cup) cls.push('cup');
   if (played || o.done) cls.push('done');
@@ -4059,7 +4070,7 @@ function renderNav(){
   h+=top('Amateurliga', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
   h+=top('Pokal', pokal, 'data-tab="pokal"', 'DFB-Pokal und Landespokale');
   if (featOn('supercup')) h+=top('Supercup', tab==='supercup', 'data-tab="supercup"');
-  h+=menu('ansehen','Ansehen', ansehen, item('Wertungsübersicht', ansehen && S.ui.ansehenSec!=='liste', 'data-tab="ansehen" data-sec="wertung"')+item('Rangliste', ansehen && S.ui.ansehenSec==='liste', 'data-tab="ansehen" data-sec="liste"'));
+  h+=top('Ansehen', ansehen, 'data-tab="ansehen"', 'Ansehen');
   h+=top('Verein', tab==='info', 'data-tab="info"');
   $('#leagueNav').innerHTML=h;
   const opt=(value, label, on)=>'<option value="'+value+'"'+(on?' selected':'')+'>'+esc(label)+'</option>';
@@ -4182,7 +4193,7 @@ function viewCupRound(s, cup, ed){
   };
   rows.forEach(({m,i})=>{
     const lab=cupSlotLabel(m.slot, dfbFinal(cup, round));
-    if (lab!==prev){ flush(); h+='<div class="slot-head">'+esc(lab)+'</div>'; prev=lab; }
+    if (lab!==prev){ flush(); h+='<div class="slot-head cup-slot">'+esc(lab)+'</div>'; prev=lab; }
     buf.push(cupMatchHTML(s, m, key, ri, i, ed));
   });
   flush();
@@ -4192,6 +4203,49 @@ function viewCupRound(s, cup, ed){
 }
 function yearLiga(season, id){
   try{ return season&&id? (ligaEdge(season, id)||'') : ''; }catch(e){ return ''; }
+}
+function seasonKeys(label){
+  const s=String(label||'');
+  const out=[];
+  const add=x=>{ if (x && out.indexOf(x)<0) out.push(x); };
+  add(s);
+  try{ add(seasonFull(s)); }catch(e){}
+  const long=s.match(/^(\d{4})\/(\d{4})$/);
+  if (long) add(long[1]+'/'+long[2].slice(-2));
+  return out;
+}
+function storedLiga(id, label){
+  if (!id || !TEAMS[id] || label==null || label==='') return '';
+  if (typeof label==='object') return yearLiga(label, id);
+  const keys=seasonKeys(label);
+  if (!keys.length) return '';
+  let hit='';
+  try{
+    historyEntries(id).some(r=>{
+      if (!r || !r.liga || keys.indexOf(r.season)<0) return false;
+      hit=r.liga;
+      return true;
+    });
+  }catch(e){ hit=''; }
+  if (!hit) return '';
+  const known=LEAGUES.find(l=>l.name===hit);
+  return known?known.short:hit;
+}
+function honourClub(id, name, season, showBl, reserve){
+  if ((name && blockedClubHit(name)) || (id && TEAMS[id] && blockedClubHit(TEAMS[id].name))) return '<span class="muted">–</span>';
+  if (id && TEAMS[id]) return seasonClubHTML(season, id, showBl, null, name);
+  if (!name) return '<span class="muted">–</span>';
+  return '<span class="sieger-name">'+esc(name)+(reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>';
+}
+function honourMatch(match, season, showBl){
+  if (!match || !match.h || !match.a || !TEAMS[match.h] || !TEAMS[match.a] || match.hg==null || match.ag==null) return '<span class="muted">–</span>';
+  const ligaOf=cid=>{
+    try{ return storedLiga(cid, season)||''; }catch(e){ return ''; }
+  };
+  const pen=match.hg===match.ag && match.peh!=null && match.pea!=null && +match.peh!==+match.pea;
+  const nv=!pen && match.et && match.hg!==match.ag;
+  const above=pen?'<span class="ie-link ie-static">'+match.peh+':'+match.pea+' i.E.</span>':(nv?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>');
+  return matchLineHTML({h:match.h, a:match.a, hg:match.hg, ag:match.ag, et:!!nv, peh:pen?match.peh:null, pea:pen?match.pea:null, season:season&&typeof season==='object'?season:null, cup:true, liga:true, bl:showBl!==false, nodel:true, klass:'sieger-match axis', ligaOf, above});
 }
 function viewCupSpots(cup, season){
   const sea=season||cur();
@@ -4381,23 +4435,23 @@ function ligaEdge(season, id){
   if (P[lid]) return 'Amateur';
   return '';
 }
-function seasonClubHTML(season, id, showBl){
+function seasonClubHTML(season, id, showBl, ligaText, nameText){
   const t=id&&TEAMS[id]; if(!t) return '';
-  const liga=yearLiga(season, id);
+  if (blockedClubHit(t.name) || (nameText && blockedClubHit(nameText))) return '<span class="muted">–</span>';
+  const liga=ligaText!=null?ligaText:(typeof season==='object' && season ? yearLiga(season, id) : storedLiga(id, season));
+  const shown=nameText && nameText!==t.name ? nameText : t.name;
   const tag=liga?' <span class="liga-tag">'+esc(liga)+'</span>':'';
   const img='<img src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'">';
   const bl=showBl===false?'':'<span class="ml-bl">'+esc(t.bl)+'</span>';
-  const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(t.name)+'</span>'+tag+'</span>'+bl+'</span>';
+  const who='<span class="who"><span class="ml-name"><span class="nm-txt">'+esc(shown)+'</span>'+tag+'</span>'+bl+'</span>';
   return '<div class="sieger-club" data-club="'+id+'">'+img+who+'</div>';
 }
 function siegerRow(year, winnerId, finalistId, match, season, liga, showBl){
-  const home=match ? match.h : winnerId;
-  const away=match ? match.a : finalistId;
   const bl=showBl!==false;
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+seasonClubHTML(season, winnerId, bl)+'</div><div class="sieger-who">'+seasonClubHTML(season, finalistId, bl)+'</div><div class="sieger-final">'+matchLineHTML({h:home, a:away, hg:match&&match.hg, ag:match&&match.ag, et:match&&match.et, peh:match&&match.peh, pea:match&&match.pea, season, cup:true, liga:!!liga, bl, nodel:true, klass:'sieger-match axis'})+'</div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+honourClub(winnerId, '', season, bl)+'</div><div class="sieger-who">'+honourClub(finalistId, '', season, bl)+'</div><div class="sieger-final">'+honourMatch(match, season, bl)+'</div></div>';
 }
 function siegerHead(){
-  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Finale</div></div>';
+  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Ergebnis</div></div>';
 }
 function simulatedTitleRows(comp){
   const out=[];
@@ -4543,31 +4597,30 @@ function titleRegisterHTML(comp){
   h+='</tbody></table></div>';
   return h;
 }
-function viewDfbModern(){
-  const rows=titleRowsFor('dfb').filter(r=>r.year>1991).sort((a,b)=>b.year-a.year);
-  let h='<div class="box sieger-box"><h3>DFB-Pokal seit 1992</h3><p class="muted">Gewinner, Finalgegner und Ergebnis, wenn das Finale im Rechner gespielt wurde. Historische Jahre haben keinen erfundenen Endstand. Der FDGB-Pokal endet 1991 und steht darunter.</p>';
+function titleHonourRow(r, showBl){
+  const sea=r&&r.map==='simulation'?(S.seasons||[]).find(s=>s&&s.name===r.season):null;
+  const season=sea||rowSeason(r);
+  let match=null;
+  if (sea && r.comp==='dfb' && sea.cups){
+    const fin=cupFinalists(sea.cups.dfb);
+    match=fin&&fin.match?fin.match:null;
+  }
+  const fin=r.finalist&&TEAMS[r.finalist]?honourClub(r.finalist, '', season, showBl):'<span class="muted">–</span>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(titleYearLabel(r))+'</div><div class="sieger-who">'+honourClub(r.id, r.original, season, showBl)+'</div><div class="sieger-who">'+fin+'</div><div class="sieger-final">'+honourMatch(match, season, showBl)+'</div></div>';
+}
+function honourList(title, note, rows, showBl){
+  let h='<div class="box sieger-box"><h3>'+esc(title)+'</h3>';
+  if (note) h+='<p class="muted">'+note+'</p>';
   if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
-  h+='<table class="tbl fit"><thead><tr><th>Jahr</th><th class="l">Sieger</th><th class="l">Finalist</th><th>Finale</th></tr></thead><tbody>';
-  rows.forEach(r=>{
-    const fin=r.finalist&&TEAMS[r.finalist]?esc(TEAMS[r.finalist].name):'<span class="muted">–</span>';
-    const score=r.score?esc(r.score):'<span class="muted">–</span>';
-    h+='<tr><td><b>'+esc(titleYearLabel(r))+'</b></td><td class="l">'+titleWinnerHTML(r)+'</td><td class="l">'+fin+'</td><td>'+score+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
-  return h;
+  return h+siegerHead()+rows.map(r=>titleHonourRow(r, showBl)).join('')+'</div>';
+}
+function viewDfbModern(){
+  const rows=titleRowsFor('dfb').slice().sort((a,b)=>b.year-a.year);
+  return honourList('DFB-Pokal', 'Finalist, Ergebnis und die Liga zum Zeitpunkt stehen nur, wenn sie gespeichert sind. Historische Jahre ohne diese Angaben bleiben leer. n.V. und i.E. bleiben stehen, wenn das Finale sie hat. Der FDGB-Pokal endet 1991 und steht darunter.', rows, true);
 }
 function viewDfbHistoric(){
-  const rows=championRows(['dfb'],'fdgb').filter(r=>r.year<=1991);
-  let h='<div class="box"><h3>DFB-Pokal und FDGB-Pokal bis 1991</h3><p class="muted">Ein Jahr ist eine Zeile. Links der DFB-Pokal, rechts der FDGB-Pokal nur bis 1991. Der historische Name steht zuerst, der heutige Nachfolger dahinter.</p>';
-  if (!rows.length) return h+'<p class="muted">Noch kein Sieger.</p></div>';
-  h+='<table class="tbl fit pair-board"><thead><tr><th>Jahr</th><th class="l">DFB-Pokal</th><th class="l">FDGB-Pokal</th></tr></thead><tbody>';
-  rows.forEach(row=>{
-    const season=row.left?titleYearLabel(row.left):(row.right?titleYearLabel(row.right):String(row.year));
-    const other=row.left&&row.right&&rowSeason(row.left)!==rowSeason(row.right)?titleYearLabel(row.right):'';
-    h+='<tr><td><b>'+esc(season)+'</b>'+(other?'<div class="muted">'+esc(other)+'</div>':'')+'</td><td class="l">'+(row.left?titleWinnerHTML(row.left)+resultBit(row.left):'<span class="muted">–</span>')+'</td><td class="l">'+(row.right?titleWinnerHTML(row.right):'<span class="muted">–</span>')+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
-  return h;
+  const rows=titleRowsFor('fdgb').filter(r=>r.year<=1991).sort((a,b)=>b.year-a.year);
+  return honourList('FDGB-Pokal bis 1991', 'Finalist und Ergebnis sind für diese Jahre nicht gespeichert. Die Liga steht nur, wenn die Saison in den Tabellendaten liegt.', rows, true);
 }
 function offenRows(){
   return (window.FR_OFFEN && window.FR_OFFEN.eintraege) || [];
@@ -4608,7 +4661,8 @@ function landHistWinners(land){
   return out;
 }
 function landHistRow(r){
-  const who=r.leer||!r.name ? '<span class="muted">–</span>' : r.none ? '<span class="muted">nicht ausgetragen</span>' : (r.id && TEAMS[r.id] ? seasonClubHTML(null, r.id, true) : '<span class="sieger-name">'+esc(r.name||'')+(r.reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>');
+  const season=r.season||'';
+  const who=r.leer||!r.name ? '<span class="muted">–</span>' : r.none ? '<span class="muted">nicht ausgetragen</span>' : honourClub(r.id, r.name, season, false, r.reserve);
   return '<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year||''))+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final"><span class="muted">–</span></div></div>';
 }
 function viewCupWinners(){
@@ -4626,7 +4680,7 @@ function viewCupWinners(){
     const hist=landHistWinners(key).filter(r=>!have[r.season]).sort((a,b)=>(b.year||0)-(a.year||0) || (String(a.season)<String(b.season)?1:-1));
     let histHtml='';
     if (hist.length){
-      histHtml='<h3>Historische Sieger</h3><p class="muted">Jahrgänge dieses Landespokals. Vereine im Rechner sind verknüpft, andere stehen als Name. Zweite Mannschaften sind gekennzeichnet. Finalist und Ergebnis sind hier nicht gespeichert.</p>'+siegerHead()+hist.map(landHistRow).join('');
+      histHtml='<h3>Historische Sieger</h3><p class="muted">Jahrgänge dieses Landespokals. Vereine im Rechner sind verknüpft, andere stehen als Name. Zweite Mannschaften sind gekennzeichnet. Finalist und Ergebnis sind hier nicht gespeichert. Die Liga steht nur, wenn die Saison in den Tabellendaten liegt.</p>'+siegerHead()+hist.map(landHistRow).join('');
     }
     if (!rows.length && !hist.length) return '<div class="box"><h3>Sieger '+esc(key)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
     return '<div class="box sieger-box"><h3>Sieger '+esc(key)+'</h3>'+(rows.length?siegerHead()+rows.reverse().join(''):'<p class="muted">Noch kein Finale im Rechner.</p>')+histHtml+'</div>';
@@ -4774,7 +4828,7 @@ function navNormalize(){
   if (!S || !S.ui) return;
   settleLeagueNav();
   normalizeRemovedTab();
-  if (S.ui.tab==='ansehen') S.ui.ansehenSec=S.ui.ansehenSec==='liste'?'liste':'wertung';
+  if (S.ui.tab==='ansehen' && S.ui.ansehenSec!=='wertung') S.ui.ansehenSec='liste';
   if (S.ui.tab==='pokal'){
     const s=cur();
     try{ ensureCups(s); }catch(e){}
@@ -4910,11 +4964,14 @@ function renderMain(){
   const s=cur(), lid=S.ui.league;
   if (S.ui.tab==='info'){ renderInfo(); return; }
   if (S.ui.tab==='ansehen'){
+    const sec=S.ui.ansehenSec==='wertung'?'wertung':'liste';
+    S.ui.ansehenSec=sec;
+    const head=document.querySelector('.head');
+    if (head) head.classList.add('head-off');
     $('#title').textContent='Ansehen';
     $('#subline').innerHTML='';
-    $('#tabs').innerHTML='';
-    const sec=S.ui.ansehenSec==='liste'?'liste':'wertung';
-    S.ui.ansehenSec=sec;
+    const anTabs=[['liste','Rangliste'],['wertung','Wertungsübersicht']];
+    $('#tabs').innerHTML='<h1 class="tab-title">Ansehen</h1>'+anTabs.map(([k,n])=>'<a class="tab'+(sec===k?' active':'')+'" data-tab="ansehen" data-sec="'+k+'">'+n+'</a>').join('');
     $('#view').innerHTML=S.ui.ansehenId?viewAnsehenDetail(S.ui.ansehenId):(sec==='liste'?viewAnsehen():ansehenGuideHTML());
     return;
   }
@@ -4928,12 +4985,8 @@ function renderMain(){
   }
   if (lid==='AM' || P[lid]){ renderAmateur(); return; }
   const lg=L[lid];
-  const head=document.querySelector('.head');
-  if (head) head.classList.add('head-off');
-  $('#title').textContent=lg.name;
-  $('#subline').innerHTML='';
+  leagueChrome(lid, S.ui.tab);
   setActions(seasonActions(s));
-  $('#tabs').innerHTML='<h1 class="tab-title">'+esc(lg.name)+'</h1>'+leagueTabs(lid).map(([k,n])=>'<a class="tab'+(S.ui.tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const v=$('#view');
   if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); alignStandToPlan(); }
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
@@ -4947,6 +5000,14 @@ function renderMain(){
 }
 function leagueTabs(){
   return TABS.slice();
+}
+function leagueChrome(lid, tab){
+  const lg=L[lid];
+  const head=document.querySelector('.head');
+  if (head) head.classList.add('head-off');
+  $('#title').textContent=lg?lg.name:'';
+  $('#subline').innerHTML='';
+  $('#tabs').innerHTML='<h1 class="tab-title">'+esc(lg?lg.name:'')+'</h1>'+leagueTabs().map(([k,n])=>'<a class="tab'+(tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
 }
 function settleLeagueNav(){
   if (!S || !S.ui) return;
@@ -7436,16 +7497,11 @@ function viewTerminierung(s, lid){
   const lg=s.leagues[lid];
   if (!lg || !lg.md) return '<div class="box"><p class="muted">Die einzelnen Spiele und Anstoßzeiten dieser Saison sind nicht mehr gespeichert.</p></div>';
   const total=lg.md.length;
-  const fix=validateFixtures(lg.md);
   const tmpl=slotTemplate(lid);
   const has={fr:tmpl.some(x=>x.dow==='Fr'), so:tmpl.some(x=>x.dow==='So'), konferenz:tmpl.some(x=>x.kind==='konferenz'), top:tmpl.some(x=>x.kind==='top'), regional:tmpl.some(x=>x.kind==='regional')};
   const counts=slotTally(s, lid);
-  let h='<div class="box"><h3>Spielplan-Prüfung</h3><p class="'+(fix.ok?'ok':'bad')+'">'+(fix.ok?'Jede Paarung einmal zu Hause und einmal auswärts. Die Rückrunde spiegelt die Hinrunde. Höchstens zwei Heim- oder Auswärtsspiele hintereinander, auch am Übergang.':'Auffälligkeiten: '+esc(fix.issues.slice(0,5).join(' · ')))+'</p>';
   const last=lastScheduled(s,lid);
-  if (last<0 && isEditable()) h+='<button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button>';
-  else if (last>=0 && last<total-1) h+='<p class="muted">Angesetzt bis Spieltag '+(last+1)+'. Der nächste Block folgt automatisch, sobald dieser Spieltag vollständig ist. Blöcke enden an der Hin- bzw. Rückrunde.</p>';
-  else if (last>=total-1) h+='<p class="muted">Die ganze Saison ist terminiert.</p>';
-  h+='</div>';
+  let h='';
   const times=templateTimes(lid);
   const cols=[];
   if (has.fr) cols.push(['fr','Fr']);
@@ -7692,15 +7748,12 @@ function pickBlockHTML(s, e){
 }
 function renderAufAb(){
   const s=cur();
-  $('#title').textContent='Auf/Abstiege';
+  leagueChrome(S.ui.league, 'aufab');
   const pr=seasonProgress(s);
-  let sub=s.status==='done'?'Abgeschlossene Saison':'Auf- und Absteiger dieser Saison';
-  $('#subline').innerHTML=sub;
   setActions(seasonActions(s));
-  $('#tabs').innerHTML=leagueTabs(S.ui.league).map(([k,n])=>'<a class="tab'+(k==='aufab'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
   const e=transitionOf(s);
   const preview=!s.endData;
-  let h='';
+  let h='<p class="muted tab-note">'+(s.status==='done'?'Abgeschlossene Saison.':'Auf- und Absteiger dieser Saison.')+'</p>';
   if (s.status==='ending' && pr.done<pr.total) h+='<div class="notice">Achtung: '+(pr.total-pr.done)+' Spiele sind noch nicht eingetragen. Die Tabellen werden so gewertet, wie sie gerade stehen. <button class="btn small" data-act="endSimAll">Fehlende Spiele zufällig simulieren</button> <button class="btn small" data-act="endCancel">Zurück zur Saison</button></div>';
   else if (preview && pr.done<pr.total) h+='<div class="notice">Noch nicht alle Spiele sind eingetragen. Die Pyramide folgt dem aktuellen Tabellenstand und kann sich ändern.</div>';
   else if (preview && (decidePending(s)||relayPending(s)||supercupPending(s))) h+='<div class="notice">Entscheidungsspiel, Relegation oder Supercup ist noch offen. Die Aufsteiger wählst du, sobald das erledigt ist.</div>';
@@ -7830,11 +7883,9 @@ function inputHelpHTML(){
 function renderRegeln(){
   const s=cur(), lid=S.ui.league;
   const lg=L[lid];
-  $('#title').textContent='Regeln';
-  $('#subline').innerHTML='Farben, Kürzel, Gleichstand, Auf- und Abstieg, Europa';
-  $('#tabs').innerHTML=leagueTabs(lid).map(([k,n])=>'<a class="tab'+(k==='regeln'?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  leagueChrome(lid, 'regeln');
   setActions(seasonActions(s));
-  let h=rulesHTML();
+  let h='<p class="muted tab-note">Farben, Kürzel, Gleichstand, Auf- und Abstieg, Europa.</p>'+rulesHTML();
   h+=inputHelpHTML();
   if (lg) h+='<div class="box spread"><h3>Farben der '+esc(lg.name)+'</h3>'+legendHTML(lg, s)+'<p class="muted">Die Farben stehen an der Tabelle. Diese Erklärung bleibt hier.</p></div>';
   h+='<div class="box spread"><h3>Europa</h3><p>Champions League: Plätze 1 bis 4. Europa League: Plätze 5 und 6. Conference League: Platz 7. Platz 8 bekommt dieselbe grüne Zone, sobald jeder noch mögliche DFB-Sieger dieser Saison in den aktuellen Top 7 steht. Das ist eine Vorschau und keine Garantie. Erst der abgeschlossene Endstand vergibt die Qualifikation. Steht der Pokalsieger dann in den Top 7, behält er seinen Ligaplatz und Platz 8 erhält die Conference League. Steht er außerhalb, bekommt er selbst im Folgejahr Conference League und (P), egal in welcher Liga, und Platz 8 nicht. (P) steht in der Tabelle als letztes Kürzel und im DFB-Spielplan außen. Der Ligaspielplan trägt keine Statuskürzel.</p></div>';
@@ -9388,12 +9439,17 @@ function supercupMatchHTML(s, m){
   return '<div class="slot-head">'+esc(terminText(when.dow, when.time))+'</div><div class="match-solo">'+matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, cup:true, liga:true, done:!!supercupWinner(m), step, above, below, km, del:ed?'<button type="button" class="del" data-act="scDel">×</button>':'<span></span>'})+'</div>';
 }
 function schauSiegerHTML(r){
+  const season=String(r&&(r.season||r.year)||'');
+  const year=r&&(r.season||String(r.year||''))||'';
   const opp=r && r.opp && TEAMS[r.opp] ? r.opp : '';
-  const year=r.season||String(r.year||'');
-  const who=seasonClubHTML(null, r.id, true);
-  const other=opp?seasonClubHTML(null, opp, true):'<span class="muted">Gegner nicht im Rechner</span>';
-  const score=r.score?esc(r.score):'<span class="muted">–</span>';
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who">'+other+'</div><div class="sieger-final">'+score+'</div></div>';
+  const who=honourClub(r&&r.id, r&&r.original, season, true);
+  const other=opp?honourClub(opp, '', season, true):'<span class="muted">–</span>';
+  let match=null;
+  if (r && r.home && r.away && TEAMS[r.home] && TEAMS[r.away] && r.hg!=null && r.ag!=null){
+    const pen=String(r.score||'').match(/\/\s*(\d+)\s*:\s*(\d+)\s*i\.?\s*E\.?/i);
+    match={h:r.home, a:r.away, hg:+r.hg, ag:+r.ag, peh:pen?+pen[1]:null, pea:pen?+pen[2]:null};
+  }
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who">'+other+'</div><div class="sieger-final">'+honourMatch(match, season, true)+'</div></div>';
 }
 function supercupHonours(){
   const titles={}, finals={}, matches=[];
@@ -9765,7 +9821,7 @@ document.addEventListener('click', ev=>{
   const nav=t.closest('[data-league]'); if (nav){ S.ui.league=nav.dataset.league; if(L[S.ui.league]&&L[S.ui.league].level===6) S.ui.olLeague=S.ui.league; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info') S.ui.tab='tabelle'; save(); render(); return; }
   const tab=t.closest('[data-tab]'); if (tab){
     if (tab.dataset.tab==='terminierung' && S.ui.termBlock) delete S.ui.termBlock[S.view+':'+S.ui.league];
-    if (tab.dataset.tab==='ansehen'){ S.ui.ansehenId=null; if (tab.dataset.sec) S.ui.ansehenSec=tab.dataset.sec; }
+    if (tab.dataset.tab==='ansehen'){ S.ui.ansehenId=null; S.ui.ansehenSec=tab.dataset.sec==='wertung'?'wertung':'liste'; }
     S.ui.tab=tab.dataset.tab; save(); render(); return;
   }
   const tg=t.closest('[data-toggle] button'); if (tg){ S.ui[tg.parentNode.dataset.toggle]=tg.dataset.v; save(); render(); return; }
@@ -9882,7 +9938,8 @@ document.addEventListener('change', ev=>{
   if (t.id==='seasonSelect'){ S.view=+t.value; if (S.ui.tab==='abschluss') S.ui.tab='aufab'; if (cur().status==='ending') S.ui.tab='aufab'; save(); render(); }
   else if (t.id==='mobileLeague'){
     const v=t.value;
-    if (v==='pokal'||v==='supercup'||v==='ansehen'||v==='info') S.ui.tab=v;
+    if (v==='ansehen'){ S.ui.tab='ansehen'; S.ui.ansehenId=null; S.ui.ansehenSec='liste'; }
+    else if (v==='pokal'||v==='supercup'||v==='info') S.ui.tab=v;
     else { S.ui.league=v; if(S.ui.tab==='abschluss'||S.ui.tab==='pokal'||S.ui.tab==='ansehen'||S.ui.tab==='verein'||S.ui.tab==='supercup'||S.ui.tab==='info') S.ui.tab='tabelle'; }
     save(); render();
   }
