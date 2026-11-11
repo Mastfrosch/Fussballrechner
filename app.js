@@ -2561,11 +2561,15 @@ function save(){
   return saveChain;
 }
 function whenSaved(){ return saveChain; }
+function rosterCountOk(l, n){
+  if (l.level===6) return n===l.size || n===18;
+  return n===l.size;
+}
 function structureOk(d){
   const s=d&&d.seasons&&d.seasons[d.seasons.length-1];
   if(!s||!s.leagues) return false;
   if(s.leagues.OLBY||s.leagues.OLNS) return false;
-  return LEAGUES.every(l=>s.leagues[l.id]&&s.leagues[l.id].teams&&s.leagues[l.id].teams.length===l.size);
+  return LEAGUES.every(l=>s.leagues[l.id]&&s.leagues[l.id].teams&&rosterCountOk(l, s.leagues[l.id].teams.length));
 }
 const cur = () => S.seasons[S.view];
 const latest = () => S.seasons[S.seasons.length-1];
@@ -13145,6 +13149,114 @@ function scheduleSelfTest(){
   check('Simulation lässt die Paarungen auf ihrem Spieltag', before===after);
   const oldHtml=spielplanHTML({name:'alt', status:'done', compact:true, leagues:{BL:{teams:['t001'], tables:{all:[{id:'t001',pl:1}]}}}}, 'BL');
   check('abgelegte Saison bleibt ohne Knopf', oldHtml.indexOf('Spielplan erstellen')<0 && oldHtml.indexOf('nicht mehr gespeichert')>=0);
+  const legacy=legacyRlSaveTest();
+  (legacy.fails||[]).forEach(f=>fails.push(f));
+  return {ok:!fails.length, fails};
+}
+function legacy18State(){
+  const state=newGame();
+  const s=state.seasons[0];
+  RL_IDS.forEach(lid=>{
+    const have=s.leagues[lid].teams;
+    const bag=[];
+    POOLS.filter(p=>p.rl===lid).forEach(p=>((s.pools[p.id])||[]).forEach(id=>bag.push({id, p:p.id})));
+    while (have.length<18 && bag.length){
+      const row=bag.shift();
+      have.push(row.id);
+      s.pools[row.p]=s.pools[row.p].filter(x=>x!==row.id);
+    }
+  });
+  LEAGUES.forEach(l=>{ ensureLeagueSchedule(s, l.id); });
+  return state;
+}
+function clubCensus(season){
+  const ids=[];
+  let dup=false;
+  const seen=new Set();
+  LEAGUES.forEach(l=>((season.leagues[l.id]&&season.leagues[l.id].teams)||[]).forEach(id=>{ if(seen.has(id)) dup=true; seen.add(id); ids.push(l.id+':'+((season.leagues[l.id].teams||[]).length)); }));
+  POOLS.forEach(p=>((season.pools&&season.pools[p.id])||[]).forEach(id=>{ if(seen.has(id)) dup=true; seen.add(id); }));
+  return {dup, n:seen.size, ids};
+}
+function finishRunningSeason(expectBreaks){
+  const s=latest();
+  simSeason(s);
+  for (let i=0;i<4 && seasonEndBlock(s);i++){
+    if (dfbPending(s)) simAllCups(s);
+    LEAGUES.forEach(l=>{ simDecide(s, l.id); });
+    simRelay(s);
+    simSupercup(s);
+  }
+  if (seasonEndBlock(s)) return 'block '+seasonEndBlock(s);
+  if (expectBreaks){
+    for (let i=0;i<LEAGUES.length;i++){
+      const l=LEAGUES[i];
+      const md=s.leagues[l.id]&&s.leagues[l.id].md;
+      if (!md) return l.id+' ohne Plan';
+      const br=scheduleBreaks(md);
+      if (br.minFull!==3 || br.maxFull!==3 || br.maxRun>2) return l.id+' Breaks '+br.minFull+'/'+br.maxFull+' serie '+br.maxRun;
+    }
+  }
+  s.endData=computeTransition(s);
+  s.status='ending';
+  suggestPicks(s.endData);
+  const before=S.seasons.length;
+  finalizeSeason({quiet:true, batch:true});
+  if (S.seasons.length===before) return 'kein Wechsel';
+  return '';
+}
+function legacyRlSaveTest(){
+  const fails=[];
+  const check=(name, ok, extra)=>{ if(!ok) fails.push(name+(extra?' · '+extra:'')); };
+  const prevS=S, prevHold=saveHold, prevLs=localStorage.getItem(KEY);
+  saveHold=1;
+  try{
+    const state=legacy18State();
+    const eight=RL_IDS.every(id=>state.seasons[0].leagues[id].teams.length===18);
+    check('18er-Stand hat vier volle Regionalligen', eight);
+    const disk=packForDisk(state);
+    const raw=JSON.stringify(disk);
+    check('gespeicherter 18er-Stand ist gültig', structureOk(disk) && structureOk(state));
+    localStorage.setItem(KEY, raw);
+    const fromLs=parseSave(localStorage.getItem(KEY));
+    check('localStorage lädt den 18er-Stand', !!(fromLs && RL_IDS.every(id=>fromLs.seasons[fromLs.seasons.length-1].leagues[id].teams.length===18)));
+    const file=JSON.parse(raw);
+    check('Datei-Import nimmt den 18er-Stand an', structureOk(file));
+    const unpacked=unpackState(JSON.parse(raw));
+    check('Datei-Import behält 18 Vereine', !!(unpacked && RL_IDS.every(id=>unpacked.seasons[0].leagues[id].teams.length===18)));
+    const fresh=packForDisk(newGame());
+    check('16er-Stand bleibt gültig', structureOk(fresh) && RL_IDS.every(id=>fresh.seasons[0].leagues[id].teams.length===16));
+    const short=JSON.parse(raw);
+    short.seasons[0].leagues.RLN.teams.pop();
+    const bl=JSON.parse(raw);
+    bl.seasons[0].leagues.BL.teams.pop();
+    const ol=JSON.parse(raw);
+    ol.seasons[0].leagues.OLBY={teams:['t001']};
+    check('17 Vereine, falsche Bundesliga und Oberliga bleiben ungültig', !structureOk(short) && !structureOk(bl) && !structureOk(ol));
+    S=unpacked;
+    resetDerivedIndex();
+    S.view=S.seasons.length-1;
+    const firstEnd=finishRunningSeason(false);
+    check('18er-Saison spielt zu Ende', !firstEnd, firstEnd);
+    const next=latest();
+    const sized=RL_IDS.every(id=>next.leagues[id].teams.length===16) && next.leagues.L4.teams.length===20 && next.leagues.L5NO.teams.length===22 && next.leagues.L5SW.teams.length===22;
+    const census0=clubCensus(next);
+    check('nach dem Übergang hat die Regionalliga 16 und niemand fehlt', sized && !census0.dup && census0.n===Object.keys(TEAMS).length, census0.ids.join(' ')+' n '+census0.n);
+    let later='';
+    for (let i=0;i<3 && !later;i++){
+      const census=clubCensus(latest());
+      if (census.dup || census.n!==Object.keys(TEAMS).length || !RL_IDS.every(id=>latest().leagues[id].teams.length===16)) later='Bestand '+census.n;
+      else later=finishRunningSeason(true);
+    }
+    check('drei Folgesaisons bleiben bei 16 und genau 3 Breaks', !later, later);
+  }catch(e){
+    check('18er-Stand lässt sich laden und zu Ende spielen', false, e&&e.message);
+  }finally{
+    S=prevS;
+    saveHold=prevHold;
+    if (prevLs==null) localStorage.removeItem(KEY);
+    else localStorage.setItem(KEY, prevLs);
+    resetDerivedIndex();
+  }
   return {ok:!fails.length, fails};
 }
 function scheduleMassTest(seasons){
