@@ -100,6 +100,8 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
   .head h1{font-size:18px}
 }
 .card{background:#fff;border:1px solid var(--line);overflow:hidden}
+.plan-create{padding:28px 16px;text-align:center}
+.plan-create p{margin:0 0 12px;color:var(--muted)}
 .card-title{background:var(--head);padding:7px 10px;font-weight:650;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);min-width:0}
 .card-title>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .md-nav{flex:0 0 auto}
