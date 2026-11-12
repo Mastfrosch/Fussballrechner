@@ -635,13 +635,12 @@ table.tbl.hist-seasons,table.tbl.fit.pair-board,table.tbl.fit.title-reg{width:10
 .relay-hist h4{margin:16px 0 6px;font-size:15px}
 .relay-hist .match{width:100%}
 .subtabs{display:flex;width:max-content;max-width:100%;margin:0 auto 10px}
-.hist-seasons th,.hist-seasons td{padding:3px 8px}
+.hist-seasons th,.hist-seasons td{padding:6px 8px}
 .hist-seasons td.names{white-space:normal;vertical-align:middle}
 .hist-seasons td:first-child{white-space:nowrap}
-.hist-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.hist-slot{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
-.hist-slot b{font-size:11px;color:var(--muted);font-weight:600;min-width:1.1em;text-align:right;font-variant-numeric:tabular-nums}
-.hist-crest{width:34px;height:34px;object-fit:contain;display:block;flex:0 0 34px}
+.hist-stack{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.hist-seasons .sieger-club{max-width:100%}
+.sieger-name{font-size:13px;line-height:1.25}
 .tbl.compact th,.tbl.compact td{padding:2px 6px;font-size:12px}
 .info-roomy{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;max-width:100%}
 .info-roomy>.tbl,.info-roomy .tbl.fit,.info-roomy table.tbl{width:max-content;max-width:100%}

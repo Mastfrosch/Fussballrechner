@@ -5851,19 +5851,19 @@ function histSkipName(name){
   return !name || blockedClubHit(name) || /Amateure|\bU23\b|\bII\b|Reserve/i.test(name);
 }
 function histSlot(id, pl, plain){
-  if (plain){
-    const text=String(plain||'');
-    if (histSkipName(text)) return '';
-    return '<span class="hist-slot"><b>'+(pl!=null?pl:'')+'</b><span>'+esc(text)+'</span></span>';
-  }
   const t=id&&TEAMS[id];
-  if (!t || histSkipName(t.name)) return '';
-  return '<span class="hist-slot"><b>'+(pl!=null?pl:'')+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
+  if (t){
+    if (blockedClubHit(t.name)) return '';
+    return honourClub(id, t.name, null, true);
+  }
+  const text=String(plain||'').trim();
+  if (!text || histSkipName(text)) return '';
+  return '<span class="sieger-name">'+esc(text)+'</span>';
 }
 function histCell(bits){
   const items=(bits||[]).filter(Boolean);
   if (!items.length) return '<td class="l names"><span class="muted">–</span></td>';
-  return '<td class="l names"><div class="hist-row">'+items.join('')+'</div></td>';
+  return '<td class="l names"><div class="hist-stack">'+items.join('')+'</div></td>';
 }
 function histSection(title, note, cols, rows){
   let h='<div class="box"><h3>'+esc(title)+'</h3>';
@@ -5904,21 +5904,38 @@ function titleSectionRows(comp, from, to){
     season:titleYearLabel(r), year:r.year, cells:[titlePlaceCell(r), [], [], []]
   }));
 }
+function seasonFinalTable(s, lid){
+  const end=s && s.endData && s.endData.tables && s.endData.tables[lid];
+  if (Array.isArray(end) && end.length) return end;
+  const all=s && s.leagues && s.leagues[lid] && s.leagues[lid].tables && s.leagues[lid].tables.all;
+  return Array.isArray(all)?all:[];
+}
+function rowsAtPlace(rows, pl){
+  return (rows||[]).filter(r=>r && r.id && +r.pl===pl);
+}
+function tableChampionRows(rows){
+  const top=rowsAtPlace(rows, 1);
+  if (top.length) return top;
+  let best=null;
+  (rows||[]).forEach(r=>{
+    if (!r || !r.id || !isFinite(+r.pl)) return;
+    if (!best || +r.pl<+best.pl) best=r;
+  });
+  return best?[best]:[];
+}
 function rechnerRows(lid){
   const bl=lid==='BL';
   const rows=[];
   (S.seasons||[]).forEach(s=>{
-    const e=s&&s.endData;
-    const raw=e&&e.tables&&e.tables[lid];
-    const t=Array.isArray(raw)?raw:[];
+    const t=seasonFinalTable(s, lid);
     if (!t.length) return;
     if (bl){
-      rows.push({season:s.name, year:seasonYear(s.name), cells:[1,2,3,4].map(pl=>t.filter(r=>r&&r.pl===pl).map(r=>histSlot(r.id, pl)))});
+      rows.push({season:s.name, year:seasonYear(s.name), cells:[1,2,3,4].map(pl=>rowsAtPlace(t, pl).map(r=>histSlot(r.id, pl)))});
       return;
     }
-    const up=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='auf'&&m.pl!==1);
+    const up=((s.endData&&s.endData.moves)||[]).filter(m=>m&&m.from===lid&&m.type==='auf'&&+m.pl!==1);
     rows.push({season:s.name, year:seasonYear(s.name), cells:[
-      t.filter(r=>r&&r.pl===1).map(r=>histSlot(r.id, 1)),
+      tableChampionRows(t).map(r=>histSlot(r.id, 1)),
       up.map(m=>histSlot(m.id, m.pl))
     ]});
   });
@@ -11996,6 +12013,29 @@ function uiSelfTestBody(fails){
   catch(e){ thrown=true; }
   finally{ navMute--; }
   check('eine Testausnahme gibt die Aufzeichnung zurück', thrown && navMute===probe);
+  const seasonKeep=S.seasons;
+  try{
+    const tables={}, moves=[];
+    LEAGUES.forEach(l=>{
+      const champ=l.id==='RLN'?'t095':(l.id==='BL'?'t001':'t041');
+      tables[l.id]=[{id:champ, pl:'1'},{id:'t042', pl:2},{id:'t043', pl:3}];
+    });
+    moves.push({id:'t042', from:'L3', to:'BL2', type:'auf', pl:2});
+    moves.push({id:'t043', from:'L3', to:'BL2', type:'auf', pl:3});
+    S.seasons=[{name:'2091/92', status:'done', leagues:{}, endData:{tables, moves}}];
+    const rechnerOf=lid=>{ const html=viewHistorie(lid); const at=html.lastIndexOf('<h3>Rechner</h3>'); return at<0?'':html.slice(at); };
+    const missing=[];
+    LEAGUES.forEach(l=>{
+      const champ=l.id==='RLN'?'t095':(l.id==='BL'?'t001':'t041');
+      const part=rechnerOf(l.id);
+      if (part.indexOf(TEAMS[champ].name)<0) missing.push(l.short);
+    });
+    const l3=rechnerOf('L3');
+    const blTop=viewHistorie('BL');
+    check('jede abgeschlossene Rechner-Saison nennt den Meister', missing.length===0, missing.join(' · '));
+    check('mehrere Aufsteiger stehen mit Namen untereinander', l3.indexOf('hist-stack')>=0 && l3.indexOf(TEAMS.t042.name)>=0 && l3.indexOf(TEAMS.t043.name)>=0 && l3.indexOf('hist-crest')<0);
+    check('Historie zeigt Wappen und Vereinsnamen', blTop.indexOf('sieger-club')>=0 && blTop.indexOf('FC Bayern München')>=0 && blTop.indexOf('hist-slot')<0 && blTop.indexOf('SSV Jeddeloh II')<0);
+  }finally{ S.seasons=seasonKeep; }
   Object.keys(S.ui).forEach(k=>{ if (!(k in uiWas)) delete S.ui[k]; });
   Object.assign(S.ui, uiWas);
   S.view=viewWas;
