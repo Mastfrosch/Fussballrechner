@@ -610,7 +610,7 @@ function schauAudit(){
     const key=(r.comp==='sc'?'sc':(r.assign?('land:'+r.land):(r.cupName||r.comp)))+'|'+r.year;
     if (seen[key]) fails.push('doppelt '+key);
     seen[key]=1;
-    if (/Amateure|\bU23\b|\bII\b|Reserve/i.test(r.original||'')) fails.push('zweite '+(r.original||''));
+    if (reserveName(r.original||'')) fails.push('zweite '+(r.original||''));
   });
   return fails;
 }
@@ -5847,8 +5847,25 @@ function historyPlaceIndex(){
   histPlaceIndex=map;
   return map;
 }
+let rosterNameSet=null;
+function knownClubName(name){
+  const key=String(name||'').trim().toLowerCase();
+  if (!key) return false;
+  if (!rosterNameSet){
+    rosterNameSet=new Set();
+    Object.keys(TEAMS).forEach(id=>{
+      const n=TEAMS[id]&&TEAMS[id].name;
+      if (n) rosterNameSet.add(String(n).trim().toLowerCase());
+    });
+  }
+  return rosterNameSet.has(key);
+}
+function reserveName(name){
+  if (!name || knownClubName(name)) return false;
+  return /Amateure|\bU23\b|\bII\b|Reserve/i.test(String(name));
+}
 function histSkipName(name){
-  return !name || blockedClubHit(name) || /Amateure|\bU23\b|\bII\b|Reserve/i.test(name);
+  return !name || blockedClubHit(name) || reserveName(name);
 }
 function histSlot(id, pl, plain){
   const t=id&&TEAMS[id];
@@ -12034,7 +12051,8 @@ function uiSelfTestBody(fails){
     const blTop=viewHistorie('BL');
     check('jede abgeschlossene Rechner-Saison nennt den Meister', missing.length===0, missing.join(' · '));
     check('mehrere Aufsteiger stehen mit Namen untereinander', l3.indexOf('hist-stack')>=0 && l3.indexOf(TEAMS.t042.name)>=0 && l3.indexOf(TEAMS.t043.name)>=0 && l3.indexOf('hist-crest')<0);
-    check('Historie zeigt Wappen und Vereinsnamen', blTop.indexOf('sieger-club')>=0 && blTop.indexOf('FC Bayern München')>=0 && blTop.indexOf('hist-slot')<0 && blTop.indexOf('SSV Jeddeloh II')<0);
+    check('Historie zeigt Wappen und Vereinsnamen', blTop.indexOf('sieger-club')>=0 && blTop.indexOf('FC Bayern München')>=0 && blTop.indexOf('hist-slot')<0);
+    check('SSV Jeddeloh II bleibt ein Verein', histSkipName('SSV Jeddeloh II')===false && reserveName('SSV Jeddeloh II')===false && histSlot('t095').indexOf('SSV Jeddeloh II')>=0 && histSlot('', 1, 'SSV Jeddeloh II').indexOf('SSV Jeddeloh II')>=0 && histSkipName('Werder Bremen Amateure') && histSkipName('Holstein Kiel II'));
   }finally{ S.seasons=seasonKeep; }
   Object.keys(S.ui).forEach(k=>{ if (!(k in uiWas)) delete S.ui[k]; });
   Object.assign(S.ui, uiWas);
