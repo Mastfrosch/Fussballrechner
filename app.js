@@ -610,7 +610,7 @@ function schauAudit(){
     const key=(r.comp==='sc'?'sc':(r.assign?('land:'+r.land):(r.cupName||r.comp)))+'|'+r.year;
     if (seen[key]) fails.push('doppelt '+key);
     seen[key]=1;
-    if (/Amateure|\bU23\b|\bII\b|Reserve/i.test(r.original||'')) fails.push('zweite '+(r.original||''));
+    if (reserveName(r.original||'')) fails.push('zweite '+(r.original||''));
   });
   return fails;
 }
@@ -4872,8 +4872,11 @@ function honourList(title, note, rows, showBl){
   return h+siegerHead()+rows.map(r=>titleHonourRow(r, showBl)).join('')+'</div>';
 }
 function viewDfbModern(){
-  const rows=titleRowsFor('dfb').slice().sort((a,b)=>b.year-a.year);
-  return honourList('DFB-Pokal', 'Finalist, Ergebnis und die Liga zum Zeitpunkt stehen nur, wenn sie gespeichert sind. Historische Jahre ohne diese Angaben bleiben leer. n.V. und i.E. bleiben stehen, wenn das Finale sie hat. Der FDGB-Pokal endet 1991 und steht darunter.', rows, true);
+  const all=titleRowsFor('dfb').slice().sort((a,b)=>b.year-a.year);
+  const sim=all.filter(r=>r.map==='simulation');
+  const hist=all.filter(r=>r.map!=='simulation');
+  const note='Finalist, Ergebnis und die Liga zum Zeitpunkt stehen nur, wenn sie gespeichert sind. Historische Jahre ohne diese Angaben bleiben leer. n.V. und i.E. bleiben stehen, wenn das Finale sie hat.';
+  return honourList('DFB-Pokal', note, hist, true)+honourList('Rechner', 'Endspiele aus diesem Spielstand, die neueste Saison oben.', sim, true);
 }
 function viewDfbHistoric(){
   const rows=titleRowsFor('fdgb').filter(r=>r.year<=1991).sort((a,b)=>b.year-a.year);
@@ -4935,12 +4938,14 @@ function viewCupWinners(){
     const have={};
     S.seasons.forEach(sea=>{ if (sea && sea.name && sea.cups && sea.cups.land && sea.cups.land[key] && cupFinalists(sea.cups.land[key])) have[sea.name]=1; });
     const hist=landHistWinners(key).filter(r=>!have[r.season]).sort((a,b)=>(b.year||0)-(a.year||0) || (String(a.season)<String(b.season)?1:-1));
-    let histHtml='';
-    if (hist.length){
-      histHtml='<h3>Historische Sieger</h3><p class="muted">Jahrgänge dieses Landespokals. Vereine im Rechner sind verknüpft, andere stehen als Name. Zweite Mannschaften sind gekennzeichnet. Finalist und Ergebnis sind hier nicht gespeichert. Die Liga steht nur, wenn die Saison in den Tabellendaten liegt.</p>'+siegerHead()+hist.map(landHistRow).join('');
-    }
-    if (!rows.length && !hist.length) return '<div class="box"><h3>Sieger '+esc(key)+'</h3><p class="muted">Noch kein entschiedenes Finale.</p></div>';
-    return '<div class="box sieger-box"><h3>Sieger '+esc(key)+'</h3>'+(rows.length?siegerHead()+rows.reverse().join(''):'<p class="muted">Noch kein Finale im Rechner.</p>')+histHtml+'</div>';
+    const histBlock=hist.length
+      ? '<h3>Historische Sieger</h3><p class="muted">Jahrgänge dieses Landespokals. Vereine im Rechner sind verknüpft, andere stehen als Name. Zweite Mannschaften sind gekennzeichnet. Finalist und Ergebnis sind hier nicht gespeichert. Die Liga steht nur, wenn die Saison in den Tabellendaten liegt.</p>'+siegerHead()+hist.map(landHistRow).join('')
+      : '<h3>Historische Sieger</h3><p class="muted">Keine historischen Sieger gespeichert.</p>';
+    const rechner=rows.length
+      ? '<h3>Rechner</h3><p class="muted">Endspiele aus diesem Spielstand, die neueste Saison oben.</p>'+siegerHead()+rows.slice().reverse().join('')
+      : '<h3>Rechner</h3><p class="muted">Noch kein Finale im Rechner.</p>';
+    if (!rows.length && !hist.length) return '<div class="box sieger-box">'+histBlock+rechner+'</div>';
+    return '<div class="box sieger-box">'+histBlock+rechner+'</div>';
   }
   return viewDfbModern()+viewDfbHistoric();
 }
@@ -5822,46 +5827,161 @@ function viewCupRekorde(key){
     return '<div class="box"><p class="muted">Für diesen Pokal liegen keine Rekorde vor.</p></div>';
   }
 }
-function viewHistorie(lid){
-  const done=S.seasons.filter(s=>s.endData&&s.endData.tables);
-  let h='';
-  if (lid==='BL') h+=championBoardHTML(['bl','de'], 'ddr', 'Bundesliga und deutsche Meisterschaft', 'DDR-Meister');
-  h+='<div class="box"><h3>Saisons der '+esc(L[lid].name)+'</h3>';
-  if (!done.length) h+='<p class="muted">Noch keine abgeschlossene Saison. Nach dem ersten Saisonabschluss stehen hier Meister, Aufsteiger und Absteiger.</p>';
-  else {
-    const lg=L[lid];
-    const bl=lid==='BL';
-    const showUp=!bl && lg.up>1;
-    const showDown=lg.down>0 || done.some(s=>((s.endData&&s.endData.moves)||[]).some(m=>m&&m.from===lid && m.type==='ab'));
-    const slot=item=>{
-      const id=item&&(item.id||item);
-      const t=id&&TEAMS[id]; if(!t) return '';
-      const pl=item&&typeof item==='object'&&item.pl!=null?item.pl:'';
-      return '<span class="hist-slot"><b>'+pl+'</b><img class="hist-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'" title="'+esc(t.name)+'"></span>';
-    };
-    const slots=list=>{
-      const items=(list||[]).slice().sort((a,b)=>((a&&a.pl)||0)-((b&&b.pl)||0));
-      return items.length?items.map(slot).join(''):'<span class="muted">–</span>';
-    };
-    const cols=bl?['Meister','Champions League','Europa League','Conference League','Absteiger']:(['Meister'].concat(showUp?['Aufsteiger']:[]).concat(showDown?['Absteiger']:[]));
-    h+='<table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th>'+cols.map(c=>'<th class="l">'+c+'</th>').join('')+'</tr></thead><tbody>';
-    done.slice().reverse().forEach(s=>{ const e=s.endData||{}, raw=e.tables&&e.tables[lid], t=Array.isArray(raw)?raw:[];
-      const up=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='auf');
-      const dn=(e.moves||[]).filter(m=>m&&m.from===lid&&m.type==='ab');
-      const cell=list=>'<td class="l names"><div class="hist-row">'+slots(list)+'</div></td>';
-      let cells='';
-      if (bl){
-        cells=cell(t.filter(r=>r&&r.pl===1))+cell(t.filter(r=>r&&r.pl>=2&&r.pl<=4))+cell(t.filter(r=>r&&r.pl>=5&&r.pl<=6))+cell(t.filter(r=>r&&r.pl===7))+cell(dn);
-      } else {
-        cells=cell(t.filter(r=>r&&r.pl===1));
-        if (showUp) cells+=cell(up.filter(m=>m&&(m.pl||0)>1));
-        if (showDown) cells+=cell(dn);
-      }
-      h+='<tr><td class="l">'+s.name+'</td>'+cells+'</tr>';
+let histPlaceIndex=null;
+function historyPlaceIndex(){
+  if (histPlaceIndex) return histPlaceIndex;
+  const map={};
+  const H=window.FR_HISTORY;
+  if (H && H.rows){
+    Object.keys(H.rows).forEach(id=>{
+      if (!TEAMS[id]) return;
+      H.rows[id].forEach(r=>{
+        const season=H.seasons[r[0]], liga=H.ligas[r[1]], pl=+r[4];
+        if (!season || !liga || !isFinite(pl) || pl<1) return;
+        const bag=map[liga]||(map[liga]={});
+        (bag[season]||(bag[season]=[])).push({id, pl});
+        map[liga]=bag;
+      });
     });
-    h+='</tbody></table>';
   }
-  h+='</div>';
+  histPlaceIndex=map;
+  return map;
+}
+let rosterNameSet=null;
+function knownClubName(name){
+  const key=String(name||'').trim().toLowerCase();
+  if (!key) return false;
+  if (!rosterNameSet){
+    rosterNameSet=new Set();
+    Object.keys(TEAMS).forEach(id=>{
+      const n=TEAMS[id]&&TEAMS[id].name;
+      if (n) rosterNameSet.add(String(n).trim().toLowerCase());
+    });
+  }
+  return rosterNameSet.has(key);
+}
+function reserveName(name){
+  if (!name || knownClubName(name)) return false;
+  return /Amateure|\bU23\b|\bII\b|Reserve/i.test(String(name));
+}
+function histSkipName(name){
+  return !name || blockedClubHit(name) || reserveName(name);
+}
+function histSlot(id, pl, plain){
+  const t=id&&TEAMS[id];
+  if (t){
+    if (blockedClubHit(t.name)) return '';
+    return honourClub(id, t.name, null, true);
+  }
+  const text=String(plain||'').trim();
+  if (!text || histSkipName(text)) return '';
+  return '<span class="sieger-name">'+esc(text)+'</span>';
+}
+function histCell(bits){
+  const items=(bits||[]).filter(Boolean);
+  if (!items.length) return '<td class="l names"><span class="muted">–</span></td>';
+  return '<td class="l names"><div class="hist-stack">'+items.join('')+'</div></td>';
+}
+function histSection(title, note, cols, rows){
+  let h='<div class="box"><h3>'+esc(title)+'</h3>';
+  if (note) h+='<p class="muted">'+note+'</p>';
+  if (!rows.length) return h+'<p class="muted">Keine gespeicherten Jahre.</p></div>';
+  h+='<table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th>'+cols.map(c=>'<th class="l">'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{ h+='<tr><td class="l">'+esc(r.season)+'</td>'+r.cells.map(histCell).join('')+'</tr>'; });
+  h+='</tbody></table></div>';
+  return h;
+}
+function titlePlaceCell(r){
+  if (!r) return [];
+  if (r.id && TEAMS[r.id]) return [histSlot(r.id, 1)];
+  return [histSlot('', 1, r.original)];
+}
+function historyPlaces(liga, season, places){
+  const bag=((historyPlaceIndex()[liga]||{})[season])||[];
+  return places.map(pl=>bag.filter(x=>x.pl===pl).map(x=>histSlot(x.id, pl)));
+}
+function blHistoryRows(){
+  const by={};
+  const idx=historyPlaceIndex()['Bundesliga']||{};
+  Object.keys(idx).forEach(season=>{
+    const y=seasonYear(season);
+    if (y<1963) return;
+    by[season]={season:seasonFull(season), year:y, cells:historyPlaces('Bundesliga', season, [1,2,3,4])};
+  });
+  historicalTitleRows().forEach(r=>{
+    if (!r || r.comp!=='bl' || r.year<1964) return;
+    const season=titelSeason('bl', r.year);
+    if (by[season]) return;
+    by[season]={season:seasonFull(season), year:r.year, cells:[titlePlaceCell(r), [], [], []]};
+  });
+  return Object.keys(by).map(k=>by[k]).sort((a,b)=>b.year-a.year || (a.season<b.season?1:-1));
+}
+function titleSectionRows(comp, from, to){
+  return historicalTitleRows().filter(r=>r && r.comp===comp && r.year>=from && r.year<=to).sort((a,b)=>b.year-a.year).map(r=>({
+    season:titleYearLabel(r), year:r.year, cells:[titlePlaceCell(r), [], [], []]
+  }));
+}
+function seasonFinalTable(s, lid){
+  const end=s && s.endData && s.endData.tables && s.endData.tables[lid];
+  if (Array.isArray(end) && end.length) return end;
+  const all=s && s.leagues && s.leagues[lid] && s.leagues[lid].tables && s.leagues[lid].tables.all;
+  return Array.isArray(all)?all:[];
+}
+function rowsAtPlace(rows, pl){
+  return (rows||[]).filter(r=>r && r.id && +r.pl===pl);
+}
+function tableChampionRows(rows){
+  const top=rowsAtPlace(rows, 1);
+  if (top.length) return top;
+  let best=null;
+  (rows||[]).forEach(r=>{
+    if (!r || !r.id || !isFinite(+r.pl)) return;
+    if (!best || +r.pl<+best.pl) best=r;
+  });
+  return best?[best]:[];
+}
+function rechnerRows(lid){
+  const bl=lid==='BL';
+  const rows=[];
+  (S.seasons||[]).forEach(s=>{
+    const t=seasonFinalTable(s, lid);
+    if (!t.length) return;
+    if (bl){
+      rows.push({season:s.name, year:seasonYear(s.name), cells:[1,2,3,4].map(pl=>rowsAtPlace(t, pl).map(r=>histSlot(r.id, pl)))});
+      return;
+    }
+    const up=((s.endData&&s.endData.moves)||[]).filter(m=>m&&m.from===lid&&m.type==='auf'&&+m.pl!==1);
+    rows.push({season:s.name, year:seasonYear(s.name), cells:[
+      tableChampionRows(t).map(r=>histSlot(r.id, 1)),
+      up.map(m=>histSlot(m.id, m.pl))
+    ]});
+  });
+  return rows.sort((a,b)=>b.year-a.year || (a.season<b.season?1:-1));
+}
+function otherHistoryRows(lid){
+  const names=lid==='BL2'?['2. Bundesliga']:lid==='L3'?['3. Liga']:[(L[lid]&&L[lid].name)||''];
+  const idx=historyPlaceIndex();
+  const seasons={};
+  names.forEach(name=>Object.keys(idx[name]||{}).forEach(season=>{ seasons[season]=name; }));
+  return Object.keys(seasons).map(season=>({
+    season:seasonFull(season), year:seasonYear(season),
+    cells:[historyPlaces(seasons[season], season, [1])[0], []]
+  })).sort((a,b)=>b.year-a.year || (a.season<b.season?1:-1));
+}
+function viewHistorie(lid){
+  const bl=lid==='BL';
+  const cols=bl?['Meister','2.','3.','4.']:['Meister','Aufsteiger'];
+  let h='';
+  if (bl){
+    h+=histSection('Bundesliga', 'Ab 1963/64. Plätze 2 bis 4 nur, wenn sie gespeichert sind. Vor 2000 bleibt dort ein Strich.', cols, blHistoryRows());
+    h+=histSection('Deutsche Meisterschaft', 'Bis 1963. Gespeichert ist der Meister. Die Plätze dahinter sind nicht vorhanden.', cols, titleSectionRows('de', 1900, 1963));
+    h+=histSection('DDR-Oberliga', '1950 bis 1991. Gespeichert ist der Meister.', cols, titleSectionRows('ddr', 1950, 1991));
+  } else {
+    const past=otherHistoryRows(lid);
+    if (past.length) h+=histSection(L[lid].name, 'Gespeichert ist der Meister. Historische Aufsteiger nur, wenn sie vorliegen.', cols, past);
+  }
+  const live=rechnerRows(lid);
+  h+=histSection('Rechner', 'Abgeschlossene Saisons dieses Spielstands, die neueste oben. Aufsteiger schließen den Relegationssieger ein, wenn es ihn gibt.', cols, live);
   if (L[lid] && (L[lid].level===5 || L[lid].level===6)) h+=relayChronicleHTML(lid);
   return h;
 }
@@ -5869,23 +5989,30 @@ function relayChronicleHTML(lid){
   const spec=L[lid];
   if (!spec) return '';
   const l5=spec.level===5?lid:spec.upTo;
-  const rows=[];
-  (S.seasons||[]).forEach(season=>{
+  let blocks='';
+  (S.seasons||[]).slice().reverse().forEach(season=>{
     const rel=season && season.relay && season.relay[l5];
     if (!rel || !TEAMS[rel.better] || !TEAMS[rel.worse]) return;
     if (spec.level===6 && rel.rlBetter!==lid && rel.rlWorse!==lid) return;
     const w=relayWinner(rel);
-    const legs=(rel.matches||[]).map(m=>{
-      if (m.hg==null || m.ag==null) return (m.leg===1?'Hinspiel':'Rückspiel')+' offen';
-      let s=(m.leg===1?'Hinspiel ':'Rückspiel ')+m.hg+':'+m.ag;
-      if (m.leg===2 && m.peh!=null && m.pea!=null && m.peh!==m.pea) s+=', '+m.peh+':'+m.pea+' i.E.';
-      return s;
-    }).join(', ');
-    const out=w?esc(TEAMS[w].name)+' steigt auf, '+esc(TEAMS[w===rel.better?rel.worse:rel.better].name)+' bleibt':'noch offen';
-    rows.push('<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+esc(TEAMS[rel.worse].name)+' – '+esc(TEAMS[rel.better].name)+'</td><td class="l">'+esc(legs)+'</td><td class="l">'+out+'</td></tr>');
+    const loser=w===rel.better?rel.worse:rel.better;
+    const out=w&&TEAMS[w]?(esc(TEAMS[w].name)+' steigt auf'+(TEAMS[loser]?', '+esc(TEAMS[loser].name)+' bleibt':'')):'noch offen';
+    const matches=(rel.matches||[]).slice().sort((a,b)=>(a.leg||0)-(b.leg||0));
+    let lines='';
+    matches.forEach(m=>{
+      if (!m || !TEAMS[m.h] || !TEAMS[m.a]) return;
+      const played=m.hg!=null && m.ag!=null;
+      const hasPen=m.peh!=null && m.pea!=null && +m.peh!==+m.pea;
+      const above=hasPen?'<span class="ie-link ie-static">'+m.peh+':'+m.pea+' i.E.</span>':'<span class="ie-slot"></span>';
+      const below='<span class="ie-box">'+(m.leg===1?'Hinspiel':'Rückspiel')+'</span>';
+      let km=null;
+      try{ km=kmBetween(m.h, m.a); }catch(e){ km=null; }
+      lines+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!w, above, below, km, nodel:true});
+    });
+    blocks+='<h4>'+esc(season.name)+' · '+out+'</h4>'+lines;
   });
-  if (!rows.length) return '';
-  return '<div class="box"><h3>Relegation</h3><p class="muted">Hin- und Rückspiel der Vizemeister. Das Heimrecht im Rückspiel steht beim besseren Punktequotienten. Keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen.</p><table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th><th class="l">Paarung</th><th class="l">Spiele</th><th class="l">Ausgang</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+  if (!blocks) return '';
+  return '<div class="box relay-hist"><h3>Relegation</h3><p class="muted">Hin- und Rückspiel der Vizemeister. Das Heimrecht im Rückspiel steht beim besseren Punktequotienten. Keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen.</p>'+blocks+'</div>';
 }
 const BL_ORDER=['Schleswig-Holstein','Hamburg','Mecklenburg-Vorpommern','Bremen','Niedersachsen','Berlin','Brandenburg','Sachsen-Anhalt','Sachsen','Thüringen','Nordrhein-Westfalen','Hessen','Rheinland-Pfalz','Saarland','Baden-Württemberg','Bayern'];
 function renderAmateur(){
@@ -11903,6 +12030,30 @@ function uiSelfTestBody(fails){
   catch(e){ thrown=true; }
   finally{ navMute--; }
   check('eine Testausnahme gibt die Aufzeichnung zurück', thrown && navMute===probe);
+  const seasonKeep=S.seasons;
+  try{
+    const tables={}, moves=[];
+    LEAGUES.forEach(l=>{
+      const champ=l.id==='RLN'?'t095':(l.id==='BL'?'t001':'t041');
+      tables[l.id]=[{id:champ, pl:'1'},{id:'t042', pl:2},{id:'t043', pl:3}];
+    });
+    moves.push({id:'t042', from:'L3', to:'BL2', type:'auf', pl:2});
+    moves.push({id:'t043', from:'L3', to:'BL2', type:'auf', pl:3});
+    S.seasons=[{name:'2091/92', status:'done', leagues:{}, endData:{tables, moves}}];
+    const rechnerOf=lid=>{ const html=viewHistorie(lid); const at=html.lastIndexOf('<h3>Rechner</h3>'); return at<0?'':html.slice(at); };
+    const missing=[];
+    LEAGUES.forEach(l=>{
+      const champ=l.id==='RLN'?'t095':(l.id==='BL'?'t001':'t041');
+      const part=rechnerOf(l.id);
+      if (part.indexOf(TEAMS[champ].name)<0) missing.push(l.short);
+    });
+    const l3=rechnerOf('L3');
+    const blTop=viewHistorie('BL');
+    check('jede abgeschlossene Rechner-Saison nennt den Meister', missing.length===0, missing.join(' · '));
+    check('mehrere Aufsteiger stehen mit Namen untereinander', l3.indexOf('hist-stack')>=0 && l3.indexOf(TEAMS.t042.name)>=0 && l3.indexOf(TEAMS.t043.name)>=0 && l3.indexOf('hist-crest')<0);
+    check('Historie zeigt Wappen und Vereinsnamen', blTop.indexOf('sieger-club')>=0 && blTop.indexOf('FC Bayern München')>=0 && blTop.indexOf('hist-slot')<0);
+    check('SSV Jeddeloh II bleibt ein Verein', histSkipName('SSV Jeddeloh II')===false && reserveName('SSV Jeddeloh II')===false && histSlot('t095').indexOf('SSV Jeddeloh II')>=0 && histSlot('', 1, 'SSV Jeddeloh II').indexOf('SSV Jeddeloh II')>=0 && histSkipName('Werder Bremen Amateure') && histSkipName('Holstein Kiel II'));
+  }finally{ S.seasons=seasonKeep; }
   Object.keys(S.ui).forEach(k=>{ if (!(k in uiWas)) delete S.ui[k]; });
   Object.assign(S.ui, uiWas);
   S.view=viewWas;
