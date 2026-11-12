@@ -9205,7 +9205,9 @@ function amateurSeasons(id){
 }
 function bilanzTable(id){
   const row=(label, b, pts, pin)=>'<tr'+(pin?' data-pin="1" class="tot"':'')+'><td class="l">'+label+'</td>'+sortCell(b.sp, b.sp)+sortCell(b.s, b.s)+sortCell(b.u, b.u)+sortCell(b.n, b.n)+sortCell(b.tg, b.tg+':'+b.gt)+sortCell(b.tg-b.gt, (b.tg-b.gt>0?'+':'')+(b.tg-b.gt))+sortCell(pts?b.pkt:'', pts?b.pkt:'–')+'</tr>';
-  const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp);
+  let live='';
+  try{ const s=latest(); if (s && !s.absorbed) live=clubLeagueId(s, id)||''; }catch(e){ live=''; }
+  const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp || x.l.id===live);
   const legacy=leagues.length?emptyStat():statOf(id,'liga');
   const dfb=statOf(id,'dfb'), land=statOf(id,'land'), sc=statOf(id,'sc'), rel=statOf(id,'rel');
   const keys=leagues.map(x=>x.l.id).concat(leagues.length?[]:['liga']).concat(['dfb','land','sc']).concat(rel.sp?['rel']:[]);
@@ -9350,13 +9352,15 @@ function directCompareHTML(id){
       if (!g || g.season!==m.season){ g={season:m.season, list:[]}; groups.push(g); }
       g.list.push(m);
     });
-    h+='<div class="pair-wrap">';
+    h+='<table class="tbl cmp-games"><thead><tr><th class="l">Saison</th><th class="l">Wettbewerb</th><th class="l">Begegnung</th></tr></thead><tbody>';
     groups.forEach(g=>{
       g.list.sort((a,b)=>rank(a.comp)-rank(b.comp));
-      h+='<div class="pair-season">Saison '+esc(g.season)+'</div>';
-      g.list.forEach(m=>{ h+=pairRow(shortComp(m.comp), m.h, m.a, m.hg, m.ag, m.et, m.peh, m.pea); });
+      g.list.forEach(m=>{
+        const open=m.hg==null || m.ag==null;
+        h+='<tr><td class="l">'+esc(g.season)+'</td><td class="l">'+esc(shortComp(m.comp))+'</td><td class="l">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:!!m.et, peh:m.peh, pea:m.pea, tone:open?'open':undefined, open, nodel:true, klass:'fx-line'})+'</td></tr>';
+      });
     });
-    h+='</div>';
+    h+='</tbody></table>';
   }
   h+='</div>';
   return h;
@@ -9601,15 +9605,15 @@ function renderInfo(){
   $('#subline').innerHTML='';
   $('#title').textContent='Vereinsinfo';
   const id=S.ui.infoId;
-  let h='<div class="box"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
+  let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
   if (!id || !TEAMS[id]){ $('#view').innerHTML=h; wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
   const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Häufigste Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
   if (!secs.some(x=>x[0]===sec)) sec='historie';
   S.ui.infoSec=sec;
-  h+='<div class="box"><div class="verein-head"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+'</div>'+ansehenHead(id)+'</div></div>';
-  h+='<div class="toggle info-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
+  h+='<div class="bfv-page"><header class="bfv-stage"><div class="verein-head bfv-stage-row"><img class="bfv-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div><div class="bfv-kicker">Verein</div><h2>'+esc(t.name)+'</h2><div class="bfv-meta">'+esc(t.bl)+'</div>'+ansehenHead(id)+'</div></div></header>';
+  h+='<div class="toggle info-tabs bfv-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div><div class="bfv-card">';
   if (sec==='historie'){
     h+='<div class="info-roomy">';
     const hist=S.ui.infoHist||'liga';
@@ -9617,7 +9621,7 @@ function renderInfo(){
     const tabs=[['liga','Liga'],['dfb','DFB-Pokal'],['land',landName]];
     const curH=tabs.some(x=>x[0]===hist)?hist:'liga';
     S.ui.infoHist=curH;
-    h+='<div class="toggle subtabs">'+tabs.map(([k,n])=>'<button type="button" data-act="infoHist" data-v="'+k+'" class="'+(curH===k?'active':'')+'">'+esc(n)+'</button>').join('')+'</div>';
+    h+='<div class="toggle subtabs bfv-subtabs">'+tabs.map(([k,n])=>'<button type="button" data-act="infoHist" data-v="'+k+'" class="'+(curH===k?'active':'')+'">'+esc(n)+'</button>').join('')+'</div>';
     if (curH==='liga'){
       let chart='';
       try{ chart=placementChart(leagueHistoryPoints(id)); }catch(e){ chart=''; }
@@ -9656,15 +9660,15 @@ function renderInfo(){
         if (ga!==gb) return ga-gb;
         return la-lb || a.localeCompare(b,'de');
       });
-      h+='<div class="trophy-grid">';
+      h+='<table class="tbl erfolge"><thead><tr><th class="l">Wettbewerb</th><th>Anzahl</th><th class="l">Jahre</th></tr></thead><tbody>';
       keys.forEach(k=>{
         const years=by[k].y.slice().sort();
-        h+='<article class="trophy-card">'+trophyFor(k)+'<b>'+by[k].y.length+'×</b><div class="trophy-name">'+esc(k)+'</div><div class="trophy-years">'+esc(years.join(', '))+'</div></article>';
+        h+='<tr><td class="l"><span class="erfolg-name">'+trophyFor(k)+'<span>'+esc(k)+'</span></span></td><td>'+by[k].y.length+'×</td><td class="l">'+esc(years.join(', '))+'</td></tr>';
       });
-      h+='</div>';
+      h+='</tbody></table>';
     }
   }
-  h+='</div>';
+  h+='</div></div>';
   $('#view').innerHTML=h;
   wireSuggest('infoQ', 'infoHits', 'infoPick', '');
   if (sec==='vergleich'){
