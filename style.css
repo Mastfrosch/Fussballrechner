@@ -164,7 +164,6 @@ th.sort-asc::after{content:' ▲';font-size:8px}
 th.sort-desc::after{content:' ▼';font-size:8px}
 .tbl th.l,.tbl td.l{text-align:left}
 .tbl td{padding:4px;text-align:center;border-top:1px solid var(--line);white-space:nowrap}
-.tbl tbody tr:nth-child(even):not([class*="z-"]) td{background:#f3f7fb}
 .tbl tr.z-meister td{background:var(--z-meister)}
 .tbl tr.z-champ td{background:#1d6b45;color:#fff}
 .tbl tr.z-champ .mk,.tbl tr.z-champ .muted{color:#d9f5e6}

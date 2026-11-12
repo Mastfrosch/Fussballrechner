@@ -5074,7 +5074,7 @@ function navState(){
   return JSON.stringify(o);
 }
 function knownViewTab(tab){
-  return TABS.some(t=>t[0]===tab) || tab==='info' || tab==='ansehen' || tab==='supercup' || tab==='verein' || tab==='pokal';
+  return TABS.some(t=>t[0]===tab) || tab==='info' || tab==='ansehen' || tab==='supercup' || tab==='verein' || tab==='pokal' || tab==='relegation';
 }
 function normalizeRemovedTab(){
   if (!S || !S.ui) return;
@@ -5112,6 +5112,7 @@ function navNormalize(){
   if (S.ui.tab==='supercup' && S.ui.scView!=='spiel' && S.ui.scView!=='rekorde') S.ui.scView='spiel';
   normalizeInfoUi();
   const lid=S.ui.league;
+  if (S.ui.tab==='relegation' && !(L[lid] && cur() && relayHTML(cur(), lid))) S.ui.tab='tabelle';
   if (S.ui.tab==='tabelle' && L[lid]){
     const s=cur();
     const lg=s.leagues && s.leagues[lid];
@@ -5247,6 +5248,7 @@ function renderMain(){
   setActions(seasonActions(s));
   const v=$('#view');
   if (S.ui.tab==='tabelle'){ v.innerHTML=viewTabelle(s,lid); paintLiveRows(); alignStandToPlan(); }
+  else if (S.ui.tab==='relegation') v.innerHTML=relayHTML(s,lid);
   else if (S.ui.tab==='karte') v.innerHTML=viewKarte(s,lid);
   else if (S.ui.tab==='terminierung') v.innerHTML=viewTerminierung(s,lid);
   else if (S.ui.tab==='heimaus') v.innerHTML=viewToggle(s,lid,'ha');
@@ -5257,7 +5259,16 @@ function renderMain(){
   if (S.ui.tab==='karte') bindMap();
 }
 function leagueTabs(){
-  return TABS.slice();
+  const tabs=TABS.slice();
+  try{
+    const s=cur();
+    const lid=S&&S.ui&&S.ui.league;
+    if (s && L[lid] && relayHTML(s, lid)){
+      const at=tabs.findIndex(t=>t[0]==='karte');
+      tabs.splice(at<0?1:at, 0, ['relegation','Relegation']);
+    }
+  }catch(e){}
+  return tabs;
 }
 function leagueChrome(lid, tab){
   const lg=L[lid];
@@ -5283,7 +5294,7 @@ function currentMd(s,lid){
 }
 function viewTabelle(s,lid){
   try{ syncRelay(s); }catch(e){}
-  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div>'+relayHTML(s,lid)+'</div>';
+  return '<div class="split"><div class="card" id="tableCard">'+tableHTML(leagueTable(s,lid),L[lid],{nobl:true,move:true,ansehen:true})+'</div><div class="card" id="spCard">'+spielplanHTML(s,lid)+'</div></div>';
 }
 function alignStandToPlan(){
   const card=document.getElementById('tableCard');
