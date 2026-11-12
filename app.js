@@ -9601,15 +9601,15 @@ function renderInfo(){
   $('#subline').innerHTML='';
   $('#title').textContent='Vereinsinfo';
   const id=S.ui.infoId;
-  let h='<div class="box"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
+  let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
   if (!id || !TEAMS[id]){ $('#view').innerHTML=h; wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
   const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Häufigste Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
   if (!secs.some(x=>x[0]===sec)) sec='historie';
   S.ui.infoSec=sec;
-  h+='<div class="box"><div class="verein-head"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div><h2>'+esc(t.name)+'</h2><div class="muted">'+esc(t.bl)+'</div>'+ansehenHead(id)+'</div></div>';
-  h+='<div class="toggle info-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div>';
+  h+='<div class="bfv-page"><header class="bfv-stage"><div class="verein-head bfv-stage-row"><img class="bfv-crest" src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div><div class="bfv-kicker">Verein</div><h2>'+esc(t.name)+'</h2><div class="bfv-meta">'+esc(t.bl)+'</div>'+ansehenHead(id)+'</div></div></header>';
+  h+='<div class="toggle info-tabs bfv-tabs">'+secs.map(([k,n])=>'<button type="button" data-act="infoSec" data-v="'+k+'" class="'+(sec===k?'active':'')+'">'+n+'</button>').join('')+'</div><div class="bfv-card">';
   if (sec==='historie'){
     h+='<div class="info-roomy">';
     const hist=S.ui.infoHist||'liga';
@@ -9617,7 +9617,7 @@ function renderInfo(){
     const tabs=[['liga','Liga'],['dfb','DFB-Pokal'],['land',landName]];
     const curH=tabs.some(x=>x[0]===hist)?hist:'liga';
     S.ui.infoHist=curH;
-    h+='<div class="toggle subtabs">'+tabs.map(([k,n])=>'<button type="button" data-act="infoHist" data-v="'+k+'" class="'+(curH===k?'active':'')+'">'+esc(n)+'</button>').join('')+'</div>';
+    h+='<div class="toggle subtabs bfv-subtabs">'+tabs.map(([k,n])=>'<button type="button" data-act="infoHist" data-v="'+k+'" class="'+(curH===k?'active':'')+'">'+esc(n)+'</button>').join('')+'</div>';
     if (curH==='liga'){
       let chart='';
       try{ chart=placementChart(leagueHistoryPoints(id)); }catch(e){ chart=''; }
@@ -9664,7 +9664,7 @@ function renderInfo(){
       h+='</div>';
     }
   }
-  h+='</div>';
+  h+='</div></div>';
   $('#view').innerHTML=h;
   wireSuggest('infoQ', 'infoHits', 'infoPick', '');
   if (sec==='vergleich'){
