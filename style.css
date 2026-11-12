@@ -202,7 +202,19 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .liga-tag{color:var(--muted);font-size:11px;font-weight:600;white-space:nowrap;flex:0 0 auto}
 .club .bl{font-size:9.5px;color:var(--muted);line-height:1}
 .club .mk{color:var(--muted);font-size:11px;margin:0 3px}
-.mk-out{color:var(--muted);font-size:11px;flex:0 0 auto;white-space:nowrap}
+.mk.mk-auf{color:#1d6b45}
+.mk.mk-ab{color:#a33}
+.mk.mk-cl{color:#2f6f9f}
+.mk.mk-el{color:#b86a1a}
+.mk.mk-ecl{color:#3d6b4a}
+.mk.mk-rel{color:#7a4e96}
+.mk.mk-meister{color:#8a6a12}
+.mk.mk-pokal{color:#8a6a12}
+.mk-out{color:inherit;font-size:11px;flex:0 0 auto;white-space:nowrap}
+.rechner-cut td{background:#eef3f8;border-top:2px solid #006ab2;padding:4px 8px}
+.rechner-tag{display:inline-block;padding:0 6px;border-top:2px solid #006ab2;color:#08324d;font-weight:700;font-size:11px;letter-spacing:.03em;line-height:1.4}
+.hist-who{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.relay-sub{margin:0 0 10px}
 .club:hover .nm{text-decoration:underline}
 .pts{font-weight:700}
 .form{display:inline-flex;gap:2px}
