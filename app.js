@@ -2923,7 +2923,7 @@ function zoneOf(lg, pl, n, down, eighth){
   const settled=lg.settled!==false;
   const viceSettled=lg.viceSettled==null ? settled : lg.viceSettled!==false;
   if (lg.level===6 && pl===2 && up>1 && !viceSettled) return 'auf-aus';
-  if (lg.viceOpen && pl===2) return 'auf-aus';
+  if (lg.viceOpen && pl===2) return 'rel';
   if (up && pl<=up) return 'auf';
   if (d && pl>n-d){
     if (!settled && lg.level>=5 && d<fixDown) return 'ab-aus';
@@ -4242,7 +4242,6 @@ function tableHTML(rows, lg, opts={}){
       (opts.ansehen?nf(an, an==null?'–':deNum(an,2), 'w-an'):'')+'</tr>';
   });
   h+='</tbody></table>';
-  if (opts.zones!==false && lg) h+=fixedPlaceHTML(season, lg, n);
   return h;
 }
 function fixedPlaceHTML(season, lg, n){
@@ -4274,7 +4273,7 @@ function legendHTML(lg, season){
       it.push(legendSwatch('auf','Meister, fest → '+leagueName(lg.upTo)));
       let plan=null;
       try{ plan=promotionPlan(season||cur(), lg.id); }catch(e){ plan=null; }
-      if (plan && plan.open) it.push(legendSwatch('auf-aus','Vizemeister, Relegation, provisorisch'));
+      if (plan && plan.open) it.push(legendSwatch('rel','Vizemeister, Relegation'));
       else if (upNow>1 && !viceMarksSettled(season||cur(), lg.id)) it.push(legendSwatch('auf-aus','Vizemeister, provisorisch bis die 4. Liga feststeht'));
       else if (upNow>1) it.push(legendSwatch('auf','Vizemeister, fest'));
     }
@@ -8243,7 +8242,7 @@ function cupRulesHTML(cup){
   const dfb=cup&&cup.kind!=='land';
   let h='<div class="box"><h3>Regeln '+(cup?esc(cup.name):'Pokal')+'</h3>';
   h+='<p>Ein Sieg trägt den Sieger ein. „n.V.“ markiert eine Entscheidung nach Verlängerung. Beim Unentschieden entscheidet das Elfmeterschießen über dem Spielstand. Ein Freilos ist keine eigene Runde und gibt keine Punkte.</p>';
-  if (dfb) h+='<p>(P) steht außen neben dem Titelverteidiger. Der Sieger erhält im Folgejahr die Conference League, wenn er nicht schon über die Bundesliga-Plätze 1 bis 6 höher qualifiziert ist. Liegt er in den Top 7, geht der zusätzliche Conference-League-Platz an Bundesliga-Platz 8.</p><p>Das Teilnehmerfeld kommt aus der Vorsaison: Bundesliga, 2. Bundesliga, die ersten acht der 3. Liga und die Landespokalsieger. Ein Absteiger aus diesen Ligen bleibt im Pokal. Der Titelverteidiger ist zusätzlich automatisch dabei und immer im Profitopf, auch nach Auf- oder Abstieg. Ist er über Liga oder Landespokal schon qualifiziert, bleibt das Feld dasselbe; nur der Topf kann sich ändern. Sonst nimmt er den letzten Startplatz der 3. Liga. Ein Landespokalsieger wird dafür nicht gestrichen. Der Tabellenzwölfte der 2. Liga rückt dann in den Amateurtopf. Das ist nie der Titelverteidiger. In der 1. Runde spielt der Amateurtopf zu Hause.</p>';
+  if (dfb) h+='<p>(P) steht außen neben dem Titelverteidiger. Der Sieger erhält im Folgejahr die Conference League, wenn er nicht schon über die Bundesliga-Plätze 1 bis 6 höher qualifiziert ist. Liegt er in den Top 7, geht der zusätzliche Conference-League-Platz an Bundesliga-Platz 8.</p><p>Das Teilnehmerfeld kommt aus der Vorsaison: Bundesliga, 2. Bundesliga, die ersten acht der 3. Liga und die Landespokalsieger. Ein Absteiger aus diesen Ligen bleibt im Pokal. Der Titelverteidiger ist zusätzlich automatisch dabei und immer im Profitopf, auch nach Auf- oder Abstieg. Ist er über Liga oder Landespokal schon qualifiziert, bleibt das Feld dasselbe; nur der Topf kann sich ändern. Sonst nimmt er den letzten Startplatz der 3. Liga. Ein Landespokalsieger wird dafür nicht gestrichen. Der Tabellenzwölfte der 2. Liga rückt dann in den Amateurtopf. Das ist nie der Titelverteidiger. In der 1. Runde spielt der Amateurtopf zu Hause. Die Tabelle zeigt dafür keine Linie und kein Wort Topf oder Pokal.</p>';
   else h+='<p>Der Landespokal-Titel ist '+ansehenPts(ANSEHEN.land.titleShare*100)+' Prozent des Saisonbudgets. Das Budget folgt dem gespeicherten Feld und wird nicht aus den heutigen Ligen neu gerechnet.</p>';
   h+='</div>';
   return h;
@@ -8265,7 +8264,10 @@ function rulesHTML(){
     changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+promotionCount(s, l.id)+' Aufsteiger, '+p.down+' Absteiger.</b> '+esc(p.reason)+'</li>'; });
     h+='</ul>';
   } else h+='<p>In der Saison '+esc(s.name)+' steigt nach dem aktuellen Stand aus jeder Regionalliga nur der Meister auf.</p>';
-  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p></div>';
+  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
+  h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
+  h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
+  h+='<p>Die Relegation der Regionalliga-Vizemeister hat einen eigenen Reiter „Relegation“, neben Tabelle und Karte. Er erscheint nur, wenn diese Relegation in der Staffel stattfindet. Sonst gibt es den Reiter nicht. Tabelle und Spielplan bleiben allein nebeneinander. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung.</p></div>';
   return h;
 }
 function ansehenParts(info){
@@ -8726,10 +8728,20 @@ function cupHistTable(id, comp){
   rows.sort((a,b)=>a.season===b.season?(a.ri||0)-(b.ri||0):(a.season<b.season?1:-1));
   if (!rows.length) return '<p class="muted">Keine Pokaldaten gespeichert.</p>';
   let body='';
-  rows.forEach(r=>{
-    if (r.empty) body+='<tr><td class="l">'+esc(r.season)+'</td><td class="l"><span class="muted">nicht qualifiziert</span></td><td class="l"><span class="muted">–</span></td><td><span class="muted">–</span></td></tr>';
-    else body+='<tr><td class="l">'+esc(r.season||'')+'</td><td class="l">'+esc(r.round||'–')+'</td><td class="l">'+oppCell(r.opp)+'</td><td>'+cupSideScore(r)+'</td></tr>';
-  });
+  for (let i=0;i<rows.length;){
+    if (!rows[i].empty){
+      const r=rows[i];
+      body+='<tr><td class="l">'+esc(r.season||'')+'</td><td class="l">'+esc(r.round||'–')+'</td><td class="l">'+oppCell(r.opp)+'</td><td>'+cupSideScore(r)+'</td></tr>';
+      i++;
+      continue;
+    }
+    let j=i;
+    while (j<rows.length && rows[j].empty) j++;
+    const newest=rows[i].season, oldest=rows[j-1].season;
+    const label=i+1===j?newest:(oldest<newest?oldest+' → '+newest:newest+' → '+oldest);
+    body+='<tr><td class="l">'+esc(label)+'</td><td class="l"><span class="muted">nicht qualifiziert</span></td><td class="l"><span class="muted">–</span></td><td><span class="muted">–</span></td></tr>';
+    i=j;
+  }
   return '<table class="tbl info-hist info-cup"><thead><tr><th class="l">Saison</th><th class="l">Runde</th><th class="l">Gegner</th><th>Ergebnis</th></tr></thead><tbody>'+body+'</tbody></table>';
 }
 function ligaCourseRows(id){
@@ -9276,8 +9288,8 @@ function opponentBoardHTML(id){
     h+='</tbody></table>';
   }
   h+='</div>';
-  h+='<div><h3>Beste Bilanz</h3><p class="muted">Die 10 besten Punktzahlen pro Spiel, mindestens vier Spiele.</p>'+mini(bal.best, 'Noch zu wenige Spiele.')+'</div>';
-  h+='<div><h3>Schlechteste Bilanz</h3><p class="muted">Die 10 schwächsten Punktzahlen pro Spiel, mindestens vier Spiele. Die beste Liste ist ausgenommen.</p>'+mini(bal.worst, 'Noch zu wenige Spiele.')+'</div>';
+  h+='<div><h3>Positive Bilanz</h3><p class="muted">Die 10 besten Punktzahlen pro Spiel, mindestens vier Spiele.</p>'+mini(bal.best, 'Noch zu wenige Spiele.')+'</div>';
+  h+='<div><h3>Negative Bilanz</h3><p class="muted">Die 10 schwächsten Punktzahlen pro Spiel, mindestens vier Spiele. Die positive Liste ist ausgenommen.</p>'+mini(bal.worst, 'Noch zu wenige Spiele.')+'</div>';
   h+='</div>';
   return h;
 }
@@ -9619,7 +9631,7 @@ function renderInfo(){
   let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
   if (!id || !TEAMS[id]){ $('#view').innerHTML=h; wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
-  const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Häufigste Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
+  const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
   if (!secs.some(x=>x[0]===sec)) sec='historie';
   S.ui.infoSec=sec;
@@ -10971,7 +10983,7 @@ function uiSelfTestBody(fails){
     const openPlan=promotionPlan(one, 'RLN');
     const openNord=rowZone(one, 'RLN');
     const openOst=rowZone(one, 'RLO');
-    check('k=1: Relegation bleibt provisorisch, solange sie offen ist', leagueFinished(one, 'L4') && !leagueFinished(one, 'L5NO') && openPlan.k===1 && openPlan.open && !viceMarksSettled(one, 'RLN') && openNord.at(openNord.table[1].id)==='z-auf-aus' && openOst.at(openOst.table[1].id)==='z-auf-aus' && openNord.legend.indexOf('Vizemeister, Relegation, provisorisch')>=0 && openNord.legend.indexOf('Vizemeister, fest')<0 && openNord.legend.indexOf('bis die 4. Liga')<0, 'k '+openPlan.k+' offen '+openPlan.open);
+    check('k=1: Relegation bleibt lila, solange sie offen ist', leagueFinished(one, 'L4') && !leagueFinished(one, 'L5NO') && openPlan.k===1 && openPlan.open && !viceMarksSettled(one, 'RLN') && openNord.at(openNord.table[1].id)==='z-rel' && openOst.at(openOst.table[1].id)==='z-rel' && openNord.legend.indexOf('Vizemeister, Relegation')>=0 && openNord.legend.indexOf('Vizemeister, fest')<0 && openNord.legend.indexOf('bis die 4. Liga')<0, 'k '+openPlan.k+' offen '+openPlan.open);
     const rel=one.relay && one.relay.L5NO;
     const leg1=rel&&rel.matches.find(m=>m.leg===1), leg2=rel&&rel.matches.find(m=>m.leg===2);
     if (leg1&&leg2){ leg1.hg=1; leg1.ag=0; leg2.hg=0; leg2.ag=0; }
@@ -11176,7 +11188,7 @@ function uiSelfTestBody(fails){
     S.seasons=oppKeep.seasons;
     S.stats=oppKeep.stats;
   }
-  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Beste Bilanz')>=0 && oppBoard.indexOf('Schlechteste Bilanz')>=0 && oppBoard.indexOf('opp-board')>=0 && oppBoard.indexOf('opp-rate')>=0 && oppBoard.indexOf('title=')>=0);
+  check('drei Gegnertabellen stehen zusammen', oppBoard.indexOf('opp-row')>=0 && oppBoard.indexOf('Häufigste Gegner')>=0 && oppBoard.indexOf('Positive Bilanz')>=0 && oppBoard.indexOf('Negative Bilanz')>=0 && oppBoard.indexOf('opp-board')>=0 && oppBoard.indexOf('opp-rate')>=0 && oppBoard.indexOf('title=')>=0);
   const cmpKeep={opp:S.ui.infoOpp, fx:S.ui.infoFx, h2h:S.ui.infoH2H, seasons:S.seasons};
   try{
     S.seasons=[{name:'2090/91', status:'running', leagues:{}, pools:{}}];
@@ -11855,6 +11867,15 @@ function uiSelfTestBody(fails){
   check('Pokal aus der Liga bleibt Pokal', S.ui.tab==='pokal' && document.querySelector('#title').textContent.indexOf('Pokal')>=0);
   document.querySelector('[data-league="RLW"]').click();
   check('Regionalliga aus dem Pokal zeigt die Tabelle', S.ui.league==='RLW' && S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && history.length===len0 && navIndex===i0);
+  const muteWas=navMute;
+  navMute++;
+  S.ui.league='BL'; S.ui.tab='historie'; render();
+  document.querySelector('[data-league="BL2"]').click();
+  check('Unterreiter bleibt beim Ligawechsel', S.ui.league==='BL2' && S.ui.tab==='historie' && document.querySelector('#tabs .tab.active') && document.querySelector('#tabs .tab.active').dataset.tab==='historie');
+  S.ui.tab='relegation'; render();
+  check('Relegation ohne Bedarf fällt auf die Tabelle', S.ui.tab==='tabelle' && !document.querySelector('#tabs [data-tab="relegation"]') && !!document.querySelector('#tableCard'));
+  navMute=muteWas;
+  S.ui.league='RLW'; S.ui.tab='tabelle';
   S.ui.tab='pokal';
   render();
   check('ungültige Wertung wird Spielplan, ohne neuen Verlauf', S.ui.cup==='dfb' && S.ui.cupView==='spiele' && history.length===len0 && navIndex===i0);
