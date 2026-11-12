@@ -632,6 +632,8 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 table.tbl.hist-seasons,table.tbl.fit.pair-board,table.tbl.fit.title-reg{width:100%;max-width:100%;margin:0;table-layout:auto}
 .sieger-box{width:100%;max-width:100%}
 .sieger-row{width:100%}
+.relay-hist h4{margin:16px 0 6px;font-size:15px}
+.relay-hist .match{width:100%}
 .subtabs{display:flex;width:max-content;max-width:100%;margin:0 auto 10px}
 .hist-seasons th,.hist-seasons td{padding:3px 8px}
 .hist-seasons td.names{white-space:normal;vertical-align:middle}

@@ -5955,23 +5955,30 @@ function relayChronicleHTML(lid){
   const spec=L[lid];
   if (!spec) return '';
   const l5=spec.level===5?lid:spec.upTo;
-  const rows=[];
-  (S.seasons||[]).forEach(season=>{
+  let blocks='';
+  (S.seasons||[]).slice().reverse().forEach(season=>{
     const rel=season && season.relay && season.relay[l5];
     if (!rel || !TEAMS[rel.better] || !TEAMS[rel.worse]) return;
     if (spec.level===6 && rel.rlBetter!==lid && rel.rlWorse!==lid) return;
     const w=relayWinner(rel);
-    const legs=(rel.matches||[]).map(m=>{
-      if (m.hg==null || m.ag==null) return (m.leg===1?'Hinspiel':'Rückspiel')+' offen';
-      let s=(m.leg===1?'Hinspiel ':'Rückspiel ')+m.hg+':'+m.ag;
-      if (m.leg===2 && m.peh!=null && m.pea!=null && m.peh!==m.pea) s+=', '+m.peh+':'+m.pea+' i.E.';
-      return s;
-    }).join(', ');
-    const out=w?esc(TEAMS[w].name)+' steigt auf, '+esc(TEAMS[w===rel.better?rel.worse:rel.better].name)+' bleibt':'noch offen';
-    rows.push('<tr><td class="l">'+esc(season.name)+'</td><td class="l">'+esc(TEAMS[rel.worse].name)+' – '+esc(TEAMS[rel.better].name)+'</td><td class="l">'+esc(legs)+'</td><td class="l">'+out+'</td></tr>');
+    const loser=w===rel.better?rel.worse:rel.better;
+    const out=w&&TEAMS[w]?(esc(TEAMS[w].name)+' steigt auf'+(TEAMS[loser]?', '+esc(TEAMS[loser].name)+' bleibt':'')):'noch offen';
+    const matches=(rel.matches||[]).slice().sort((a,b)=>(a.leg||0)-(b.leg||0));
+    let lines='';
+    matches.forEach(m=>{
+      if (!m || !TEAMS[m.h] || !TEAMS[m.a]) return;
+      const played=m.hg!=null && m.ag!=null;
+      const hasPen=m.peh!=null && m.pea!=null && +m.peh!==+m.pea;
+      const above=hasPen?'<span class="ie-link ie-static">'+m.peh+':'+m.pea+' i.E.</span>':'<span class="ie-slot"></span>';
+      const below='<span class="ie-box">'+(m.leg===1?'Hinspiel':'Rückspiel')+'</span>';
+      let km=null;
+      try{ km=kmBetween(m.h, m.a); }catch(e){ km=null; }
+      lines+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!w, above, below, km, nodel:true});
+    });
+    blocks+='<h4>'+esc(season.name)+' · '+out+'</h4>'+lines;
   });
-  if (!rows.length) return '';
-  return '<div class="box"><h3>Relegation</h3><p class="muted">Hin- und Rückspiel der Vizemeister. Das Heimrecht im Rückspiel steht beim besseren Punktequotienten. Keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen.</p><table class="tbl hist-seasons"><thead><tr><th class="l">Saison</th><th class="l">Paarung</th><th class="l">Spiele</th><th class="l">Ausgang</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+  if (!blocks) return '';
+  return '<div class="box relay-hist"><h3>Relegation</h3><p class="muted">Hin- und Rückspiel der Vizemeister. Das Heimrecht im Rückspiel steht beim besseren Punktequotienten. Keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen.</p>'+blocks+'</div>';
 }
 const BL_ORDER=['Schleswig-Holstein','Hamburg','Mecklenburg-Vorpommern','Bremen','Niedersachsen','Berlin','Brandenburg','Sachsen-Anhalt','Sachsen','Thüringen','Nordrhein-Westfalen','Hessen','Rheinland-Pfalz','Saarland','Baden-Württemberg','Bayern'];
 function renderAmateur(){
