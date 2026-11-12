@@ -5355,6 +5355,14 @@ function alignStandToPlan(){
     if(next+0.5>=need) last.style.height=next+'px';
     else plan.style.minHeight=(plan.getBoundingClientRect().height+ (card.getBoundingClientRect().bottom-plan.getBoundingClientRect().bottom))+'px';
   }
+  const relay=card.parentElement&&card.parentElement.querySelector('.relay-card');
+  const bottom=Math.max(card.getBoundingClientRect().bottom, plan.getBoundingClientRect().bottom, relay?relay.getBoundingClientRect().bottom:0);
+  const room=window.innerHeight-bottom-6;
+  if (room>8 && bottom<=window.innerHeight+1){
+    const add=room/rows.length;
+    rows.forEach(r=>{ r.style.height=(r.getBoundingClientRect().height+add)+'px'; });
+    plan.style.minHeight=(plan.getBoundingClientRect().height+room)+'px';
+  }
 }
 function relayHTML(season, lid){
   const spec=L[lid];
