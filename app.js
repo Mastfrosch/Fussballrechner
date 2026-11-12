@@ -4500,14 +4500,17 @@ function honourClub(id, name, season, showBl, reserve){
   return '<span class="sieger-name">'+esc(name)+(reserve?' <span class="muted">zweite Mannschaft</span>':'')+'</span>';
 }
 function honourMatch(match, season, showBl){
-  if (!match || !match.h || !match.a || !TEAMS[match.h] || !TEAMS[match.a] || match.hg==null || match.ag==null) return '<span class="muted">–</span>';
   const ligaOf=cid=>{
     try{ return storedLiga(cid, season)||''; }catch(e){ return ''; }
   };
+  const crest=id=>'<img src="'+esc(TEAMS[id].crest)+'" alt="" data-club="'+id+'" title="'+esc(TEAMS[id].name)+'">';
+  const liga=id=>{ const text=ligaOf(id)||''; return '<span class="sieger-liga"'+(text?' title="'+esc(text)+'"':'')+'>'+esc(text)+'</span>'; };
+  const empty='<div class="sieger-result"><span class="sieger-liga"></span><span></span><span class="sieger-score muted">–</span><span class="sieger-extra"></span><span></span><span class="sieger-liga"></span></div>';
+  if (!match || !match.h || !match.a || !TEAMS[match.h] || !TEAMS[match.a] || match.hg==null || match.ag==null) return empty;
   const pen=match.hg===match.ag && match.peh!=null && match.pea!=null && +match.peh!==+match.pea;
   const nv=!pen && match.et && match.hg!==match.ag;
-  const above=pen?'<span class="ie-link ie-static">'+match.peh+':'+match.pea+' i.E.</span>':(nv?'<span class="ie-box">n.V.</span>':'<span class="ie-slot"></span>');
-  return matchLineHTML({h:match.h, a:match.a, hg:match.hg, ag:match.ag, et:!!nv, peh:pen?match.peh:null, pea:pen?match.pea:null, season:season&&typeof season==='object'?season:null, cup:true, liga:true, scoreOnly:true, nodel:true, klass:'sieger-match axis', ligaOf, above});
+  const extra=pen?match.peh+':'+match.pea+' i.E.':(nv?'n.V.':'');
+  return '<div class="sieger-result">'+liga(match.h)+crest(match.h)+'<span class="sieger-score">'+match.hg+'<b>:</b>'+match.ag+'</span><span class="sieger-extra">'+esc(extra)+'</span>'+crest(match.a)+liga(match.a)+'</div>';
 }
 function viewCupSpots(cup, season){
   const sea=season||cur();
@@ -4532,16 +4535,14 @@ function viewCupSpots(cup, season){
   h+='</div>';
   return h;
 }
-const OV_ORDER=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','5. Liga','Regionalliga','Amateurliga'];
 function leagueBucket(season, id){
   const lid=clubLeagueId(season, id);
-  if (lid==='BL') return 'Bundesliga';
-  if (lid==='BL2') return '2. Bundesliga';
-  if (lid==='L3') return '3. Liga';
-  if (lid==='L4') return '4. Liga';
-  if (L[lid] && L[lid].level===5) return '5. Liga';
-  if (L[lid] && L[lid].level===6) return 'Regionalliga';
-  return 'Amateurliga';
+  if (L[lid]) return L[lid].name;
+  if (P[lid]) return P[lid].name;
+  return '';
+}
+function ovGroupOrder(){
+  return LEAGUES.map(l=>l.name).concat(POOLS.map(p=>p.name));
 }
 function cupAliveSet(cup){
   if (cup && cup.archived){
@@ -4587,9 +4588,9 @@ function ovLostCard(season, cup, id){
 }
 function ovGroupsHTML(season, ids, alive, cup){
   const G={};
-  ids.forEach(id=>{ const g=leagueBucket(season, id); (G[g]=G[g]||[]).push(id); });
+  ids.forEach(id=>{ const g=leagueBucket(season, id); if (!g) return; (G[g]=G[g]||[]).push(id); });
   let h='';
-  OV_ORDER.filter(g=>G[g]&&G[g].length).forEach(g=>{
+  ovGroupOrder().filter(g=>G[g]&&G[g].length).forEach(g=>{
     const list=G[g].slice().sort(byRang);
     const n=list.length, left=list.filter(id=>alive.has(id)).length;
     h+='<div class="ov-lg"><div class="ov-lg-h"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-row">';
@@ -5358,6 +5359,17 @@ function alignStandToPlan(){
     plan.style.minHeight=(plan.getBoundingClientRect().height+room)+'px';
   }
 }
+function relayBit(id){
+  const t=id&&TEAMS[id];
+  if (!t || blockedClubHit(t.name)) return '';
+  return '<span class="relay-bit"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><span>'+esc(t.name)+'</span></span>';
+}
+function relayOutcomeHTML(w, loser){
+  if (!w || !TEAMS[w]) return '<p class="relay-out"><span>noch offen</span></p>';
+  let h='<p class="relay-out">'+relayBit(w)+'<span>steigt auf.</span>';
+  if (loser && TEAMS[loser] && loser!==w) h+=relayBit(loser)+'<span>bleibt.</span>';
+  return h+'</p>';
+}
 function relayHTML(season, lid){
   const spec=L[lid];
   if (!spec || (spec.level!==5 && spec.level!==6)) return '';
@@ -5379,10 +5391,7 @@ function relayHTML(season, lid){
     return h;
   }
   const w=relayWinner(rel);
-  if (w && TEAMS[w]){
-    const loser=w===rel.better?rel.worse:rel.better;
-    h+='<p><b>'+esc(TEAMS[w].name)+' steigt auf.</b> '+(TEAMS[loser]?esc(TEAMS[loser].name)+' bleibt.':'')+'</p>';
-  }
+  const loser=w===rel.better?rel.worse:rel.better;
   rel.matches.forEach(m=>{
     const played=m.hg!=null && m.ag!=null;
     const leg1=rel.matches.find(x=>x.leg===1);
@@ -5397,6 +5406,7 @@ function relayHTML(season, lid){
     h+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!w, step, above, below, km, del:ed?'<button type="button" class="del" data-act="relayDel" data-l5="'+l5+'" data-leg="'+m.leg+'">×</button>':'<span></span>'});
   });
   if (ed && !w) h+='<div class="sp-tools"><button type="button" class="btn small" data-act="simRelay" data-l5="'+l5+'">Relegation simulieren</button></div>';
+  h+=relayOutcomeHTML(w, loser);
   h+='</div>';
   return h;
 }
@@ -5711,8 +5721,39 @@ function matchRecordRow(label, matches){
     return {label, value:'<b>'+esc((m.hg!=null?m.hg:'–')+':'+(m.ag!=null?m.ag:'–'))+'</b>', who, when:esc(m.season||''), extra:tieNote(matches.length)};
   });
 }
+function streakPlain(r){
+  if (!r) return '';
+  if (r.startMd==null || r.endMd==null) return String(r.season||'');
+  const bit=(season, md)=>(season||'')+', '+md+'. Spieltag';
+  if (r.startSeason===r.endSeason && r.startMd===r.endMd) return bit(r.startSeason, r.startMd);
+  return bit(r.startSeason, r.startMd)+' – '+bit(r.endSeason, r.endMd);
+}
+function recordCrests(ids, tipOf){
+  const list=(ids||[]).filter(id=>TEAMS[id] && !blockedClubHit(TEAMS[id].name));
+  if (!list.length) return '';
+  return '<span class="rec-crests">'+list.map(id=>{
+    const tip=tipOf?tipOf(id):TEAMS[id].name;
+    return '<img src="'+esc(TEAMS[id].crest)+'" alt="" data-club="'+id+'" title="'+esc(tip)+'">';
+  }).join('')+'</span>';
+}
 function teamRecordRows(label, hits, textOf){
-  return (hits||[]).map(r=>({label, value:'<b>'+esc(textOf(r))+'</b>', who:clubHTML(r.id,{nobl:true}), when:streakWhen(r)||esc(r.season||''), extra:[tieNote(hits.length), r.live?'läuft noch':''].filter(Boolean).join(' · ')}));
+  const list=(hits||[]).filter(r=>r && r.id && TEAMS[r.id] && !blockedClubHit(TEAMS[r.id].name));
+  if (!list.length) return [];
+  const first=list[0];
+  const whens=list.map(streakPlain);
+  const same=whens.every(w=>w===whens[0]);
+  return [{label, value:'<b>'+esc(textOf(first))+'</b>', who:recordCrests(list.map(r=>r.id), id=>{
+    const hit=list.find(r=>r.id===id);
+    const when=hit?streakPlain(hit):'';
+    return TEAMS[id].name+(when?' · '+when:'');
+  }), when:same?esc(whens[0]):'', extra:[list.length>1?tieNote(list.length):'', list.some(r=>r.live)?'läuft noch':''].filter(Boolean).join(' · ')}];
+}
+function holderRow(label, value, ids, whenOf){
+  const list=(ids||[]).filter(id=>TEAMS[id] && !blockedClubHit(TEAMS[id].name));
+  if (!list.length) return null;
+  const whens=list.map(id=>whenOf(id)||'');
+  const same=whens.every(w=>w===whens[0]);
+  return {label, value, who:recordCrests(list, id=>TEAMS[id].name+(whenOf(id)?' · '+whenOf(id):'')), when:same?esc(whens[0]):'', extra:tieNote(list.length)};
 }
 function viewRekorde(lid){
   const lg=L[lid];
@@ -5733,7 +5774,7 @@ function viewRekorde(lid){
       .concat(teamRecordRows('Längste Siegesserie', streaks.S, r=>r.len+' Siege'))
       .concat(teamRecordRows('Längste Unentschieden-Serie', streaks.U, r=>r.len+' Unentschieden'))
       .concat(teamRecordRows('Längste Niederlagenserie', streaks.N, r=>r.len+' Niederlagen'));
-    return recordTable('Rekorde der '+lg.name, rows, 'Punkte sind die gespeicherten Ligapunkte, drei pro Sieg. Serien zählen nur Ligaspieltage dieser Liga und können über die Saison gehen. Pokale zählen nicht. Bei Gleichstand stehen alle Vereine in der Tabelle.');
+    return recordTable('Rekorde der '+lg.name, rows, 'Punkte sind die gespeicherten Ligapunkte, drei pro Sieg. Serien zählen nur Ligaspieltage dieser Liga und können über die Saison gehen. Pokale zählen nicht. Bei Gleichstand stehen die Wappen nebeneinander, der Name im Tooltip.');
   }catch(e){
     return '<div class="box"><p class="muted">Für diese Liga liegen keine Rekorde vor.</p></div>';
   }
@@ -5808,8 +5849,8 @@ function cupRecordTable(title, matches, hon, note){
   const rows=[]
     .concat(matchRecordRow('Höchster Sieg', takeExtreme(matches, winRank, true)))
     .concat(matchRecordRow('Torreichstes Spiel', takeExtreme(matches, richRank, true)));
-  if (champs.best) champs.ids.forEach(id=>rows.push({label:'Rekordsieger', value:'<b>'+champs.best+' Titel</b>', who:clubHTML(id,{nobl:true}), when:esc((hon.titles[id]||[]).join(', ')), extra:tieNote(champs.ids.length)}));
-  if (fins.best) fins.ids.forEach(id=>rows.push({label:'Meiste Finalteilnahmen', value:'<b>'+fins.best+'</b>', who:clubHTML(id,{nobl:true}), when:esc((hon.finals[id]||[]).join(', ')), extra:tieNote(fins.ids.length)}));
+  if (champs.best){ const row=holderRow('Rekordsieger', '<b>'+champs.best+' Titel</b>', champs.ids, id=>(hon.titles[id]||[]).join(', ')); if (row) rows.push(row); }
+  if (fins.best){ const row=holderRow('Meiste Finalteilnahmen', '<b>'+fins.best+'</b>', fins.ids, id=>(hon.finals[id]||[]).join(', ')); if (row) rows.push(row); }
   return recordTable(title, rows, note||'Höchster Sieg und torreichstes Spiel kommen aus gespeicherten Ergebnissen. Historische Sieger ohne Gegner zählen beim Titel, nicht beim Spielrekord.');
 }
 function topHonour(map){
@@ -5997,9 +6038,9 @@ function rechnerRows(lid){
         try{ up=promotionCount(s, lid); }catch(e){ up=1; }
         found=found.filter(r=>+r.pl<=up || r.id===relId);
       }
-      return found.map(r=>histSlot(r.id, pl, '', r.id===relId?'Rel.':''));
+      return found.map(r=>histSlot(r.id, pl));
     });
-    if (lg && lg.level===5) cells.push(relId&&lg.level===5?[histSlot(relId, '', '', 'Rel.')]:[]);
+    if (lg && lg.level===5) cells.push(relId?[histSlot(relId)] : []);
     rows.push({season:s.name, year:seasonYear(s.name), cells});
   });
   return rows.sort((a,b)=>b.year-a.year || (a.season<b.season?1:-1));
@@ -6020,7 +6061,7 @@ function otherHistoryRows(lid){
 function viewHistorie(lid){
   const cols=histColNames(lid);
   const live=rechnerRows(lid);
-  const rechnerNote=lid==='BL'?'Abgeschlossene Saisons dieses Spielstands, die neueste oben.':'Abgeschlossene Saisons dieses Spielstands, die neueste oben. (Rel.) ist lila und meint den Aufstieg über die Relegation.';
+  const rechnerNote='Abgeschlossene Saisons dieses Spielstands, die neueste oben. In der 5. Liga steht der Relegationsaufsteiger in der letzten Spalte.';
   let h=histSection('Rechner', rechnerNote, cols, live);
   if (lid==='BL'){
     h+=histSection('Bundesliga', 'Ab 1963/64. Plätze 2 bis 4 nur, wenn sie gespeichert sind. Vor 2000 bleibt dort ein Strich.', cols, blHistoryRows());
@@ -6043,7 +6084,7 @@ function relayChronicleHTML(lid){
     if (spec.level===6 && rel.rlBetter!==lid && rel.rlWorse!==lid) return;
     const w=relayWinner(rel);
     const loser=w===rel.better?rel.worse:rel.better;
-    const out=w&&TEAMS[w]?(esc(TEAMS[w].name)+' steigt auf'+(TEAMS[loser]?', '+esc(TEAMS[loser].name)+' bleibt':'')):'noch offen';
+    const out=w&&TEAMS[w]?(relayBit(w)+' steigt auf'+(TEAMS[loser]?', '+relayBit(loser)+' bleibt':'')):'noch offen';
     const matches=(rel.matches||[]).slice().sort((a,b)=>(a.leg||0)-(b.leg||0));
     let lines='';
     matches.forEach(m=>{
@@ -6056,7 +6097,7 @@ function relayChronicleHTML(lid){
       try{ km=kmBetween(m.h, m.a); }catch(e){ km=null; }
       lines+=matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, bl:true, cup:true, done:!!w, above, below, km, nodel:true});
     });
-    blocks+='<h4>'+esc(season.name)+' · '+out+'</h4>'+lines;
+    blocks+='<h4 class="relay-out">'+esc(season.name)+' · '+out+'</h4>'+lines;
   });
   if (!blocks) return '';
   return '<div class="box relay-hist"><h3>Rechner</h3><p class="muted">Abgeschlossene Relegationen dieses Spielstands, die neueste oben. Hin- und Rückspiel der Vizemeister. Das Heimrecht im Rückspiel steht beim besseren Punktequotienten. Keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen.</p>'+blocks+'</div>';
@@ -8461,7 +8502,7 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“, neben Tabelle und Karte. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Sieger ist dort mit (Rel.) markiert. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
+  h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“, neben Tabelle und Karte. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
 function ansehenParts(info){

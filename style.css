@@ -61,7 +61,8 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
 .subline{color:var(--muted);margin:3px 0 0;font-size:12px}
 .subline a{color:var(--ink);cursor:pointer;border-bottom:1px solid #c5cad0}
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:0 0 6px;flex-wrap:wrap;align-items:center}
-.tabs .tab-title{margin:0;padding:2px 14px 2px 0;font-size:16px;font-weight:650;line-height:1.2;color:var(--ink)}
+.tabs .tab-title{flex:0 0 15rem;width:15rem;margin:0;padding:2px 14px 2px 0;font-size:16px;font-weight:650;line-height:1.2;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#seasonSelect{width:16rem}
 .tab{padding:7px 12px;cursor:pointer;color:#5c6570;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--ink);font-weight:650;border-bottom-color:var(--green)}
@@ -461,7 +462,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .ov-legend .out img{filter:grayscale(1) brightness(.75);opacity:.3}
 .ansehen-tools .searchbox{max-width:280px}
 .pokal-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-.pokal-bar select{min-width:180px;max-width:100%}
+.pokal-bar select{width:24rem;max-width:100%;flex:0 0 24rem}
 .match.cup,.match.axis{grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr) 16px;width:100%;min-width:0}
 .match.cup.match-nodel,.match.axis.match-nodel{grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr)}
 .match.axis .scorecol,.match.cup .scorecol{width:96px}
@@ -608,7 +609,18 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .move-line{display:flex;align-items:center;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
 .move-line .club{flex:0 0 auto}
 .sieger-box{overflow:visible}
-.sieger-row{display:grid;grid-template-columns:7.4rem minmax(0,1fr) minmax(0,1fr) max-content;column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
+.sieger-row{display:grid;grid-template-columns:6.6rem minmax(0,1fr) minmax(0,1fr) 24rem;column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
+.sieger-result{display:grid;grid-template-columns:5.4rem 26px 3.2rem 4.8rem 26px 5.4rem;align-items:center;column-gap:6px;justify-content:end}
+.sieger-result img{width:26px;height:26px;object-fit:contain}
+.sieger-liga{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sieger-result .sieger-liga:first-child{text-align:right}
+.sieger-score{text-align:center;font-weight:650;font-variant-numeric:tabular-nums}
+.sieger-extra{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap}
+.relay-out{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 0;font-size:14px}
+.relay-bit{display:inline-flex;align-items:center;gap:6px;font-weight:650}
+.relay-bit img{width:22px;height:22px;object-fit:contain}
+.rec-crests{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.rec-crests img{width:28px;height:28px;object-fit:contain}
 .title-who{display:inline-flex;align-items:center;gap:8px;min-width:0}
 .title-who .ml-crest{width:28px;height:28px;flex:0 0 28px;object-fit:contain}
 .title-who .muted{font-size:12px}
@@ -616,8 +628,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
 .sieger-who{min-width:0}
 .sieger-who .club{max-width:100%}
-.sieger-final{min-width:0;justify-self:center}
-.sieger-final .match{border:0;padding:0;width:max-content;margin:0 auto}
+.sieger-final{min-width:0;justify-self:stretch}
 .sieger-final .match.cup,.sieger-final .match.cup.match-nodel{grid-template-columns:max-content max-content max-content;width:max-content;justify-content:center;gap:8px}
 .sieger-final .side{overflow:visible;gap:6px}
 .sieger-final .liga-edge{max-width:none}
