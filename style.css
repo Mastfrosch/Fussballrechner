@@ -853,15 +853,70 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-tabs,.bfv-subtabs{display:flex;flex-wrap:wrap;gap:0;background:#e7eef3;padding:0;margin:0}
 .bfv-tabs button,.bfv-subtabs button{border:0;background:transparent;color:#234;padding:12px 16px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
 .bfv-tabs button.active,.bfv-subtabs button.active{background:#006ab2;color:#fff}
-.bfv-card{padding:8px 8px 24px}
-.bfv-page table.tbl{width:100%;border-collapse:collapse;font-size:16px;background:#fff}
-.bfv-page table.tbl th{background:#fff;color:#111;font-size:15px;font-weight:700;text-align:left;padding:10px 12px 14px;border-bottom:1px solid #d5dde3}
-.bfv-page table.tbl td{padding:10px 12px;border-top:1px solid #e6ebf0;font-size:16px;color:#111}
-.bfv-page table.tbl tr:hover td{background:#f4f8fb}
-.bfv-subtabs{margin:0 0 8px;background:#f4f7f9}
-@media (max-width:900px){
+.bfv-card{padding:8px 0 28px}
+.bfv-subtabs,.bfv-page .subtabs{width:100%;margin:0 0 8px;background:#f4f7f9}
+.bfv-page .info-roomy{align-items:stretch}
+.bfv-page .info-roomy h3,.bfv-page .info-roomy .muted{align-self:stretch;text-align:left}
+.bfv-page .info-roomy>.tbl,
+.bfv-page .info-roomy table.tbl,
+.bfv-page .info-roomy .tbl.fit,
+.bfv-page table.tbl.info-hist,
+.bfv-page .info-roomy .rec-scroll,
+.bfv-page .info-roomy .rec-scroll table.tbl,
+.bfv-page .rec-table,
+.bfv-page .cmp,
+.bfv-page .fx-block,
+.bfv-page .fx-grid,
+.bfv-page .fx-bar{width:100%;max-width:100%;margin-left:0;margin-right:0}
+.bfv-page .opp-row{display:flex;flex-direction:column;align-items:stretch;gap:22px;width:100%}
+.bfv-page .opp-row>div{width:100%;max-width:none;overflow:visible}
+.bfv-page .info-roomy .opp-row table.tbl,
+.bfv-page .info-roomy .opp-row table.tbl.fit{width:100%;max-width:none;table-layout:auto}
+.bfv-page table.tbl{border-collapse:collapse;font-size:16px;background:#fff;font-variant-numeric:tabular-nums}
+.bfv-page table.tbl th,
+.bfv-page .fx-grid th{background:#006ab2;color:#fff;font-size:15px;font-weight:700;text-align:left;padding:12px 14px;border:0}
+.bfv-page table.tbl td,
+.bfv-page .fx-grid td{padding:12px 14px;border-top:1px solid #e3e9ee;font-size:16px;color:#111;vertical-align:middle;background:#fff}
+.bfv-page table.tbl tbody tr:nth-child(even) td,
+.bfv-page .fx-grid tbody tr:nth-child(even) td{background:#f3f7fb}
+.bfv-page table.tbl tbody tr:hover td,
+.bfv-page .fx-grid tbody tr:hover td{background:#e7f2fa}
+.bfv-page table.tbl tr.tot td,
+.bfv-page table.tbl tr[data-pin="1"] td{background:#d9ebf7;font-weight:700;border-top:2px solid #006ab2}
+.bfv-page table.bilanz th:not(.l),
+.bfv-page table.bilanz td:not(.l),
+.bfv-page table.opp-board th:not(.l),
+.bfv-page table.opp-board td:not(.l),
+.bfv-page table.an-season th:not(.l),
+.bfv-page table.an-season td:not(.l),
+.bfv-page table.age-lines th:nth-child(n+4),
+.bfv-page table.age-lines td:nth-child(n+4),
+.bfv-page table.info-hist th.pl,
+.bfv-page table.info-hist td.pl,
+.bfv-page table.info-cup th:last-child,
+.bfv-page table.info-cup td:last-child,
+.bfv-page table.erfolge th:nth-child(2),
+.bfv-page table.erfolge td:nth-child(2),
+.bfv-page table.cmp-games th:nth-child(2){text-align:right;white-space:nowrap}
+.bfv-page .info-roomy .opp-row .tbl th,
+.bfv-page .info-roomy .opp-row .tbl td{padding:12px 14px;font-size:16px;overflow:visible;text-overflow:clip;white-space:normal}
+.bfv-page table .club img,.bfv-page .mini-crest,.bfv-page .fx-line .ml-crest{width:28px;height:28px;flex-basis:28px}
+.bfv-page table.erfolge{width:100%;table-layout:fixed}
+.bfv-page table.erfolge th:nth-child(1){width:32%}
+.bfv-page table.erfolge th:nth-child(2),.bfv-page table.erfolge td:nth-child(2){width:8rem}
+.bfv-page table.erfolge td:last-child{white-space:normal}
+.bfv-page .erfolg-name{display:inline-flex;align-items:center;gap:10px}
+.bfv-page .erfolg-name .trophy{width:36px;height:28px}
+.bfv-page .cmp-grid{grid-template-columns:1fr}
+.bfv-page table.cmp-games .fx-line{width:100%}
+.bfv-page .fx-block{border:0;margin:18px 0 0}
+.bfv-page .fx-head{background:#e8f3fb;padding:10px 14px}
+.bfv-page .chart-frame{width:100%;align-self:stretch}
+.bfv-page .an-hero{grid-template-columns:minmax(240px,320px) minmax(0,1fr)}
+@media (max-width:1100px){
   .bfv-stage{padding:16px}
   .bfv-stage h2{font-size:26px}
   .bfv-crest{width:56px;height:56px}
-  .bfv-page table.tbl{display:block;overflow-x:auto}
+  .bfv-card{overflow-x:auto}
+  .bfv-page .an-hero{grid-template-columns:1fr}
 }

@@ -9205,7 +9205,9 @@ function amateurSeasons(id){
 }
 function bilanzTable(id){
   const row=(label, b, pts, pin)=>'<tr'+(pin?' data-pin="1" class="tot"':'')+'><td class="l">'+label+'</td>'+sortCell(b.sp, b.sp)+sortCell(b.s, b.s)+sortCell(b.u, b.u)+sortCell(b.n, b.n)+sortCell(b.tg, b.tg+':'+b.gt)+sortCell(b.tg-b.gt, (b.tg-b.gt>0?'+':'')+(b.tg-b.gt))+sortCell(pts?b.pkt:'', pts?b.pkt:'–')+'</tr>';
-  const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp);
+  let live='';
+  try{ const s=latest(); if (s && !s.absorbed) live=clubLeagueId(s, id)||''; }catch(e){ live=''; }
+  const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp || x.l.id===live);
   const legacy=leagues.length?emptyStat():statOf(id,'liga');
   const dfb=statOf(id,'dfb'), land=statOf(id,'land'), sc=statOf(id,'sc'), rel=statOf(id,'rel');
   const keys=leagues.map(x=>x.l.id).concat(leagues.length?[]:['liga']).concat(['dfb','land','sc']).concat(rel.sp?['rel']:[]);
@@ -9350,13 +9352,15 @@ function directCompareHTML(id){
       if (!g || g.season!==m.season){ g={season:m.season, list:[]}; groups.push(g); }
       g.list.push(m);
     });
-    h+='<div class="pair-wrap">';
+    h+='<table class="tbl cmp-games"><thead><tr><th class="l">Saison</th><th class="l">Wettbewerb</th><th class="l">Begegnung</th></tr></thead><tbody>';
     groups.forEach(g=>{
       g.list.sort((a,b)=>rank(a.comp)-rank(b.comp));
-      h+='<div class="pair-season">Saison '+esc(g.season)+'</div>';
-      g.list.forEach(m=>{ h+=pairRow(shortComp(m.comp), m.h, m.a, m.hg, m.ag, m.et, m.peh, m.pea); });
+      g.list.forEach(m=>{
+        const open=m.hg==null || m.ag==null;
+        h+='<tr><td class="l">'+esc(g.season)+'</td><td class="l">'+esc(shortComp(m.comp))+'</td><td class="l">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, et:!!m.et, peh:m.peh, pea:m.pea, tone:open?'open':undefined, open, nodel:true, klass:'fx-line'})+'</td></tr>';
+      });
     });
-    h+='</div>';
+    h+='</tbody></table>';
   }
   h+='</div>';
   return h;
@@ -9656,12 +9660,12 @@ function renderInfo(){
         if (ga!==gb) return ga-gb;
         return la-lb || a.localeCompare(b,'de');
       });
-      h+='<div class="trophy-grid">';
+      h+='<table class="tbl erfolge"><thead><tr><th class="l">Wettbewerb</th><th>Anzahl</th><th class="l">Jahre</th></tr></thead><tbody>';
       keys.forEach(k=>{
         const years=by[k].y.slice().sort();
-        h+='<article class="trophy-card">'+trophyFor(k)+'<b>'+by[k].y.length+'×</b><div class="trophy-name">'+esc(k)+'</div><div class="trophy-years">'+esc(years.join(', '))+'</div></article>';
+        h+='<tr><td class="l"><span class="erfolg-name">'+trophyFor(k)+'<span>'+esc(k)+'</span></span></td><td>'+by[k].y.length+'×</td><td class="l">'+esc(years.join(', '))+'</td></tr>';
       });
-      h+='</div>';
+      h+='</tbody></table>';
     }
   }
   h+='</div></div>';
