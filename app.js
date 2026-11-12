@@ -1374,8 +1374,8 @@ function ansehenSelfTestBody(fails){
   check('zwei schon qualifizierte Finalisten ziehen den nächsten 3.-Liga-Platz nach', classicL3.line===cupL3[7] && bothCut.line===cupL3[8] && bothCup.entrants.indexOf(cupL3[8])>=0 && bothCup.entrants.indexOf(cupL3[9])<0 && cutOk(bothIn, 'L3', cup=>cup.entrants));
   const bl2Html=tableHTML(leagueTable(prevBase,'BL2'), L.BL2, {season:prevBase, form:false, ansehen:false, move:false});
   const l3Html=tableHTML(leagueTable(outside,'L3'), L.L3, {season:outside, form:false, ansehen:false, move:false});
-  const rowClass=(html, id)=>{ const m=html.match(new RegExp('<tr data-tid="'+id+'" class="([^"]*)"')); return m?m[1]:''; };
-  check('Tabelle zeigt die Topf- und Pokalgrenze an der richtigen Zeile', rowClass(bl2Html, cupBl2[11]).indexOf('pot-line')>=0 && rowClass(bl2Html, cupBl2[12]).indexOf('pot-')<0 && rowClass(l3Html, cupL3[6]).indexOf('cup-line')>=0 && rowClass(l3Html, cupL3[7]).indexOf('cup-')<0 && rowClass(l3Html, cupL3[8]).indexOf('cup-keep')>=0 && rowClass(l3Html, cupL3[10]).indexOf('cup-keep')>=0);
+  const bare=(html)=>html.indexOf('pot-line')<0 && html.indexOf('pot-keep')<0 && html.indexOf('cup-line')<0 && html.indexOf('cup-keep')<0 && html.indexOf('cup-cut')<0 && html.indexOf('>Topf<')<0 && html.indexOf('>Pokal<')<0;
+  check('Tabelle zeichnet keine Topf- und Pokalmarkierung', bare(bl2Html) && bare(l3Html));
   const keptLand=seasonOf(cupBl, cupBl2, cupL3);
   keptLand.cups={dfb:{rounds:[]}, land:{Bayern:{entrants:['keep-land'], rounds:[{name:'Finale'}]}}};
   check('leerer Pokal im laufenden Feld sperrt nicht', seasonEndBlock(keptLand)==='');
@@ -4202,12 +4202,6 @@ function cupBoundary(ids, inside){
   for (let i=cut;i<ids.length;i++) if (inside(ids[i])) extra.push(ids[i]);
   return {line:cut>0 && cut<ids.length ? ids[cut-1] : '', covered:cut===ids.length, extra};
 }
-function dfbField(season){
-  if (!season || !season.leagues) return null;
-  const next={name:'', status:'running', leagues:season.leagues, pools:season.pools||{}, markers:{}};
-  const built=buildCups(next, season);
-  return built && built.dfb ? built.dfb : null;
-}
 function tableHTML(rows, lg, opts={}){
   rows=sortUnplayedTable(rows);
   const n=rows.length, season=opts.season||cur();
@@ -4228,16 +4222,6 @@ function tableHTML(rows, lg, opts={}){
   if (opts.ansehen){ try{ pokalId=prevDfbWinner(season)||''; }catch(e){ pokalId=''; } }
   let h='<table class="tbl stand"><thead><tr>'+th('Pl.','pl')+th('Verein','','l')+th('Sp.','sp')+th('S','s')+th('U','u')+th('N','n')+th('T/GT','tg')+th('Diff.','diff')+th('Pkt.','pkt')+(opts.form===false?'':th('Form',''))+(opts.ansehen?th('Ansehen','an'):'')+'</tr></thead><tbody>';
   const eighth=lg&&lg.id==='BL'&&opts.zones!==false&&dfbEighthOpen(season);
-  let cupCut=null;
-  if (opts.zones!==false && lg && (lg.id==='BL2' || lg.id==='L3')){
-    try{
-      const field=dfbField(season);
-      if (field){
-        const inside=lg.id==='BL2' ? id=>(field.pro||[]).indexOf(id)>=0 : id=>(field.entrants||[]).indexOf(id)>=0;
-        cupCut=cupBoundary(rows.map(r=>r.id), inside);
-      }
-    }catch(e){ cupCut=null; }
-  }
   rows.forEach(r=>{
     const flag=sure[r.id]||'';
     let z = opts.zones===false ? '' : zoneOf(lgZone, r.pl, n, down, eighth);
@@ -4249,21 +4233,11 @@ function tableHTML(rows, lg, opts={}){
     if (pokalId && r.id===pokalId && marks.indexOf('P')<0) marks.push('P');
     const clubOpts={nobl:!!opts.nobl, marker:marks.length?marks:null};
     if (moves) clubOpts.move=delta==null?0:delta;
-    let cutCls='';
-    if (cupCut && (r.id===cupCut.line || cupCut.extra.indexOf(r.id)>=0)){
-      const keep=r.id!==cupCut.line;
-      cutCls=lg.id==='BL2' ? (keep?' pot-keep':' pot-line') : (keep?' cup-keep':' cup-line');
-      const word=lg.id==='BL2'?'Topf':'Pokal';
-      const tip=lg.id==='BL2'
-        ? (keep?'Dieser Verein bleibt im Profitopf':'Bis hier der Profitopf, darunter der Amateurtopf')
-        : (keep?'Dieser Verein ist für den DFB-Pokal qualifiziert':'Bis hier für den DFB-Pokal qualifiziert');
-      clubOpts.tail=' <span class="cup-cut" title="'+esc(tip)+'">'+word+'</span>';
-    }
     const form=Array.isArray(r.form)?r.form:[];
     const diff=r.tg!=null && r.gt!=null ? r.tg-r.gt : r.diff;
     let an=null;
     if (opts.ansehen){ try{ const v=ansehenValue(r.id); if (v!=null && isFinite(+v)) an=+v; }catch(e){ an=null; } }
-    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+cutCls+'">'+placeCell(r.pl)+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
+    h+='<tr data-tid="'+(r.id||'')+'" class="'+(z?'z-'+z:'')+'">'+placeCell(r.pl)+'<td class="l">'+clubHTML(r.id, clubOpts)+'</td>'+nf(r.sp, r.sp, 'w-sp')+nf(r.s, r.s, 'w-sp')+nf(r.u, r.u, 'w-sp')+nf(r.n, r.n, 'w-sp')+nf(r.tg, (r.tg!=null?r.tg:'–')+':'+(r.gt!=null?r.gt:'–'), 'w-tg')+nf(diff, (diff>0?'+':'')+(diff!=null?diff:'–'), 'w-df')+nf(r.pkt, r.pkt!=null?r.pkt:'–', 'w-pk', 'pts')+
       (opts.form===false?'':'<td class="formc"><span class="form">'+form.map((f,i)=>formSpan(f, (r.formGames||[])[i])).join('')+'</span></td>')+
       (opts.ansehen?nf(an, an==null?'–':deNum(an,2), 'w-an'):'')+'</tr>';
   });
