@@ -629,7 +629,9 @@ tr.loyal td:first-child{box-shadow:inset 3px 0 0 #d4b15a}
 .info-hits{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .info-titles{margin:6px 0 0;padding-left:18px}
 .info-titles li{margin:3px 0}
-table.tbl.hist-seasons{width:max-content;max-width:100%;margin:0 auto;table-layout:auto}
+table.tbl.hist-seasons,table.tbl.fit.pair-board,table.tbl.fit.title-reg{width:100%;max-width:100%;margin:0;table-layout:auto}
+.sieger-box{width:100%;max-width:100%}
+.sieger-row{width:100%}
 .subtabs{display:flex;width:max-content;max-width:100%;margin:0 auto 10px}
 .hist-seasons th,.hist-seasons td{padding:3px 8px}
 .hist-seasons td.names{white-space:normal;vertical-align:middle}

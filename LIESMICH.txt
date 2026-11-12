@@ -13,7 +13,7 @@ Starten: Ordner entpacken und index.html doppelklicken. Die App läuft komplett 
 - Tab "Terminierung": Prüfung des Spielplans. Die letzten zwei Spieltage jeder Liga finden gleichzeitig statt.
 - "Vereinsinfo" ist der Reiter Verein: Suche, Historie, Bilanz, direkter Vergleich, Terminplan und Titel.
 - Tab "Karte": Vereinswappen am Spielort. Mausrad zoomt, Ziehen verschiebt, „Ansicht zurücksetzen“ holt die ganze Karte.
-- In der Tabelle leuchtet ein Aufstieg nur, wenn er rechnerisch sicher ist. Bei möglicher Punktgleichheit bleibt die Zeile normal.
+- In der Tabelle folgt die Farbe dem Tabellenplatz: Meister gelb, Aufstieg grün, Abstieg rot, offene Relegation lila. Kräftiger wird die Zeile erst, wenn niemand den Platz noch erreichen kann. Eine mögliche Punktgleichheit lässt die normale Platzfarbe stehen.
 - „Saison abschließen“ öffnet Auf/Abstiege. Dort steht jeder Verein in der Liga, die er verlässt. Die Aufsteiger aus der Amateurliga wählst du, sobald alle Spiele eingetragen sind.
 - Simuliert wird im Spielplan, nicht in der Kopfzeile: „Spieltag simulieren“, „Block simulieren“, „Liga zu Ende simulieren“ und „Komplette Saison simulieren“. Die Ergebnisse sind rein zufällig, ohne Teamstärke. „Komplette Saison simulieren“ füllt offene Spiele und Pokale, entscheidet offene Entscheidungsspiele und den Supercup mit und kann die nächste Saison starten.
 - Bei völliger Gleichheit nach der Saison gibt es ein Entscheidungsspiel (Hin- und Rückspiel). Der Saisonwechsel wartet darauf.
