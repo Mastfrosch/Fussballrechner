@@ -172,6 +172,8 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .tbl tr.z-el td{background:var(--z-el)}
 .tbl tr.z-ecl td{background:var(--z-ecl)}
 .tbl tr.z-auf td{background:var(--z-auf)}
+.tbl tr.z-rel td{background:#efe6f6}
+.tbl tr.z-rel td:first-child{box-shadow:inset 3px 0 #b08cc4}
 .tbl tr.z-ab td{background:var(--z-ab)}
 .tbl tr.z-auf-aus td{background:repeating-linear-gradient(90deg,#f4fbf6,#f4fbf6 5px,#d7eadf 5px,#d7eadf 6px)}
 .tbl tr.z-ab-aus td{background:repeating-linear-gradient(90deg,#fdf4f2,#fdf4f2 5px,#f3d5d0 5px,#f3d5d0 6px)}
@@ -208,7 +210,7 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .f-S{background:#3c9a5f}.f-U{background:#a3a3a3}.f-N{background:#d0574f}
 .legend{display:flex;gap:16px;flex-wrap:wrap;padding:8px 10px;font-size:11.5px;color:#555;border-top:1px solid var(--line)}
 .legend i.sw{display:inline-block;width:12px;height:12px;border-radius:0;vertical-align:-2px;margin-right:4px;border:1px solid rgba(0,0,0,.08)}
-.sw-meister{background:var(--z-meister)}.sw-champ{background:#1d6b45}.sw-cl{background:var(--z-cl)}.sw-el{background:var(--z-el)}.sw-ecl{background:var(--z-ecl)}.sw-auf{background:var(--z-auf)}.sw-ab{background:var(--z-ab)}.sw-auf-aus{background:repeating-linear-gradient(90deg,#f4fbf6,#f4fbf6 3px,#d7eadf 3px,#d7eadf 4px)}.sw-ab-aus{background:repeating-linear-gradient(90deg,#fdf4f2,#fdf4f2 3px,#f3d5d0 3px,#f3d5d0 4px)}.sw-sure-up{background:#b6efb8}.sw-sure-down{background:#f0b2ad}
+.sw-meister{background:var(--z-meister)}.sw-champ{background:#1d6b45}.sw-cl{background:var(--z-cl)}.sw-el{background:var(--z-el)}.sw-ecl{background:var(--z-ecl)}.sw-auf{background:var(--z-auf)}.sw-rel{background:#efe6f6}.sw-ab{background:var(--z-ab)}.sw-auf-aus{background:repeating-linear-gradient(90deg,#f4fbf6,#f4fbf6 3px,#d7eadf 3px,#d7eadf 4px)}.sw-ab-aus{background:repeating-linear-gradient(90deg,#fdf4f2,#fdf4f2 3px,#f3d5d0 3px,#f3d5d0 4px)}.sw-sure-up{background:#b6efb8}.sw-sure-down{background:#f0b2ad}
 .form-wrap{position:relative;display:inline-flex}
 .form-bit{display:inline-flex;align-items:center;justify-content:center}
 .form-wrap:hover .ov-tip,.form-wrap.hover .ov-tip{display:block}
@@ -280,7 +282,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .match.done .del{visibility:visible}
 .sp-tools{display:flex;gap:6px;padding:4px 8px;border-top:1px solid var(--line);flex-wrap:wrap;align-items:center}
 .sp-hint{color:var(--muted);font-size:11px;padding:6px 8px;border-top:1px solid var(--line)}
-.progress{font-weight:400;font-size:12px;color:#555}
+.progress{font-weight:400;font-size:12px;color:inherit;background:transparent}
 .toggle{display:inline-flex;border:1px solid var(--line);overflow:hidden;margin-bottom:10px}
 .toggle button{border:none;background:#fff;padding:5px 14px;cursor:pointer}
 .toggle button.active{background:var(--green);color:#fff}
@@ -747,7 +749,7 @@ tr.fx-top td{background:#fbf8ef}
 .cmp-picks{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center}
 .cmp-side{border:1px solid var(--line);background:#fff;padding:10px}
 .cmp-who{display:flex;gap:10px;align-items:center}
-.cmp-crest{width:52px;height:52px;object-fit:contain;flex:0 0 52px;background:#f6f7f8}
+.cmp-crest{width:52px;height:52px;object-fit:contain;flex:0 0 52px;background:transparent}
 .cmp-empty{display:inline-block}
 .cmp-who .suggest{flex:1;min-width:0}
 .cmp-who .searchbox{width:100%;box-sizing:border-box}
@@ -846,7 +848,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-page{background:#fff;color:#111;font-family:Helvetica,Arial,sans-serif}
 .bfv-stage{background:#006ab2;color:#fff;padding:22px 28px 20px}
 .bfv-stage-row{display:flex;align-items:center;gap:18px}
-.bfv-crest{width:72px;height:72px;object-fit:contain;background:#fff;border-radius:4px;padding:6px}
+.bfv-crest{width:72px;height:72px;object-fit:contain;background:transparent;border-radius:0;padding:0}
 .bfv-kicker{font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
 .bfv-stage h2{margin:2px 0 4px;font-size:34px;line-height:1.05;letter-spacing:.02em;font-weight:700}
 .bfv-meta{font-size:15px;opacity:.9}
@@ -870,8 +872,12 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-page .fx-grid,
 .bfv-page .fx-bar,
 .bfv-page .ansehen-embed table.tbl.fit.age-lines{width:100%;max-width:100%;margin-left:0;margin-right:0}
-.bfv-page .opp-row{display:flex;flex-direction:column;align-items:stretch;gap:22px;width:100%}
-.bfv-page .opp-row>div{width:100%;max-width:none;overflow:visible}
+.bfv-page .opp-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;width:100%;align-items:start}
+.bfv-page .opp-row>div{width:auto;min-width:0;max-width:none;overflow:hidden}
+.card-title .progress{color:rgba(255,255,255,.92);background:transparent}
+#topbar select,.card-title select,.md-nav select{background:transparent;color:inherit;border-color:rgba(255,255,255,.55)}
+#topbar select option,.card-title select option{color:#14202b;background:#fff}
+.club img,.ml-crest,.mini-crest{background:transparent}
 .bfv-page .info-roomy .opp-row table.tbl,
 .bfv-page .info-roomy .opp-row table.tbl.fit{width:100%;max-width:none;table-layout:auto}
 .bfv-page table.tbl{border-collapse:collapse;font-size:16px;background:#fff;font-variant-numeric:tabular-nums}
@@ -915,6 +921,9 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-page .fx-head{background:#e8f3fb;padding:10px 14px}
 .bfv-page .chart-frame{width:100%;align-self:stretch}
 .bfv-page .an-hero{grid-template-columns:minmax(240px,320px) minmax(0,1fr)}
+@media (max-width:1500px){
+  .bfv-page .opp-row{grid-template-columns:1fr}
+}
 @media (max-width:1100px){
   .bfv-stage{padding:16px}
   .bfv-stage h2{font-size:26px}
@@ -930,7 +939,9 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .nav-menu-btn:hover,.nav-link:hover{color:#fff;background:rgba(0,0,0,.12)}
 .nav-menu-btn.active,.nav-link.active,.nav-menu.open>.nav-menu-btn,.top-tools.open>.nav-menu-btn{color:#fff;font-weight:700;border-bottom-color:#fff;background:rgba(0,0,0,.18)}
 .card-title,.term-md-title{color:#fff}
-.card-title .btn,.md-nav .btn,.md-nav select{color:#14202b;background:#fff}
+.card-title .btn,.md-nav .btn{color:#14202b;background:#fff}
+.card-title select,.md-nav select,#topbar select{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
+.card-title select option,.md-nav select option,#topbar select option{color:#14202b;background:#fff}
 #headActions .btn.primary{background:#fff;color:#006ab2;border-color:#fff}
 #headActions .btn.primary:hover{background:#e8f3fb;color:#00548f}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
