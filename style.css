@@ -867,7 +867,8 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-page .cmp,
 .bfv-page .fx-block,
 .bfv-page .fx-grid,
-.bfv-page .fx-bar{width:100%;max-width:100%;margin-left:0;margin-right:0}
+.bfv-page .fx-bar,
+.bfv-page .ansehen-embed table.tbl.fit.age-lines{width:100%;max-width:100%;margin-left:0;margin-right:0}
 .bfv-page .opp-row{display:flex;flex-direction:column;align-items:stretch;gap:22px;width:100%}
 .bfv-page .opp-row>div{width:100%;max-width:none;overflow:visible}
 .bfv-page .info-roomy .opp-row table.tbl,
