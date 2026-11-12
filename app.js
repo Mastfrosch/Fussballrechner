@@ -4714,7 +4714,7 @@ function siegerRow(year, winnerId, finalistId, match, season, liga, showBl){
   return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+honourClub(winnerId, '', season, bl)+'</div><div class="sieger-who">'+honourClub(finalistId, '', season, bl)+'</div><div class="sieger-final">'+honourMatch(match, season, bl)+'</div></div>';
 }
 function siegerHead(){
-  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div>Ergebnis</div></div>';
+  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div class="sieger-final"><div class="sieger-result"><span></span><span></span><span class="sieger-score">Ergebnis</span><span></span><span></span><span></span></div></div></div>';
 }
 function simulatedTitleRows(comp){
   const out=[];
@@ -4929,7 +4929,7 @@ function landHistWinners(land){
 function landHistRow(r){
   const season=r.season||'';
   const who=r.leer||!r.name ? '<span class="muted">–</span>' : r.none ? '<span class="muted">nicht ausgetragen</span>' : honourClub(r.id, r.name, season, false, r.reserve);
-  return '<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year||''))+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final"><span class="muted">–</span></div></div>';
+  return '<div class="sieger-row"><div class="sieger-year">'+esc(r.season||String(r.year||''))+'</div><div class="sieger-who">'+who+'</div><div class="sieger-who"><span class="muted">–</span></div><div class="sieger-final">'+honourMatch(null)+'</div></div>';
 }
 function viewCupWinners(){
   const key=S.ui.cup||'dfb';
@@ -5273,10 +5273,7 @@ function leagueTabs(){
   try{
     const s=cur();
     const lid=S&&S.ui&&S.ui.league;
-    if (leagueHasRelay(lid)){
-      const at=tabs.findIndex(t=>t[0]==='karte');
-      tabs.splice(at<0?1:at, 0, ['relegation','Relegation']);
-    }
+    if (leagueHasRelay(lid)) tabs.push(['relegation','Relegation']);
   }catch(e){}
   return tabs;
 }
@@ -8502,7 +8499,7 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“, neben Tabelle und Karte. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
+  h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“ am Ende der Unterreiterleiste, nach Regeln. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
 function ansehenParts(info){

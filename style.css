@@ -610,13 +610,15 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .move-line .club{flex:0 0 auto}
 .sieger-box{overflow:visible}
 .sieger-row{display:grid;grid-template-columns:6.6rem minmax(0,1fr) minmax(0,1fr) 24rem;column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
-.sieger-result{display:grid;grid-template-columns:5.4rem 26px 3.2rem 4.8rem 26px 5.4rem;align-items:center;column-gap:6px;justify-content:end}
+.sieger-final{width:24rem;max-width:100%;justify-self:end}
+.sieger-result{display:grid;grid-template-columns:5.4rem 26px 3.2rem 4.8rem 26px 5.4rem;align-items:center;column-gap:6px;width:100%}
+.sieger-result>*{min-width:0;overflow:hidden}
 .sieger-result img{width:26px;height:26px;object-fit:contain}
 .sieger-liga{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sieger-result .sieger-liga:first-child{text-align:right}
 .sieger-score{text-align:center;font-weight:650;font-variant-numeric:tabular-nums}
 .sieger-extra{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap}
-.relay-out{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 0;font-size:14px}
+.relay-out{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 10px 12px;font-size:14px}
 .relay-bit{display:inline-flex;align-items:center;gap:6px;font-weight:650}
 .relay-bit img{width:22px;height:22px;object-fit:contain}
 .rec-crests{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
@@ -628,7 +630,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .sieger-year{font-variant-numeric:tabular-nums;font-weight:600}
 .sieger-who{min-width:0}
 .sieger-who .club{max-width:100%}
-.sieger-final{min-width:0;justify-self:stretch}
+.sieger-final{min-width:0}
 .sieger-final .match.cup,.sieger-final .match.cup.match-nodel{grid-template-columns:max-content max-content max-content;width:max-content;justify-content:center;gap:8px}
 .sieger-final .side{overflow:visible;gap:6px}
 .sieger-final .liga-edge{max-width:none}
