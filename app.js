@@ -6582,7 +6582,9 @@ function topClubRelevance(id, snap, mi){
   const row=(snap.table||[]).find(r=>r.pl===line);
   const linePkt=row?row.pkt:(info.pkt||0);
   const gap=Math.max(0, linePkt-(info.pkt||0));
-  return Math.max(0, Math.round((1-gap/25)*100)/100);
+  // Direkt hinter der Linie klar unter dem letzten Platz darin. 15 Punkte
+  // Rückstand sind nur noch ein Rest, ab 20 Punkten keiner mehr.
+  return Math.max(0, Math.round((0.45*(1-gap/20))*100)/100);
 }
 const matchValueCache=new WeakMap();
 function matchValue(h, a, snap, mi){
@@ -6601,7 +6603,16 @@ function matchValue(h, a, snap, mi){
   const ctx=Object.assign({}, snap, {rem:Math.max(1,(snap.total||1)-mi), mdIndex:mi});
   const sport=sportPair(h, a, ctx);
   const rel=(id)=>topClubRelevance(id, snap, mi);
-  const bonus=Math.round((rel(h)+rel(a))*24*10)/10;
+  const rH=rel(h), rA=rel(a);
+  let bonus=Math.round((rH+rA)*200*10)/10;
+  const z=snap.zones||{};
+  const line=z.cl?7:Math.max(1, z.up||1);
+  const halfN=z.n?(z.n%2?z.n:Math.max(0, z.n-1)):0;
+  const inside=id=>{
+    const info=snap.info&&snap.info[id];
+    return !!(info && info.sportPlace!=null && (mi|0)>=halfN && info.sportPlace<=line);
+  };
+  if (halfN && !inside(h) && !inside(a)) bonus=Math.min(bonus, 36);
   const total=phase.h*hist+phase.s*sport.score+bonus;
   const note=bonus>0?(sport.note+(sport.note?'; ':'')+'Topverein ab Rückrunde'):sport.note;
   const result={total:Math.round(total*10)/10, hist:Math.round(hist*10)/10, sport:Math.round(sport.score*10)/10, wh:phase.h, ws:phase.s, label:phase.label, note, bonus};
@@ -6725,6 +6736,20 @@ function assignMatchday(season, lid, mi, snap, counts){
   const regAvg=lg.teams.length?regSum/lg.teams.length:0;
   const latest=latestKickKeys(tmpl);
   const median=regionalMedian(known);
+  const kmsToday=md.map(m=>kmBetween(lg.teams[m[0]], lg.teams[m[1]]));
+  const capToday=lateCap(kmsToday);
+  const lateChances={};
+  lg.teams.forEach(id=>{
+    let n=0;
+    for (let d=mi; d<total-2; d++){
+      const g=lg.md[d].find(x=>lg.teams[x[0]]===id || lg.teams[x[1]]===id);
+      if (!g) continue;
+      const km=kmBetween(lg.teams[g[0]], lg.teams[g[1]]);
+      const day=lg.md[d].map(x=>kmBetween(lg.teams[x[0]], lg.teams[x[1]]));
+      if (lateCap(day).allows(km)) n++;
+    }
+    lateChances[id]=n;
+  });
   const cost=md.map(m=>{
     const h=lg.teams[m[0]], a=lg.teams[m[1]];
     return tmpl.map(slot=>{
@@ -6754,7 +6779,7 @@ function assignMatchday(season, lid, mi, snap, counts){
       }
       if (slot.kind==='top'){
         const v=matchValue(h, a, snap, mi);
-        quality -= v.total*1000;
+        quality -= v.total*20000;
         const skew=(id,dow)=>dow==='Fr' ? ((counts[id].frTop||0)-(counts[id].saTop||0)) : ((counts[id].saTop||0)-(counts[id].frTop||0));
         if (slot.dow==='Fr' || slot.dow==='Sa') soft += (skew(h, slot.dow)+skew(a, slot.dow))*40;
       }
@@ -6762,8 +6787,18 @@ function assignMatchday(season, lid, mi, snap, counts){
         const dKey=h+'|'+a;
         const km=kmBetween(h, a);
         const dist=km==null?400:(km|0);
-        quality += dist*6;
-        if (latest.has(slotTimeKey(slot)) && dist>300 && dist>median) quality += 500000;
+        quality += dist*4000;
+        const lateSun=slot.dow==='So' && latest.has(slotTimeKey(slot));
+        if (lateSun && !capToday.allows(dist)) hard += 40000000;
+        if (lateSun && capToday.allows(dist)){
+          const key=slotTimeKey(slot);
+          for (const id of [h,a]){
+            const got=(counts[id].byTime&&counts[id].byTime[key])||0;
+            if (got>=TIME_MIN) continue;
+            const chances=lateChances[id]||0;
+            hard -= chances<=TIME_MIN-got ? 8000000 : 6000000;
+          }
+        }
         const spec=L[lid];
         if (spec && spec.level>=1 && spec.level<=4){
           const over=id=>Math.max(0, (counts[id].regional||0)-regAvg-1.5);
@@ -6791,12 +6826,14 @@ function assignMatchday(season, lid, mi, snap, counts){
           const capKey=specOfKey?Math.max(0, regLeft-1)*Math.max(1, specOfKey.n)*2:0;
           const tight=owedKey>capKey;
           const scarce=!!(specOfKey && specOfKey.n===1 && key!==closingKey);
-          if (scarce && gotTime===0 && confSlack>=1) hard -= 12000000;
-          else if (scarce && gotTime===0) hard -= 5000000;
-          else if (scarce && gotTime<TIME_MIN && confSlack>=2) hard -= 4000000;
-          else if (missingThis && confSlack>=1) hard -= 7000000+Math.round(Math.min(pressure, 12)*150000);
-          else if (!missingThis && scarce && owedKey>0) hard += 6000000;
-          else if (!missingThis && key!==closingKey && gotTime>TIME_MIN && (zeroOf[key]||0)>0 && confSlack>=2) hard += 1000000;
+          const soften=slot.kind==='regional' && !(slot.dow==='So' && latest.has(key)) && !tight;
+          const scale=soften?0.15:1;
+          if (scarce && gotTime===0 && confSlack>=1) hard -= Math.round(12000000*scale);
+          else if (scarce && gotTime===0) hard -= Math.round(5000000*scale);
+          else if (scarce && gotTime<TIME_MIN && confSlack>=2) hard -= Math.round(4000000*scale);
+          else if (missingThis && confSlack>=1) hard -= Math.round((7000000+Math.round(Math.min(pressure, 12)*150000))*scale);
+          else if (!missingThis && scarce && owedKey>0) hard += Math.round(6000000*scale);
+          else if (!missingThis && key!==closingKey && gotTime>TIME_MIN && (zeroOf[key]||0)>0 && confSlack>=2) hard += Math.round(1000000*scale);
           if (tight && missingThis && !scarce) hard -= 8000000;
           timeSpecs.forEach(spec=>{
             if (spec.key===closingKey) return;
@@ -7055,8 +7092,35 @@ function assignMatchday(season, lid, mi, snap, counts){
     const v=worth[i];
     row[i]=Object.assign({}, slot, {wert:{total:v.total, hist:v.hist, sport:v.sport, wh:v.wh, ws:v.ws, phase:v.label, note:v.note, km:kmBetween(h,a)}});
   });
+  const confNow={};
+  lg.teams.forEach(id=>{ confNow[id]=(counts[id]&&counts[id].konferenz)||0; });
+  pinLateSlot(row, md, lg.teams, lid, counts, confNow, total-mi, confHalf(total, lg));
   noteKick(md, row, lg, counts);
   return row;
+}
+function pinLateSlot(row, md, teams, lid, counts, conf, rem, need){
+  const late=row.findIndex(s=>isLateSundaySlot(lid, s));
+  if (late<0 || !row[late]) return;
+  const kms=md.map(m=>kmBetween(teams[m[0]], teams[m[1]]));
+  const cap=lateCap(kms);
+  const key=slotTimeKey(row[late]);
+  const needs=i=>{
+    const ids=[teams[md[i][0]], teams[md[i][1]]];
+    return ids.some(id=>((counts[id]&&counts[id].byTime&&counts[id].byTime[key])||0)<TIME_MIN);
+  };
+  const confOk=j=>{
+    if (!conf || !row[j] || row[j].kind!=='konferenz') return true;
+    const ids=[teams[md[j][0]], teams[md[j][1]]];
+    return ids.every(id=>(conf[id]||0)-1>=need);
+  };
+  if (cap.allows(kms[late]) && needs(late)) return;
+  let best=-1, bestNeed=false;
+  for (let j=0; j<row.length; j++){
+    if (!cap.allows(kms[j]) || !confOk(j)) continue;
+    const needy=needs(j);
+    if (best<0 || (needy && !bestNeed) || (needy===bestNeed && kms[j]<kms[best])){ best=j; bestNeed=needy; }
+  }
+  if (best>=0 && best!==late){ const tmp=row[late]; row[late]=row[best]; row[best]=tmp; }
 }
 function assignmentKeepsTimes(season, lid, mi, to, beforeRow, afterRow){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length;
@@ -7328,9 +7392,25 @@ function liftConferenceTops(season, lid, from, to, snap){
     const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
   }
 }
+function matchKms(lg, mi){
+  return lg.md[mi].map(m=>kmBetween(lg.teams[m[0]], lg.teams[m[1]]));
+}
+function lateCap(kms){
+  const known=(kms||[]).filter(v=>v!=null);
+  const anyShort=known.some(v=>v<=300);
+  const median=regionalMedian(known.map(km=>({km})));
+  return {anyShort, median, allows:km=>km!=null && (anyShort?km<=300:km<=median)};
+}
+function isLateSundaySlot(lid, slot){
+  if (!slot || slot.kind!=='regional' || slot.dow!=='So') return false;
+  return latestKickKeys(slotTemplate(lid)).has(slotTimeKey(slot));
+}
 function swapKeepsTimes(season, lid, mi, to, i, j){
   const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length, row=bag[mi];
   if (!row || !row[i] || !row[j]) return true;
+  const kms=matchKms(lg, mi), cap=lateCap(kms);
+  const breaks=(slot, km)=>isLateSundaySlot(lid, slot) && !cap.allows(km);
+  if (breaks(row[j], kms[i]) || breaks(row[i], kms[j])) return false;
   const times=templateTimes(lid);
   const closingKey=slotTimeKey(finalSaturdaySlot(lid));
   let future=0, closingLeft=0;
@@ -8151,6 +8231,99 @@ function seatFeatured(season, lid, from, to, snap){
     if (dest>=0){ const tmp=row[duel]; row[duel]=row[dest]; row[dest]=tmp; }
   }
 }
+function swapRecovers(season, lid, mi, to, i, j, spareScarce){
+  if (swapKeepsTimes(season, lid, mi, to, i, j)) return true;
+  const lg=season.leagues[lid], bag=season.kickoffs[lid], total=lg.md.length, row=bag[mi];
+  if (!row || !row[i] || !row[j]) return false;
+  const times=templateTimes(lid);
+  const closingKey=slotTimeKey(finalSaturdaySlot(lid));
+  let closingLeft=0;
+  for (let d=to+1; d<total; d++) if (isClosingDay(total, d)) closingLeft++;
+  const later=Math.max(0, total-2-to);
+  const have=id=>{
+    const c={};
+    for (let d=0; d<=to; d++){
+      const r=bag[d]; if (!r) continue;
+      lg.md[d].forEach((m,k)=>{
+        if (!r[k] || (lg.teams[m[0]]!==id && lg.teams[m[1]]!==id)) return;
+        const key=slotTimeKey(r[k]);
+        c[key]=(c[key]||0)+1;
+      });
+    }
+    return c;
+  };
+  const touch=[lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+  const uniq=[]; touch.forEach(id=>{ if (uniq.indexOf(id)<0) uniq.push(id); });
+  const before={}; uniq.forEach(id=>{ before[id]=have(id); });
+  const keyI=slotTimeKey(row[i]), keyJ=slotTimeKey(row[j]);
+  const after={};
+  uniq.forEach(id=>{ after[id]=Object.assign({}, before[id]); });
+  [lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]]].forEach(id=>{ after[id][keyI]=(after[id][keyI]||0)-1; after[id][keyJ]=(after[id][keyJ]||0)+1; });
+  [lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]].forEach(id=>{ after[id][keyJ]=(after[id][keyJ]||0)-1; after[id][keyI]=(after[id][keyI]||0)+1; });
+  for (const id of uniq){
+    for (const spec of times){
+      const afterN=after[id][spec.key]||0, beforeN=before[id][spec.key]||0;
+      if (afterN>=beforeN || afterN>=TIME_MIN) continue;
+      const room=spec.key===closingKey?closingLeft:later;
+      const spare=spec.n===1?(spareScarce==null?4:spareScarce):1;
+      if (afterN+room>=TIME_MIN+spare) continue;
+      return false;
+    }
+  }
+  return true;
+}
+function nudgeLateRegional(season, lid, from, to){
+  const lg=season.leagues[lid], bag=season.kickoffs&&season.kickoffs[lid];
+  if (!lg || !bag) return;
+  for (let mi=from; mi<=to; mi++){
+    if (isClosingDay(lg.md.length, mi)) continue;
+    const row=bag[mi]; if (!row) continue;
+    const late=row.findIndex(s=>isLateSundaySlot(lid, s));
+    if (late<0) continue;
+    const kms=matchKms(lg, mi), cap=lateCap(kms);
+    if (cap.allows(kms[late])) continue;
+    let best=-1;
+    for (let j=0; j<row.length; j++){
+      if (j===late || !row[j] || row[j].kind!=='regional') continue;
+      if (!cap.allows(kms[j])) continue;
+      if (best<0 || kms[j]<kms[best]) best=j;
+    }
+    if (best>=0 && swapKeepsTimes(season, lid, mi, to, late, best)){ const tmp=row[late]; row[late]=row[best]; row[best]=tmp; }
+  }
+}
+function enforceDistance(season, lid, from, to){
+  const lg=season.leagues[lid], bag=season.kickoffs&&season.kickoffs[lid];
+  if (!lg || !bag || !lg.md) return;
+  const total=lg.md.length, need=confHalf(total, lg);
+  const counted=()=>{
+    const conf={};
+    lg.teams.forEach(id=>{ conf[id]=0; });
+    for (let d=0; d<total; d++){
+      const row=bag[d]; if (!row) continue;
+      lg.md[d].forEach((m,i)=>{
+        if (row[i] && row[i].kind==='konferenz') [lg.teams[m[0]], lg.teams[m[1]]].forEach(id=>{ conf[id]++; });
+      });
+    }
+    return conf;
+  };
+  for (let mi=from; mi<=to; mi++){
+    if (isClosingDay(total, mi)) continue;
+    const row=bag[mi]; if (!row) continue;
+    const kms=matchKms(lg, mi), cap=lateCap(kms);
+    const late=row.findIndex(s=>isLateSundaySlot(lid, s));
+    const seen={};
+    lg.teams.forEach(id=>{ seen[id]={byTime:{}}; });
+    for (let d=0; d<mi; d++){
+      const prev=bag[d]; if (!prev) continue;
+      lg.md[d].forEach((m,i)=>{
+        if (!prev[i]) return;
+        const key=slotTimeKey(prev[i]);
+        [lg.teams[m[0]], lg.teams[m[1]]].forEach(id=>{ seen[id].byTime[key]=(seen[id].byTime[key]||0)+1; });
+      });
+    }
+    pinLateSlot(row, lg.md[mi], lg.teams, lid, seen, counted(), total-mi, need);
+  }
+}
 function scheduleNextBlock(season, lid){
   try{ ensureLeagueSchedule(season, lid); }catch(e){}
   const tr=window.FR_TIMING; const t0=tr?performance.now():0;
@@ -8225,6 +8398,13 @@ function scheduleNextBlock(season, lid){
   seatFeatured(season, lid, range[0], range[1], snap);
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeFeature[mi]||[]).map(s=>Object.assign({}, s));
+  }
+  nudgeLateRegional(season, lid, range[0], range[1]);
+  const afterPin={};
+  for (let mi=range[0]; mi<=range[1]; mi++) afterPin[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
+  seatFeatured(season, lid, range[0], range[1], snap);
+  if (konfPer && !blockObligations(season, lid, range[1]).ok){
+    for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(afterPin[mi]||[]).map(s=>Object.assign({}, s));
   }
   for (let mi=range[0]; mi<=range[1]; mi++){
     const row=bag[mi]; if (!row) continue;
@@ -8687,7 +8867,7 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Der Topspielwert beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde bekommen die Topvereine einen Bonus: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Abstiegsduell zählt für den Topspielwert erst in den letzten acht Spieltagen. Regionale Spiele nehmen die kurzen Strecken. Auf der spätesten Anstoßzeit eines Tages liegt keine Paarung über 300 km, außer der ganze Spieltag ist weiter; dann nur die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
+  h+='<p>Der Topspielwert beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde bekommen die Topvereine einen Bonus, der stärker wiegt als das Ansehen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt für den Topspielwert erst in den letzten acht Spieltagen. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
   h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“ am Ende der Unterreiterleiste, nach Regeln. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
@@ -12577,7 +12757,7 @@ function terminSelfTest(){
   const duel=matchValue('p17','p18', late, 35);
   const champ=matchValue('p1','p12', late, 35);
   const mid=matchValue('p9','p10', late, 35);
-  check('Abstiegsduell am vorletzten regulären Spieltag schlägt 1 gegen 12', duel.total>champ.total && duel.sport>champ.sport, duel.total+'/'+champ.total);
+  check('Abstiegsduell hat im Sport mehr Druck, der Topverein gewinnt den Gesamtwert', duel.sport>champ.sport && champ.total>duel.total, duel.total+'/'+champ.total+' sport '+duel.sport+'/'+champ.sport);
   check('enges gesichertes Mittelfeld bleibt niedrig', mid.sport<duel.sport && mid.sport<25, String(mid.sport));
   check('Abstiegsduell benennt dieselbe Zielzone', duel.note.indexOf('Abstieg')>=0 && champ.note.indexOf('kein gemeinsamer Zielkampf')>=0, duel.note+' | '+champ.note);
   const earlyFight=matchValue('p17','p18', late, 3);
