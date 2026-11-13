@@ -9903,6 +9903,33 @@ function amateurSeasons(id){
   }catch(e){}
   return years;
 }
+function relaySide(m, id){
+  if (!m || m.hg==null || m.ag==null || (m.h!==id && m.a!==id)) return null;
+  const home=m.h===id;
+  const gf=home?+m.hg:+m.ag, ga=home?+m.ag:+m.hg;
+  const line=+m.hg>+m.ag?'s':+m.hg<+m.ag?'n':'u';
+  return {gf, ga, res:home?line:(line==='s'?'n':line==='n'?'s':'u')};
+}
+function relegationByLeague(id){
+  const by={};
+  (S.seasons||[]).forEach(season=>{
+    const relay=season && season.relay;
+    if (!relay) return;
+    Object.keys(relay).forEach(l5=>{
+      const rel=relay[l5];
+      if (!rel) return;
+      const rl=rel.better===id?rel.rlBetter:(rel.worse===id?rel.rlWorse:'');
+      if (!rl || !L[rl] || L[rl].level!==6) return;
+      (rel.matches||[]).forEach(m=>{
+        const side=relaySide(m, id);
+        if (!side) return;
+        if (!by[rl]) by[rl]=emptyStat();
+        addInto(by[rl], side.gf, side.ga, false, side.res);
+      });
+    });
+  });
+  return by;
+}
 function bilanzTable(id){
   const row=(label, b, pts, pin)=>'<tr'+(pin?' data-pin="1" class="tot"':'')+'><td class="l">'+label+'</td>'+sortCell(b.sp, b.sp)+sortCell(b.s, b.s)+sortCell(b.u, b.u)+sortCell(b.n, b.n)+sortCell(b.tg, b.tg+':'+b.gt)+sortCell(b.tg-b.gt, (b.tg-b.gt>0?'+':'')+(b.tg-b.gt))+sortCell(pts?b.pkt:'', pts?b.pkt:'–')+'</tr>';
   let live='';
@@ -9910,9 +9937,17 @@ function bilanzTable(id){
   const leagues=LEAGUES.map(l=>({l, b:statOf(id, l.id)})).filter(x=>x.b.sp || x.l.id===live);
   const legacy=leagues.length?emptyStat():statOf(id,'liga');
   const dfb=statOf(id,'dfb'), land=statOf(id,'land'), sc=statOf(id,'sc'), rel=statOf(id,'rel');
+  const relBy=relegationByLeague(id);
   const keys=leagues.map(x=>x.l.id).concat(leagues.length?[]:['liga']).concat(['dfb','land','sc']).concat(rel.sp?['rel']:[]);
   const all=sumStat(id, keys);
-  let body=leagues.map(x=>row(esc(x.l.name), x.b, true)).join('');
+  let body='';
+  const shown={};
+  leagues.forEach(x=>{ shown[x.l.id]=1; });
+  LEAGUES.forEach(l=>{
+    if (shown[l.id]) body+=row(esc(l.name), leagues.find(x=>x.l.id===l.id).b, true);
+    const part=l.level===6 && relBy[l.id];
+    if (part && part.sp) body+=row('Regionalliga Aufstiegsrelegation', part, false);
+  });
   if (!leagues.length && legacy.sp) body+=row('Liga', legacy, true);
   body+=row('DFB-Pokal', dfb, false);
   const cups=landCupsPlayed(id);
@@ -9920,12 +9955,11 @@ function bilanzTable(id){
   if (bls.length<=1) body+=row(bls.length?('Landespokal '+bls[0]):'Landespokal', land, false);
   else bls.forEach(bl=>{ body+=row('Landespokal '+bl, landStatVisible(id, bl), false); });
   body+=row('Supercup', sc, false);
-  if (rel.sp) body+=row('Relegation', rel, false);
   const years=amateurSeasons(id);
   if (years.size) body+='<tr><td class="l">Amateurliga</td><td colspan="7">'+years.size+(years.size===1?' Jahr':' Jahre')+', kein Spielbetrieb</td></tr>';
   body+=row('<b>Gesamt</b>', all, true, true);
   return '<table class="tbl fit bilanz"><thead><tr>'+sortHead('Wettbewerb','','l')+sortHead('Sp.','sp')+sortHead('S','s')+sortHead('U','u')+sortHead('N','n')+sortHead('Tore','tg')+sortHead('Diff.','diff')+sortHead('Pkt.','pkt')+'</tr></thead><tbody>'
-    +body+'</tbody></table><p class="muted">Jede Liga hat eine eigene Zeile. Der Landespokal trägt das Land, in dem der Verein ihn gespielt hat. Die Amateurliga zählt nur Saisons ohne Ligaspielbetrieb. Im Pokal gibt es kein Unentschieden. Punkte nur in den Ligen.</p>';
+    +body+'</tbody></table><p class="muted">Jede Liga hat eine eigene Zeile. Die Aufstiegsrelegation steht als „Regionalliga Aufstiegsrelegation“ direkt unter der Regionalliga, aus der der Verein sie gespielt hat. Der Landespokal trägt das Land, in dem der Verein ihn gespielt hat. Die Amateurliga zählt nur Saisons ohne Ligaspielbetrieb. Im Pokal gibt es kein Unentschieden. Punkte nur in den Ligen.</p>';
 }
 function clubTitles(id){
   const titles=[], seenTitle={};
@@ -11891,6 +11925,53 @@ function uiSelfTestBody(fails){
     check('Amateurzeile ohne Spielzahlen', bilanzTable('t522').indexOf('kein Spielbetrieb')>=0);
   }finally{
     S.seasons=savedSeasons; S.pokalRuns=savedRuns; S.view=savedView; touchAnsehen();
+  }
+  const relKeep={seasons:S.seasons, stats:S.stats, view:S.view};
+  try{
+    S.stats={c:{}, p:{}};
+    const done={name:'2097/98', status:'done', leagues:{}, relay:{
+      L5NO:{better:'t142', worse:'t099', rlBetter:'RLN', rlWorse:'RLO', matches:[
+        {leg:1, h:'t099', a:'t142', hg:1, ag:0},
+        {leg:2, h:'t142', a:'t099', hg:2, ag:0}
+      ]}
+    }};
+    const open={name:'2098/99', status:'running', leagues:{RLO:{teams:['t142','t187']}}, relay:{
+      L5NO:{better:'t187', worse:'t142', rlBetter:'RLW', rlWorse:'RLO', matches:[
+        {leg:1, h:'t142', a:'t187', hg:0, ag:0},
+        {leg:2, h:'t187', a:'t142', hg:1, ag:1, peh:4, pea:2}
+      ]}
+    }, cups:{dfb:{rounds:[{matches:[{h:'t142', a:'t001', hg:1, ag:1, peh:5, pea:3}]}]}}};
+    S.seasons=[done, open];
+    S.view=1;
+    absorbSeason(done);
+    const nord=clubBucket('t142','RLN');
+    nord.sp=30; nord.s=10; nord.u=10; nord.n=10; nord.tg=40; nord.gt=30; nord.pkt=40;
+    const ost=clubBucket('t142','RLO');
+    ost.sp=30; ost.s=12; ost.u=8; ost.n=10; ost.tg=36; ost.gt=30; ost.pkt=44;
+    const html=bilanzTable('t142');
+    const labels=[];
+    html.replace(/<td class="l">([\s\S]*?)<\/td>/g, function(_, raw){ labels.push(raw.replace(/<[^>]+>/g,'').trim()); return _; });
+    const iNord=labels.indexOf('Regionalliga Nord'), iOst=labels.indexOf('Regionalliga Ost');
+    const relRows=labels.filter(x=>x==='Regionalliga Aufstiegsrelegation');
+    const cells=[];
+    html.replace(/<tr[^>]*>([\s\S]*?)<\/tr>/g, function(_, raw){
+      const one=[];
+      raw.replace(/<td[^>]*>([\s\S]*?)<\/td>/g, function(__, cell){ one.push(cell.replace(/<[^>]+>/g,'').trim()); return __; });
+      if (one.length) cells.push(one);
+      return _;
+    });
+    const nordRel=cells.filter(c=>c[0]==='Regionalliga Aufstiegsrelegation')[0];
+    const ostRel=cells.filter(c=>c[0]==='Regionalliga Aufstiegsrelegation')[1];
+    const dfbRow=cells.find(c=>c[0]==='DFB-Pokal');
+    const ges=cells.find(c=>c[0]==='Gesamt');
+    const rel=statOf('t142','rel');
+    const sumSp=cells.filter(c=>c[0]!=='Gesamt').reduce((s,c)=>s+(parseInt(c[1],10)||0),0);
+    check('Aufstiegsrelegation steht unter der jeweiligen Regionalliga', iNord>=0 && labels[iNord+1]==='Regionalliga Aufstiegsrelegation' && iOst>iNord && labels[iOst+1]==='Regionalliga Aufstiegsrelegation' && relRows.length===2 && labels.indexOf('Relegation')<0 && labels.indexOf('Supercup')>iOst, labels.join(' | '));
+    check('Aufstiegsrelegation übernimmt die bisherigen Zahlen', !!nordRel && nordRel[1]==='2' && nordRel[2]==='1' && nordRel[3]==='0' && nordRel[4]==='1' && nordRel[5]==='2:1' && !!ostRel && ostRel[1]==='2' && ostRel[2]==='0' && ostRel[3]==='2' && ostRel[4]==='0' && ostRel[5]==='1:1' && rel.sp===4 && rel.s===1 && rel.u===2 && rel.n===1 && rel.tg===3 && rel.gt===2 && !!ges && ges[1]===String(sumSp), JSON.stringify({nordRel, ostRel, rel, ges:ges&&ges[1], sumSp}));
+    check('Elfmeterschießen im Pokal bleibt ein Sieg', !!dfbRow && dfbRow[1]==='1' && dfbRow[2]==='1' && dfbRow[3]==='0' && dfbRow[4]==='0', JSON.stringify(dfbRow));
+    check('Hinweis nennt die Zeile unter der Regionalliga', html.indexOf('Regionalliga Aufstiegsrelegation')>=0 && html.indexOf('direkt unter der Regionalliga')>=0 && html.indexOf('Im Pokal gibt es kein Unentschieden')>=0);
+  }finally{
+    S.seasons=relKeep.seasons; S.stats=relKeep.stats; S.view=relKeep.view;
   }
   check('Gegnerliste höchstens 20', opponentsOf('t001').length<=20);
   const bal=balanceLists('t001');
