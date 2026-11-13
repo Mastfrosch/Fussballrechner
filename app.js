@@ -2583,8 +2583,28 @@ function seasonShape(n){
 }
 function confHalf(total, lg){
   const n=lg&&lg.teams?lg.teams.length:0;
-  if (n>1 && n%2) return n-1;
-  return Math.ceil((total||0)/2);
+  const historic=(n>1 && n%2) ? (n-1) : Math.ceil((total||0)/2);
+  if (!n || !(total>0)) return historic;
+  const games=leagueGames(lg);
+  // 18 Vereine sind Bundesliga, 2. Liga oder eine alte Regionalliga. Alle drei
+  // decken die Hälfte, der Suchweg bleibt deshalb der bisherige.
+  let probe=null;
+  if (n===22 && games===11) probe='L5NO';
+  else if (n===20 && games===10) probe='L3';
+  else if (n===16 && games===8) probe='RLN';
+  if (!probe) return historic;
+  const konfPer=slotTemplate(probe, games).filter(s=>s.kind==='konferenz').length;
+  const closing=total>1?2:0;
+  const confMatches=Math.max(0, total-closing)*konfPer+closing*games;
+  const perClub=confMatches*2/n;
+  if (perClub+1e-9>=historic) return historic;
+  return Math.floor(perClub+1e-9);
+}
+function confChase(total, lg){
+  const n=lg&&lg.teams?lg.teams.length:0;
+  const q=confHalf(total, lg);
+  if (n%2===0 && q<total/2) return q;
+  return total/2;
 }
 function matchesOf(season, lid, filt){
   const lg = season.leagues[lid]; if (!lg || !lg.md) return [];
@@ -6758,7 +6778,7 @@ function assignMatchday(season, lid, mi, snap, counts){
       if (!swap || cls<swap.cls || (cls===swap.cls && q>swap.q)) swap={j,cls,q};
     });
     if (!swap){
-      const halfTarget=total/2;
+      const halfTarget=confChase(total, lg);
       row.forEach((other,j)=>{
         if (j===i || !other || other.kind!=='konferenz') return;
         const cls=topClass(j);
@@ -6789,7 +6809,7 @@ function assignMatchday(season, lid, mi, snap, counts){
     if (best && worth[i].total<=worth[best.j].total+2){ const tmp=row[i]; row[i]=row[best.j]; row[best.j]=tmp; }
   });
   if (konfPer){
-    const share=(konfPer*2)/n, fair=share*mi, targetMin=total/2;
+    const share=(konfPer*2)/n, fair=share*mi, targetMin=confChase(total, lg);
     const exactKonf=false;
     for (let guard=0; guard<n; guard++){
       let crit=null;
@@ -6848,7 +6868,7 @@ function assignMatchday(season, lid, mi, snap, counts){
     const must=new Set();
     lg.teams.forEach(id=>{
       const cnt=counts[id].konferenz;
-      if (cnt+(rem-1) < total/2) must.add(id);
+      if (cnt+(rem-1) < confChase(total, lg)) must.add(id);
     });
     const mustOutside=md.some((m,i)=>row[i] && row[i].kind!=='konferenz' && (must.has(lg.teams[m[0]])||must.has(lg.teams[m[1]])));
     if (mustOutside || row.some((slot,i)=>slot && slot.kind==='top' && topClass(i)>=3)){
@@ -7048,7 +7068,7 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
     });
   };
   const trySolve=mi=>{
-    const cnt=countBefore(mi), rem=total-mi, target=total/2, row=bag[mi];
+    const cnt=countBefore(mi), rem=total-mi, target=confChase(total, lg), row=bag[mi];
     const must=new Set();
     lg.teams.forEach(id=>{ if (cnt[id]+(rem-1)<target) must.add(id); });
     const at={};
@@ -7087,7 +7107,7 @@ function nudgeNonExactBlock(season, lid, from, to, snap){
     for (let mi=from; mi<=to; mi++) if (hasBad(mi)) stuck=mi;
     if (stuck==null) return;
     if (trySolve(stuck)) continue;
-    const cnt=countBefore(stuck), rem=total-stuck, target=total/2;
+    const cnt=countBefore(stuck), rem=total-stuck, target=confChase(total, lg);
     const must=[];
     lg.teams.forEach(id=>{ if (cnt[id]+(rem-1)<target) must.push(id); });
     let moved=false;
@@ -8001,7 +8021,7 @@ function scheduleNextBlock(season, lid){
   const n=lg.teams.length;
   const from=lastScheduled(season, lid)+1;
   const range=nextBlockRange(n, from);
-  if (!range){ window.__why='no range '+n+' '+from; return null; }
+  if (!range) return null;
   season.kickoffs=season.kickoffs||{};
   const bag=season.kickoffs[lid]||(season.kickoffs[lid]={});
   const snap=powerSnapshot(season, lid, range[0]);
@@ -8041,13 +8061,7 @@ function scheduleNextBlock(season, lid){
       if (!held.ok){
         restoreRows(raw);
         held=polish();
-        if (!held.ok){
-          const total=lg.md.length;
-          const closing=total>1?2:0;
-          const games=Math.max(1, leagueGames(lg));
-          const perTeam=konfPer/games*(total-closing)+closing;
-          dropBlock=perTeam+0.01>=confHalf(total, lg);
-        }
+        if (!held.ok) dropBlock=true;
       }
     }
     repairOk=held.ok && !dropBlock;
@@ -8148,7 +8162,7 @@ function viewTerminierung(s, lid){
       return sortCell(v, key==='topAvg'?deNum(v,1):v, warn?'bad':'');
     }).join('')+sortCell(br, br, '')+'<td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="muted">Jeder Verein spielt jede Anstoßzeit mindestens einmal. Mindestens die Hälfte der Spiele liegt in der Konferenz. Die letzten zwei Spieltage laufen gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz, ohne zusätzliches Topspiel. In der 3. Liga und der 4. Liga sind alle drei Sonntagsspiele regional, auch 13:30 Uhr. Die 5. Liga spielt freitags um 19:00 drei regionale Spiele, samstags um 14:00 vier Konferenzspiele und um 18:00 ein Topspiel, sonntags um 13:00 drei Spiele. Die Regionalliga spielt freitags um 18:00 drei regionale Spiele, samstags um 13:00 vier Konferenzspiele und um 16:00 ein Topspiel. Der Topspielwert ist beim Ansetzen gespeichert. Rot, wenn die Saison terminiert ist und eine Zeit, die Konferenzquote oder die Serie von drei fehlt.</p>';
+  h+='</tbody></table></div><p class="muted">Jeder Verein spielt jede Anstoßzeit mindestens einmal. Die Konferenzquote ist der Anteil der Konferenzspiele an allen Spielen des Vereins. Wo die Plätze mindestens die Hälfte decken, bleibt die Quote die Hälfte. Die letzten zwei Spieltage laufen gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz, ohne zusätzliches Topspiel. In der 3. Liga und der 4. Liga sind alle drei Sonntagsspiele regional, auch 13:30 Uhr. Die 5. Liga spielt freitags um 19:00 drei regionale Spiele, samstags um 14:00 vier Konferenzspiele und um 18:00 ein Topspiel, sonntags um 13:00 drei Spiele. Die Regionalliga spielt freitags um 18:00 drei regionale Spiele, samstags um 13:00 vier Konferenzspiele und um 16:00 ein Topspiel. Der Topspielwert ist beim Ansetzen gespeichert. Rot, wenn die Saison terminiert ist und eine Zeit, die Konferenzquote oder die Serie von drei fehlt.</p>';
   const gaps=s.termNotes&&s.termNotes[lid];
   if (gaps&&gaps.length) h+='<p class="bad">Konferenz nicht für jeden Verein erreichbar: '+esc(gaps.join(' · '))+'</p>';
   h+='</div>';
@@ -13354,24 +13368,39 @@ function terminSelfTest(){
     report.targeted[lid]={so13:kmSo, andere:kmPlain, kindBad};
   });
   (()=>{
-    seedRandom(4100);
-    const lid='L5NO';
-    const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length, null, {lid, teams});
-    Math.random=prevRandom;
-    const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
-    let g=0; while(g++<24){ const range=scheduleNextBlock(season, lid); if(!range) break; for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } }); }
-    const tmpl=slotTemplate(lid, 11);
-    let bad=0, sun=0;
-    md.forEach((round,mi)=>{
-      const row=season.kickoffs[lid][mi]||[];
-      if (row.length!==11) bad++;
-      row.forEach(slot=>{
-        if (!slot){ bad++; return; }
-        if (!tmpl.some(s=>s.dow===slot.dow && s.time===slot.time && s.kind===slot.kind)) bad++;
-        if (slot.dow==='So'){ sun++; if (slot.time!=='13:00' || slot.kind) bad++; }
+    const halfOf=n=>{
+      const total=2*(n-1);
+      const lg={teams:Array(n).fill('x'), md:[Array(n/2).fill([0,1])]};
+      return confHalf(total, lg)===total/2;
+    };
+    check('Konferenzquote von Bundesliga bis Regionalliga bleibt die Hälfte', [18,20,16].every(halfOf) && halfOf(18));
+    ['L5NO','L5SW'].forEach(lid=>{
+      seedRandom(4100);
+      const teams=squad.leagues[lid].slice(), md=makeSchedule(teams.length, null, {lid, teams});
+      Math.random=prevRandom;
+      const season={name:'2099/00', status:'running', leagues:{[lid]:{teams, md}}, pools:{}, kickoffs:{}};
+      let g=0; while(g++<24){ const range=scheduleNextBlock(season, lid); if(!range) break; for (let mi=range[0]; mi<=range[1]; mi++) md[mi].forEach(m=>{ if(m[2]==null){ m[2]=1; m[3]=0; } }); }
+      const tmpl=slotTemplate(lid, 11);
+      let bad=0, sun=0;
+      md.forEach((round,mi)=>{
+        const row=(season.kickoffs[lid]&&season.kickoffs[lid][mi])||[];
+        if (row.length!==11) bad++;
+        row.forEach(slot=>{
+          if (!slot){ bad++; return; }
+          if (!tmpl.some(s=>s.dow===slot.dow && s.time===slot.time && s.kind===slot.kind)) bad++;
+          if (slot.dow==='So'){ sun++; if (slot.time!=='13:00' || slot.kind) bad++; }
+        });
       });
+      const notes=(season.termNotes&&season.termNotes[lid])||[];
+      const repair=(season.termRepair&&season.termRepair[lid])||[];
+      const warn=notes.some(x=>String(x).indexOf('nicht herstellbar')>=0) || repair.some(r=>!r.ok);
+      const tall=slotTally(season, lid), need=confHalf(md.length, season.leagues[lid]);
+      let min=99, max=0;
+      teams.forEach(id=>{ const v=(tall[id]&&tall[id].konferenz)||0; if(v<min) min=v; if(v>max) max=v; });
+      const full=lastScheduled(season, lid)===md.length-1;
+      if (lid==='L5NO') check('5. Liga terminiert mit elf Anstößen', bad===0 && sun>0 && tmpl.length===11 && md.length===42, 'bad '+bad+' sonntag '+sun+' tage '+md.length);
+      check(lid+' hält die Konferenzquote ohne Warnblock', full && bad===0 && !warn && min>=need && max-min<=2, 'min '+min+' max '+max+' quote '+need+' warn '+(warn?1:0));
     });
-    check('5. Liga terminiert mit elf Anstößen', bad===0 && sun>0 && tmpl.length===11 && md.length===42, 'bad '+bad+' sonntag '+sun+' tage '+md.length);
   })();
   const uiRes=uiSelfTest();
   const anRes=ansehenSelfTest();
