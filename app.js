@@ -6297,11 +6297,23 @@ function viewRueckblick(season){
   };
   LEAGUES.forEach(l=>{
     const lg=season.leagues && season.leagues[l.id];
-    if (!lg || !lg.md) return;
-    lg.md.forEach(md=>(md||[]).forEach(row=>{
-      if (!row || row[2]==null) return;
-      consider({h:lg.teams[row[0]], a:lg.teams[row[1]], hg:row[2], ag:row[3]}, l.name);
-    }));
+    if (!lg) return;
+    if (lg.md){
+      lg.md.forEach(md=>(md||[]).forEach(row=>{
+        if (!row || row[2]==null) return;
+        consider({h:lg.teams[row[0]], a:lg.teams[row[1]], hg:row[2], ag:row[3]}, l.name);
+      }));
+      return;
+    }
+    if (!(lg.teams && typeof season.fx==='string' && season.fx)) return;
+    const teamSet=new Set(lg.teams);
+    season.fx.split(';').forEach(rec=>{
+      if (!rec || rec.charAt(0)!=='L') return;
+      let o=null;
+      try{ o=decShared(rec); }catch(e){ o=null; }
+      if (!o || o.hg==null || o.ag==null || !teamSet.has(o.homeId) || !teamSet.has(o.awayId)) return;
+      consider({h:o.homeId, a:o.awayId, hg:o.hg, ag:o.ag}, l.name);
+    });
   });
   const takeCup=(cup, name)=>{
     (cup&&cup.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>consider(m, name)));
@@ -9138,7 +9150,7 @@ function rulesHTML(){
     changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+promotionCount(s, l.id)+' Aufsteiger, '+p.down+' Absteiger.</b> '+esc(p.reason)+'</li>'; });
     h+='</ul>';
   } else h+='<p>In der Saison '+esc(s.name)+' steigt nach dem aktuellen Stand aus jeder Regionalliga nur der Meister auf.</p>';
-  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
+  h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. In der Vereinsliste steht der Rang direkt unter dem Namen. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Wappen und Vereinsname im Spielplan öffnen die Vereinsinfo. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
   h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, DFB-Pokal, Supercup, Relegation, Aufsteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung einer schwächeren Liga und die größte Veränderung des Ansehens gegenüber der Vorsaison. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
