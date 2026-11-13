@@ -6198,10 +6198,7 @@ function viewRelegation(season, lid){
 const BL_ORDER=['Schleswig-Holstein','Hamburg','Mecklenburg-Vorpommern','Bremen','Niedersachsen','Berlin','Brandenburg','Sachsen-Anhalt','Sachsen','Thüringen','Nordrhein-Westfalen','Hessen','Rheinland-Pfalz','Saarland','Baden-Württemberg','Bayern'];
 function reviewSkip(id){
   if (!id || !TEAMS[id]) return true;
-  const name=TEAMS[id].name||'';
-  if (blockedClubHit(name)) return true;
-  if (/\bII\b|Amateure|\bU23\b|\bReserve\b/i.test(name)) return true;
-  return false;
+  return histSkipName(TEAMS[id].name);
 }
 function reviewAnsehen(id, year){
   try{
@@ -12441,6 +12438,15 @@ function uiSelfTestBody(fails){
     render();
     const rb=document.querySelector('#view').textContent||'';
     check('Saisonrückblick nennt Sieger und Auffälligkeiten', document.querySelector('#leagueNav a[data-tab="rueckblick"]') && rb.indexOf('DFB-Pokalsieger')>=0 && rb.indexOf('Meister')>=0 && rb.indexOf('Aufsteiger')>=0 && rb.indexOf('Höchster Sieg')>=0 && rb.indexOf('Pokal-Überraschung')>=0 && rb.indexOf('Torreichster')<0, rb.slice(0,240));
+    const jedRows=[{id:'t095', pl:1, sp:30, tg:90, gt:10, pkt:70}];
+    const blRows=[{id:'t001', pl:1, sp:30, tg:40, gt:20, pkt:60},{id:'t002', pl:2, sp:30, tg:30, gt:25, pkt:50}];
+    const jedSeason={name:'2026/27', status:'done', leagues:{RLN:{teams:['t095','t002'], md:[[[0,1,5,0]]], tables:{all:jedRows}}, BL:{teams:['t001','t002'], tables:{all:blRows}}}, pools:{}, cups:{dfb:{rounds:[]}, land:{}}, endData:{tables:{RLN:jedRows, BL:blRows}, moves:[{id:'t095', type:'auf', from:'RLN', to:'BL'},{id:'t095', type:'ab', from:'RLN', to:'AMNI'}]}};
+    const jed=viewRueckblick(jedSeason);
+    const section=(title)=>{ const mark='<h3>'+title+'</h3>'; const i=jed.indexOf(mark); if (i<0) return ''; const j=jed.indexOf('<h3>', i+mark.length); return j<0?jed.slice(i):jed.slice(i,j); };
+    const meister=section('Meister'), auf=section('Aufsteiger'), ab=section('Prominente Absteiger'), surprise=section('Überraschungsaufsteiger'), sieg=section('Höchster Sieg'), tore=section('Beste Offensive und Defensive');
+    check('SSV Jeddeloh II zählt im Rückblick wie eine erste Mannschaft', reviewSkip('t095')===false && reviewSkip('t095')===histSkipName(TEAMS.t095.name) && histSkipName('Holstein Kiel II') && meister.indexOf('Regionalliga Nord')>=0 && meister.indexOf('SSV Jeddeloh II')>=0);
+    check('Jeddeloh II bleibt Meister, Aufsteiger, Absteiger und Überraschung', auf.indexOf('SSV Jeddeloh II')>=0 && ab.indexOf('SSV Jeddeloh II')>=0 && surprise.indexOf('SSV Jeddeloh II')>=0, [auf,ab,surprise].map(s=>s.slice(0,80)).join(' | '));
+    check('Jeddeloh II bleibt in den Rückblick-Rekorden', sieg.indexOf('SSV Jeddeloh II')>=0 && tore.indexOf('SSV Jeddeloh II')>=0 && tore.indexOf('90 Tore')>=0 && tore.indexOf('10 Gegentore')>=0, sieg.slice(0,120)+' / '+tore.slice(0,160));
   }finally{
     S.seasons=reviewKeep.seasons; S.view=reviewKeep.idx; S.ui.tab=reviewKeep.tab; S.ui.league=reviewKeep.league; S.ui.amateurBl=reviewKeep.bl; S.ui.amateurView=reviewKeep.view; touchAnsehen();
   }
