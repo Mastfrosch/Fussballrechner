@@ -84,7 +84,8 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
   .top-tools{order:3}
   .head-actions{order:4}
   .season-field{order:5}
-  .topnav{order:6;flex:1 1 100%;flex-wrap:wrap;padding-right:16px}
+  .top-sim{order:6}
+  .topnav{order:7;flex:1 1 100%;flex-wrap:wrap;padding-right:16px}
 }
 @media (min-width:2200px){
   #topbar{flex-wrap:nowrap;column-gap:12px}
@@ -429,7 +430,8 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .pokal-bar .toggle{margin-bottom:0}
 .ov-plain{padding-bottom:8px}
 .ov-pot{margin:14px 0 6px;font-size:13px}
-.ov-lg{margin:0 0 10px}
+.ov-level{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 22px;margin:0 0 12px}
+.ov-lg{margin:0;flex:0 1 auto;min-width:0}
 .ov-lg-h{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:700;margin:0 0 4px}
 .ov-lg-h .c{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;font-size:11.5px}
 .ov-lg-h .c b{color:var(--green)}
@@ -611,13 +613,14 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .sieger-box{overflow:visible}
 .sieger-row{display:grid;grid-template-columns:6.6rem minmax(0,1fr) minmax(0,1fr) 24rem;column-gap:12px;align-items:center;padding:6px 0;min-height:48px;border-bottom:1px solid var(--line)}
 .sieger-final{width:24rem;max-width:100%;justify-self:end}
-.sieger-result{display:grid;grid-template-columns:5.4rem 26px 3.2rem 4.8rem 26px 5.4rem;align-items:center;column-gap:6px;width:100%}
+.sieger-result{display:grid;grid-template-columns:86px 26px 74px 26px 86px;align-items:end;column-gap:6px;width:304px;justify-self:end}
 .sieger-result>*{min-width:0;overflow:hidden}
 .sieger-result img{width:26px;height:26px;object-fit:contain}
+.sieger-scorecol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0}
 .sieger-liga{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sieger-result .sieger-liga:first-child{text-align:right}
-.sieger-score{text-align:center;font-weight:650;font-variant-numeric:tabular-nums}
-.sieger-extra{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap}
+.sieger-score{text-align:center;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.1}
+.sieger-extra{display:block;min-height:1.15em;font-size:10px;font-weight:450;color:var(--muted);text-align:center;white-space:nowrap;line-height:1.15}
 .relay-out{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 10px 12px;font-size:14px}
 .relay-bit{display:inline-flex;align-items:center;gap:6px;font-weight:650}
 .relay-bit img{width:22px;height:22px;object-fit:contain}
@@ -972,6 +975,9 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .card-title select option,.md-nav select option,#topbar select option{color:#14202b;background:#fff}
 #headActions .btn.primary{background:#fff;color:#006ab2;border-color:#fff}
 #headActions .btn.primary:hover{background:#e8f3fb;color:#00548f}
+#topbar .top-sim{align-self:stretch;display:flex;align-items:center;margin:0 8px 0 auto;background:transparent;color:#fff;border-color:rgba(255,255,255,.7);white-space:nowrap;padding:3px 10px;font-size:13px}
+#topbar .top-sim:hover{background:rgba(255,255,255,.14)}
+#topbar .top-sim:disabled{opacity:.45}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
 .tab{border-bottom:0;font-weight:700;color:#234}
 .tab.active{background:#006ab2;color:#fff;border-bottom-color:transparent}

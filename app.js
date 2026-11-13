@@ -4307,6 +4307,11 @@ function legendHTML(lg, season){
 function setActions(html){
   const el=$('#headActions');
   if (el) el.innerHTML=html||'';
+  const sim=document.getElementById('btnSimSeason');
+  if (sim){
+    const live=latest();
+    sim.disabled=!(live && live.status==='running');
+  }
 }
 function seasonActions(s, withEnd){
   if (!s) return '';
@@ -4505,12 +4510,13 @@ function honourMatch(match, season, showBl){
   };
   const crest=id=>'<img src="'+esc(TEAMS[id].crest)+'" alt="" data-club="'+id+'" title="'+esc(TEAMS[id].name)+'">';
   const liga=id=>{ const text=ligaOf(id)||''; return '<span class="sieger-liga"'+(text?' title="'+esc(text)+'"':'')+'>'+esc(text)+'</span>'; };
-  const empty='<div class="sieger-result"><span class="sieger-liga"></span><span></span><span class="sieger-score muted">–</span><span class="sieger-extra"></span><span></span><span class="sieger-liga"></span></div>';
+  const scoreCol=(extra, score)=>'<span class="sieger-scorecol"><span class="sieger-extra">'+extra+'</span><span class="sieger-score">'+score+'</span></span>';
+  const empty='<div class="sieger-result"><span class="sieger-liga"></span><span></span>'+scoreCol('', '<span class="muted">–</span>')+'<span></span><span class="sieger-liga"></span></div>';
   if (!match || !match.h || !match.a || !TEAMS[match.h] || !TEAMS[match.a] || match.hg==null || match.ag==null) return empty;
   const pen=match.hg===match.ag && match.peh!=null && match.pea!=null && +match.peh!==+match.pea;
   const nv=!pen && match.et && match.hg!==match.ag;
   const extra=pen?match.peh+':'+match.pea+' i.E.':(nv?'n.V.':'');
-  return '<div class="sieger-result">'+liga(match.h)+crest(match.h)+'<span class="sieger-score">'+match.hg+'<b>:</b>'+match.ag+'</span><span class="sieger-extra">'+esc(extra)+'</span>'+crest(match.a)+liga(match.a)+'</div>';
+  return '<div class="sieger-result">'+liga(match.h)+crest(match.h)+scoreCol(esc(extra), match.hg+'<b>:</b>'+match.ag)+crest(match.a)+liga(match.a)+'</div>';
 }
 function viewCupSpots(cup, season){
   const sea=season||cur();
@@ -4589,18 +4595,35 @@ function ovLostCard(season, cup, id){
 function ovGroupsHTML(season, ids, alive, cup){
   const G={};
   ids.forEach(id=>{ const g=leagueBucket(season, id); if (!g) return; (G[g]=G[g]||[]).push(id); });
+  const levelOf=name=>{
+    const lg=LEAGUES.find(l=>l.name===name);
+    if (lg) return lg.level;
+    if (POOLS.some(p=>p.name===name)) return 7;
+    return 9;
+  };
+  const by={};
+  ovGroupOrder().forEach(g=>{
+    if (!G[g] || !G[g].length) return;
+    const lv=levelOf(g);
+    const row=lv===2?3:lv;
+    (by[row]=by[row]||[]).push(g);
+  });
   let h='';
-  ovGroupOrder().filter(g=>G[g]&&G[g].length).forEach(g=>{
-    const list=G[g].slice().sort(byRang);
-    const n=list.length, left=list.filter(id=>alive.has(id)).length;
-    h+='<div class="ov-lg"><div class="ov-lg-h"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-row">';
-    list.forEach(id=>{
-      const t=TEAMS[id], out=!alive.has(id);
-      const liga=yearLiga(season, id);
-      const tip=out?ovLostCard(season, cup, id):'<div class="nm">'+esc(t.name)+(liga?' <span class="liga-tag">'+esc(liga)+'</span>':'')+'</div>';
-      h+='<div class="ov-c'+(out?' out':'')+'" data-club="'+id+'"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div class="ov-tip'+(out?' wide':'')+'">'+tip+'</div></div>';
+  Object.keys(by).map(Number).sort((a,b)=>a-b).forEach(lv=>{
+    h+='<div class="ov-level">';
+    by[lv].forEach(g=>{
+      const list=G[g].slice().sort(byRang);
+      const n=list.length, left=list.filter(id=>alive.has(id)).length;
+      h+='<div class="ov-lg"><div class="ov-lg-h"><span>'+esc(g)+'</span><span class="c"><b>'+left+'</b> / '+n+'</span></div><div class="ov-row">';
+      list.forEach(id=>{
+        const t=TEAMS[id], out=!alive.has(id);
+        const liga=yearLiga(season, id);
+        const tip=out?ovLostCard(season, cup, id):'<div class="nm">'+esc(t.name)+(liga?' <span class="liga-tag">'+esc(liga)+'</span>':'')+'</div>';
+        h+='<div class="ov-c'+(out?' out':'')+'" data-club="'+id+'"><img src="'+esc(t.crest)+'" alt="" data-club="'+id+'"><div class="ov-tip'+(out?' wide':'')+'">'+tip+'</div></div>';
+      });
+      h+='</div></div>';
     });
-    h+='</div></div>';
+    h+='</div>';
   });
   return h;
 }
@@ -4714,7 +4737,7 @@ function siegerRow(year, winnerId, finalistId, match, season, liga, showBl){
   return '<div class="sieger-row"><div class="sieger-year">'+esc(year)+'</div><div class="sieger-who">'+honourClub(winnerId, '', season, bl)+'</div><div class="sieger-who">'+honourClub(finalistId, '', season, bl)+'</div><div class="sieger-final">'+honourMatch(match, season, bl)+'</div></div>';
 }
 function siegerHead(){
-  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div class="sieger-final"><div class="sieger-result"><span></span><span></span><span class="sieger-score">Ergebnis</span><span></span><span></span><span></span></div></div></div>';
+  return '<div class="sieger-row sieger-head"><div>Jahr</div><div>Sieger</div><div>Finalist</div><div class="sieger-final"><div class="sieger-result"><span></span><span></span><span class="sieger-scorecol"><span class="sieger-extra"></span><span class="sieger-score">Ergebnis</span></span><span></span><span></span></div></div></div>';
 }
 function simulatedTitleRows(comp){
   const out=[];
@@ -5450,7 +5473,7 @@ function spielplanHTML(s,lid){
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, bl:true, ansehen:true, step, above, hin:true, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
-  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button><button class="btn small" data-act="simSeason" title="Alle Ligen und Pokale dieser Saison simulieren">Komplette Saison simulieren</button></div>';
+  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>';
   if (lg.decide && lg.decide.length && shownMd===lg.md.length-1) h+=decideHTML(s, lid);
   return h;
 }
@@ -6172,8 +6195,9 @@ function slotTemplate(lid, games){
   if(lid==='BL') src=expandSlots([{dow:'Fr',time:'20:30',kind:'top'},{dow:'Sa',time:'15:30',kind:'konferenz',n:6},{dow:'Sa',time:'18:30',kind:'top'},{dow:'So',time:'15:30',kind:'regional'},{dow:'So',time:'17:30',kind:'regional'}]);
   else if(lid==='BL2') src=expandSlots([{dow:'Fr',time:'18:30',kind:'regional',n:2},{dow:'Sa',time:'13:30',kind:'konferenz',n:4},{dow:'Sa',time:'20:30',kind:'top'},{dow:'So',time:'13:30',kind:'konferenz',n:3}]);
   else if(lid==='L3' || lid==='L4') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:5},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30',kind:'regional'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
-  else if(lid==='L5NO' || lid==='L5SW') src=expandSlots([{dow:'Fr',time:'19:00',kind:'top'},{dow:'Sa',time:'14:00',kind:'konferenz',n:6},{dow:'Sa',time:'16:30',kind:'top'},{dow:'So',time:'13:30',kind:'regional'},{dow:'So',time:'16:30',kind:'regional'},{dow:'So',time:'19:30',kind:'regional'}]);
-  else src=expandSlots([{dow:'Fr',time:'18:30',kind:'top'},{dow:'Sa',time:'14:30',kind:'konferenz',n:Math.max(0,(games||9)-1)}]);
+  else if(lid==='L5NO' || lid==='L5SW') src=expandSlots([{dow:'Fr',time:'19:00',kind:'regional',n:3},{dow:'Sa',time:'14:00',kind:'konferenz',n:4},{dow:'Sa',time:'18:00',kind:'top'},{dow:'So',time:'13:00',n:3}]);
+  else if(games && games!==8) src=expandSlots([{dow:'Fr',time:'18:30',kind:'top'},{dow:'Sa',time:'14:30',kind:'konferenz',n:Math.max(0,games-1)}]);
+  else src=expandSlots([{dow:'Fr',time:'18:00',kind:'regional',n:3},{dow:'Sa',time:'13:00',kind:'konferenz',n:4},{dow:'Sa',time:'16:00',kind:'top'}]);
   SLOT_CACHE[cacheKey]=src;
   return copy(src);
 }
@@ -6187,7 +6211,7 @@ function finalSaturdaySlot(lid){
   if(lid==='BL') return {dow:'Sa', time:'15:30', kind:'konferenz'};
   if(lid==='BL2') return {dow:'Sa', time:'13:30', kind:'konferenz'};
   if(lid==='L3' || lid==='L4' || lid==='L5NO' || lid==='L5SW') return {dow:'Sa', time:'14:00', kind:'konferenz'};
-  return {dow:'Sa', time:'14:30', kind:'konferenz'};
+  return {dow:'Sa', time:'13:00', kind:'konferenz'};
 }
 function isClosingDay(total, mi){ return total>1 && mi>=total-2; }
 function lateSeason(total, mi){ return mi>=Math.floor(total*0.70); }
@@ -7977,7 +8001,7 @@ function scheduleNextBlock(season, lid){
   const n=lg.teams.length;
   const from=lastScheduled(season, lid)+1;
   const range=nextBlockRange(n, from);
-  if (!range) return null;
+  if (!range){ window.__why='no range '+n+' '+from; return null; }
   season.kickoffs=season.kickoffs||{};
   const bag=season.kickoffs[lid]||(season.kickoffs[lid]={});
   const snap=powerSnapshot(season, lid, range[0]);
@@ -8017,7 +8041,13 @@ function scheduleNextBlock(season, lid){
       if (!held.ok){
         restoreRows(raw);
         held=polish();
-        if (!held.ok) dropBlock=true;
+        if (!held.ok){
+          const total=lg.md.length;
+          const closing=total>1?2:0;
+          const games=Math.max(1, leagueGames(lg));
+          const perTeam=konfPer/games*(total-closing)+closing;
+          dropBlock=perTeam+0.01>=confHalf(total, lg);
+        }
       }
     }
     repairOk=held.ok && !dropBlock;
@@ -8118,7 +8148,7 @@ function viewTerminierung(s, lid){
       return sortCell(v, key==='topAvg'?deNum(v,1):v, warn?'bad':'');
     }).join('')+sortCell(br, br, '')+'<td class="l '+(bad?'bad':(open?'':'ok'))+'">'+(bad?esc(problems.join(', ')):(open?'offen':'erfüllt'))+'</td></tr>';
   });
-  h+='</tbody></table></div><p class="muted">Jeder Verein spielt jede Anstoßzeit mindestens einmal. Mindestens die Hälfte der Spiele liegt in der Konferenz. Die letzten zwei Spieltage laufen gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz, ohne zusätzliches Topspiel. In der 3. Liga, der 4. Liga und der 5. Liga sind alle drei Sonntagsspiele regional, auch 13:30 Uhr. Der Topspielwert ist beim Ansetzen gespeichert. Rot, wenn die Saison terminiert ist und eine Zeit, die Konferenzquote oder die Serie von drei fehlt.</p>';
+  h+='</tbody></table></div><p class="muted">Jeder Verein spielt jede Anstoßzeit mindestens einmal. Mindestens die Hälfte der Spiele liegt in der Konferenz. Die letzten zwei Spieltage laufen gleichzeitig zur Samstags-Konferenzzeit und zählen als Konferenz, ohne zusätzliches Topspiel. In der 3. Liga und der 4. Liga sind alle drei Sonntagsspiele regional, auch 13:30 Uhr. Die 5. Liga spielt freitags um 19:00 drei regionale Spiele, samstags um 14:00 vier Konferenzspiele und um 18:00 ein Topspiel, sonntags um 13:00 drei Spiele. Die Regionalliga spielt freitags um 18:00 drei regionale Spiele, samstags um 13:00 vier Konferenzspiele und um 16:00 ein Topspiel. Der Topspielwert ist beim Ansetzen gespeichert. Rot, wenn die Saison terminiert ist und eine Zeit, die Konferenzquote oder die Serie von drei fehlt.</p>';
   const gaps=s.termNotes&&s.termNotes[lid];
   if (gaps&&gaps.length) h+='<p class="bad">Konferenz nicht für jeden Verein erreichbar: '+esc(gaps.join(' · '))+'</p>';
   h+='</div>';
@@ -8945,11 +8975,11 @@ function cupHistoryRows(id, comp){
 function cupSideScore(row){
   if (!row || row.hg==null || row.ag==null || !isFinite(+row.hg) || !isFinite(+row.ag)) return '<span class="muted">–</span>';
   const mine=row.home?+row.hg:+row.ag, theirs=row.home?+row.ag:+row.hg;
-  let sc=mine+':'+theirs;
-  if (row.et && mine!==theirs) sc+=' n.V.';
+  let extra='';
+  if (row.et && mine!==theirs) extra='n.V.';
   const myPen=row.home?row.peh:row.pea, opPen=row.home?row.pea:row.peh;
-  if (myPen!=null && opPen!=null && myPen!=='' && opPen!=='' && isFinite(+myPen) && isFinite(+opPen) && +myPen!==+opPen) sc+=', '+myPen+':'+opPen+' i.E.';
-  return esc(sc);
+  if (myPen!=null && opPen!=null && myPen!=='' && opPen!=='' && isFinite(+myPen) && isFinite(+opPen) && +myPen!==+opPen) extra=myPen+':'+opPen+' i.E.';
+  return '<span class="sieger-scorecol"><span class="sieger-extra">'+esc(extra)+'</span><span class="sieger-score">'+mine+'<b>:</b>'+theirs+'</span></span>';
 }
 function oppCell(id){
   const t=id && TEAMS[id];
@@ -11307,7 +11337,8 @@ function uiSelfTestBody(fails){
   const navTop=navBar?Math.round(navBar.getBoundingClientRect().top):0;
   check('Leiste überlappt nicht und hält 12 px', !barOverlap && (!barWide || barGap>=12) && (!barOne || navTop===brandTop) && (barOne || !barWide || navTop>brandTop), 'abstand '+Math.round(barGap)+' nav '+navTop+' marke '+brandTop);
   const barActs=document.querySelector('#headActions');
-  check('Leiste ohne Knopf Saison simulieren', !!barActs && barActs.textContent.indexOf('Saison simulieren')<0 && barActs.textContent.indexOf('Saison abschließen')>=0);
+  const simBtn=document.getElementById('btnSimSeason');
+  check('Saison simulieren steht rechts in der Leiste, nicht im Spielplan', !!simBtn && simBtn.closest('#topbar') && barActs && barActs.textContent.indexOf('Saison simulieren')<0 && barActs.textContent.indexOf('Saison abschließen')>=0);
   (()=>{
     const sPlan=cur(), lidPlan='BL', lgPlan=sPlan&&sPlan.leagues&&sPlan.leagues.BL;
     if (!sPlan || !lgPlan || !lgPlan.md) return;
@@ -11322,15 +11353,16 @@ function uiSelfTestBody(fails){
     const planHtml=spielplanHTML(sPlan, lidPlan);
     if (kickWas===undefined) delete sPlan.kickoffs.BL[0];
     if (mdWas===undefined) delete S.ui.md[key]; else S.ui.md[key]=mdWas;
-    const ligaAt=planHtml.indexOf('Liga zu Ende simulieren'), saisonAt=planHtml.indexOf('Komplette Saison simulieren');
-    check('Spielplan simuliert die komplette Saison neben der Liga', ligaAt>=0 && saisonAt>ligaAt);
+    const ligaAt=planHtml.indexOf('Liga zu Ende simulieren');
+    check('Spielplan simuliert die Liga, die Saison steht in der Leiste', ligaAt>=0 && planHtml.indexOf('Komplette Saison simulieren')<0 && planHtml.indexOf('Saison simulieren')<0);
   })();
   if (navScreen>=2500 && navWide){
     const brand=document.querySelector('.brand');
     const tools=document.querySelector('.top-tools');
     const actions=document.querySelector('#headActions');
     const season=document.querySelector('.season-field');
-    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), tools, actions, season].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
+    const sim=document.getElementById('btnSimSeason');
+    const boxes=[brand, ...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu'), tools, actions, season, sim].filter(Boolean).map(el=>el.getBoundingClientRect()).sort((a,b)=>a.left-b.left);
     let edge=999;
     for (let i=1;i<boxes.length;i++){
       if (Math.abs(boxes[i].top-boxes[0].top)>2) continue;
@@ -12422,8 +12454,8 @@ function terminSelfTest(){
   try{ makeSchedule(4); }catch(e){ four=e; }
   check('vier Vereine sind unlösbar und werden nicht als Plan ausgegeben', !!(four && four.scheduleUnsolved && four.size===4), four?four.message:'Plan statt Fehler');
   check('4. Liga übernimmt die Anstöße der 3. Liga', slots.L4.length===slots.L3.length && slots.L4.every((s,i)=>s.dow===slots.L3[i].dow && s.time===slots.L3[i].time && s.kind===slots.L3[i].kind));
-  check('5. Liga hat elf Anstöße im Muster der früheren 4. Liga', slots.L5NO.length===11 && countKind(slots.L5NO,'top')===2 && countKind(slots.L5NO,'regional')===3 && countKind(slots.L5NO,'konferenz')===6 && slots.L5NO[0].time==='19:00' && slots.L5NO.some(s=>s.dow==='Sa'&&s.time==='16:30'&&s.kind==='top'));
-  check('Regionalliga ein Topspiel', countKind(slots.RLN,'top')===1 && countKind(slots.RLN,'konferenz')===8);
+  check('5. Liga hat elf Anstöße', slots.L5NO.length===11 && countKind(slots.L5NO,'top')===1 && countKind(slots.L5NO,'regional')===3 && countKind(slots.L5NO,'konferenz')===4 && slots.L5NO[0].dow==='Fr' && slots.L5NO[0].time==='19:00' && slots.L5NO[0].kind==='regional' && slots.L5NO.filter(s=>s.dow==='Sa'&&s.time==='14:00'&&s.kind==='konferenz').length===4 && slots.L5NO.some(s=>s.dow==='Sa'&&s.time==='18:00'&&s.kind==='top') && slots.L5NO.filter(s=>s.dow==='So'&&s.time==='13:00'&&!s.kind).length===3);
+  check('Regionalliga acht Anstöße', slots.RLN.length===8 && countKind(slots.RLN,'top')===1 && countKind(slots.RLN,'regional')===3 && countKind(slots.RLN,'konferenz')===4 && slots.RLN[0].dow==='Fr' && slots.RLN[0].time==='18:00' && slots.RLN.filter(s=>s.dow==='Sa'&&s.time==='13:00'&&s.kind==='konferenz').length===4 && slots.RLN.some(s=>s.dow==='Sa'&&s.time==='16:00'&&s.kind==='top'));
   const squad=buildInitialSquads();
   const prevRandom=Math.random;
   const seedRandom=seed=>{ let a=seed>>>0; Math.random=function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
@@ -13294,7 +13326,7 @@ function terminSelfTest(){
       row.forEach(slot=>{
         if (!slot){ bad++; return; }
         if (!tmpl.some(s=>s.dow===slot.dow && s.time===slot.time && s.kind===slot.kind)) bad++;
-        if (slot.dow==='So'){ sun++; if (slot.kind!=='regional') bad++; }
+        if (slot.dow==='So'){ sun++; if (slot.time!=='13:00' || slot.kind) bad++; }
       });
     });
     check('5. Liga terminiert mit elf Anstößen', bad===0 && sun>0 && tmpl.length===11 && md.length===42, 'bad '+bad+' sonntag '+sun+' tage '+md.length);
