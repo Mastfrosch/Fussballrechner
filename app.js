@@ -6604,17 +6604,23 @@ function matchValue(h, a, snap, mi){
   const sport=sportPair(h, a, ctx);
   const rel=(id)=>topClubRelevance(id, snap, mi);
   const rH=rel(h), rA=rel(a);
-  let bonus=Math.round((rH+rA)*200*10)/10;
+  const base=phase.h*hist+phase.s*sport.score;
   const z=snap.zones||{};
-  const line=z.cl?7:Math.max(1, z.up||1);
   const halfN=z.n?(z.n%2?z.n:Math.max(0, z.n-1)):0;
-  const inside=id=>{
-    const info=snap.info&&snap.info[id];
-    return !!(info && info.sportPlace!=null && (mi|0)>=halfN && info.sportPlace<=line);
-  };
-  if (halfN && !inside(h) && !inside(a)) bonus=Math.min(bonus, 36);
-  const total=phase.h*hist+phase.s*sport.score+bonus;
-  const note=bonus>0?(sport.note+(sport.note?'; ':'')+'Topverein ab Rückrunde'):sport.note;
+  const inPlay=halfN && (mi|0)>=halfN;
+  const late8=(snap.total||0)>0 && (mi|0)>=(snap.total-8);
+  const topPart=Math.min(100, (rH+rA)*52);
+  let total=base;
+  if (inPlay){
+    total=0.22*base+0.78*Math.max(topPart, base*0.25);
+    if (late8 && sport.zone==='Abstieg'){
+      const duel=Math.min(100, 68+sport.score*0.12);
+      if (duel>total) total=duel;
+    }
+  }
+  total=Math.max(0, Math.min(100, total));
+  const bonus=Math.round((total-base)*10)/10;
+  const note=inPlay && (rH+rA)>0?(sport.note+(sport.note?'; ':'')+'Topverein ab Rückrunde'):sport.note;
   const result={total:Math.round(total*10)/10, hist:Math.round(hist*10)/10, sport:Math.round(sport.score*10)/10, wh:phase.h, ws:phase.s, label:phase.label, note, bonus};
   if (box) box.set(mkey, {total:result.total, hist:result.hist, sport:result.sport, wh:result.wh, ws:result.ws, label:result.label, note:result.note});
   return result;
@@ -6779,7 +6785,7 @@ function assignMatchday(season, lid, mi, snap, counts){
       }
       if (slot.kind==='top'){
         const v=matchValue(h, a, snap, mi);
-        quality -= v.total*20000;
+        quality -= v.total*150000;
         const skew=(id,dow)=>dow==='Fr' ? ((counts[id].frTop||0)-(counts[id].saTop||0)) : ((counts[id].saTop||0)-(counts[id].frTop||0));
         if (slot.dow==='Fr' || slot.dow==='Sa') soft += (skew(h, slot.dow)+skew(a, slot.dow))*40;
       }
@@ -6827,7 +6833,8 @@ function assignMatchday(season, lid, mi, snap, counts){
           const tight=owedKey>capKey;
           const scarce=!!(specOfKey && specOfKey.n===1 && key!==closingKey);
           const soften=slot.kind==='regional' && !(slot.dow==='So' && latest.has(key)) && !tight;
-          const scale=soften?0.15:1;
+          const onTop=slot.kind==='top' && !tight;
+          const scale=onTop?0.03:(soften?0.06:1);
           if (scarce && gotTime===0 && confSlack>=1) hard -= Math.round(12000000*scale);
           else if (scarce && gotTime===0) hard -= Math.round(5000000*scale);
           else if (scarce && gotTime<TIME_MIN && confSlack>=2) hard -= Math.round(4000000*scale);
@@ -8272,6 +8279,46 @@ function swapRecovers(season, lid, mi, to, i, j, spareScarce){
   }
   return true;
 }
+function placeBestTops(season, lid, from, to, snap){
+  const lg=season.leagues[lid], bag=season.kickoffs&&season.kickoffs[lid], total=lg.md.length;
+  if (!lg || !bag) return;
+  const need=confHalf(total, lg);
+  const confOf=()=>{
+    const c={}; lg.teams.forEach(id=>{ c[id]=0; });
+    for (let d=0; d<total; d++){
+      const row=bag[d]; if (!row) continue;
+      lg.md[d].forEach((m,i)=>{ if (row[i] && row[i].kind==='konferenz'){ c[lg.teams[m[0]]]++; c[lg.teams[m[1]]]++; } });
+    }
+    return c;
+  };
+  for (let mi=from; mi<=to; mi++){
+    if (isClosingDay(total, mi)) continue;
+    const row=bag[mi]; if (!row) continue;
+    for (let guard=0; guard<row.length; guard++){
+      let best=null;
+      row.forEach((slot,i)=>{
+        if (!slot || slot.kind!=='top') return;
+        const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
+        row.forEach((other,j)=>{
+          if (j===i || !other || other.kind==='top') return;
+          const ids=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
+          const v=matchValue(ids[0], ids[1], snap, mi).total;
+          if (v<=here+1) return;
+          if (!swapKeepsTimes(season, lid, mi, to, i, j)) return;
+          if (other.kind==='konferenz'){
+            const c=confOf();
+            const future=Math.max(0, total-(to+1));
+            if (ids.some(id=>(c[id]||0)-1+future<need)) return;
+          }
+          const gain=v-here;
+          if (!best || gain>best.gain) best={i, j, gain};
+        });
+      });
+      if (!best) break;
+      const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+    }
+  }
+}
 function nudgeLateRegional(season, lid, from, to){
   const lg=season.leagues[lid], bag=season.kickoffs&&season.kickoffs[lid];
   if (!lg || !bag) return;
@@ -8399,6 +8446,8 @@ function scheduleNextBlock(season, lid){
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeFeature[mi]||[]).map(s=>Object.assign({}, s));
   }
+  placeBestTops(season, lid, range[0], range[1], snap);
+  balanceFrSaBlock(season, lid, range[0], range[1], snap);
   nudgeLateRegional(season, lid, range[0], range[1]);
   const afterPin={};
   for (let mi=range[0]; mi<=range[1]; mi++) afterPin[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
@@ -8867,7 +8916,7 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Der Topspielwert beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde bekommen die Topvereine einen Bonus, der stärker wiegt als das Ansehen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt für den Topspielwert erst in den letzten acht Spieltagen. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
+  h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Er beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
   h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“ am Ende der Unterreiterleiste, nach Regeln. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
@@ -12757,7 +12806,8 @@ function terminSelfTest(){
   const duel=matchValue('p17','p18', late, 35);
   const champ=matchValue('p1','p12', late, 35);
   const mid=matchValue('p9','p10', late, 35);
-  check('Abstiegsduell hat im Sport mehr Druck, der Topverein gewinnt den Gesamtwert', duel.sport>champ.sport && champ.total>duel.total, duel.total+'/'+champ.total+' sport '+duel.sport+'/'+champ.sport);
+  const twoTops=matchValue('p1','p2', late, 35);
+  check('enges Abstiegsduell in den letzten acht wird Topspiel, zwei Topvereine bleiben darüber', duel.sport>champ.sport && duel.total>champ.total && twoTops.total>=duel.total && twoTops.total<=100 && duel.total<=100, twoTops.total+'/'+duel.total+'/'+champ.total);
   check('enges gesichertes Mittelfeld bleibt niedrig', mid.sport<duel.sport && mid.sport<25, String(mid.sport));
   check('Abstiegsduell benennt dieselbe Zielzone', duel.note.indexOf('Abstieg')>=0 && champ.note.indexOf('kein gemeinsamer Zielkampf')>=0, duel.note+' | '+champ.note);
   const earlyFight=matchValue('p17','p18', late, 3);
