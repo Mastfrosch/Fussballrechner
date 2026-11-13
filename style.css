@@ -327,6 +327,15 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .amateur-list .club{align-items:center;break-inside:avoid;padding:3px 0}
 .amateur-list .club .txt{display:flex;flex-direction:column;justify-content:center;gap:1px}
 .amateur-list .am-rang{display:block;margin:0;font-size:11px;line-height:1.15;color:var(--muted)}
+.amateur-list .nm:has(.neu-badge){display:flex;align-items:center;gap:6px}
+.neu-badge{flex:none;display:inline-block;padding:0 4px;border-radius:3px;background:#1f6b4a;color:#fff;font-size:10px;font-weight:700;line-height:1.45;letter-spacing:.02em}
+.alike-list{display:flex;flex-direction:column;gap:8px;margin:0 0 16px}
+.alike-row{display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:8px 12px;align-items:center;border:1px solid var(--line);padding:8px 10px;background:#fff}
+.alike-side{display:flex;align-items:center;gap:8px;min-width:0}
+.alike-side img{width:36px;height:36px;object-fit:contain;flex:0 0 36px}
+.alike-arrow{text-align:center;color:var(--muted)}
+.alike-meta{grid-column:1 / -1;margin:0;font-size:12px;color:var(--muted)}
+.alike-tag{display:inline-block;margin-right:6px;padding:0 4px;background:#8a5a00;color:#fff;font-size:10px;font-weight:700;line-height:1.45}
 .searchbox{padding:5px 8px;border:1px solid #ccc;border-radius:0;width:100%;max-width:320px}
 .map-wrap{position:relative;background:#1d4f86}
 .de-map{display:block;width:100%;height:680px;background:#1d4f86;cursor:grab;touch-action:none;user-select:none}
