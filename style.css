@@ -253,6 +253,9 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .side-away{justify-content:flex-start;text-align:left}
 .ml-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:1.2;color:#1c1c1c}
 .ml-crest{width:22px;height:22px;object-fit:contain;flex:0 0 22px}
+.ml-hit{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;cursor:pointer}
+.ml-hit .ml-name,.ml-hit .ml-crest{cursor:pointer}
+.side-home .ml-hit{flex-direction:row;justify-content:flex-end}
 .match.sp-line{grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr) 18px}
 .match.sp-line .ml-crest{width:32px;height:32px;flex:0 0 32px}
 .match.sp-line .who{display:flex;flex-direction:column;min-width:0;line-height:1.15}
@@ -320,7 +323,10 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#243028;color:#fff;padding:8px 14px;z-index:60;font-size:13px}
 .toast.hidden{display:none}
 .amateur-list{columns:3 260px}
-.amateur-list .club{break-inside:avoid;padding:3px 0}
+.amateur-list .am-row{break-inside:avoid}
+.amateur-list .club{align-items:center;break-inside:avoid;padding:3px 0}
+.amateur-list .club .txt{display:flex;flex-direction:column;justify-content:center;gap:1px}
+.amateur-list .am-rang{display:block;margin:0;font-size:11px;line-height:1.15;color:var(--muted)}
 .searchbox{padding:5px 8px;border:1px solid #ccc;border-radius:0;width:100%;max-width:320px}
 .map-wrap{position:relative;background:#1d4f86}
 .de-map{display:block;width:100%;height:680px;background:#1d4f86;cursor:grab;touch-action:none;user-select:none}
@@ -690,10 +696,14 @@ table.tbl.info-hist{width:max-content;max-width:100%;margin:0 auto;table-layout:
 .fx-grid{width:max-content;max-width:100%;border-collapse:collapse}
 .fx-grid th{text-align:left;font-size:12px;letter-spacing:.04em;color:#fff;font-weight:700;padding:8px 14px;background:#006ab2;border-bottom:0}
 .fx-grid th:nth-child(3){text-align:center}
-.land-matrix table{width:max-content;min-width:100%}
-.land-matrix th,.land-matrix td{white-space:nowrap}
-.land-matrix th.l,.land-matrix thead th.l{position:sticky;left:0;z-index:1;background:var(--head)}
-.land-matrix tbody th.l{background:var(--card)}
+.land-matrix{max-width:100%;overflow:hidden}
+.land-matrix table,.land-rows{width:100%;min-width:0;table-layout:fixed}
+.land-matrix th,.land-matrix td{white-space:normal;vertical-align:top}
+.land-rows th:first-child{width:15%}
+.land-rows td.mix{width:22%;font-size:12px;line-height:1.3}
+.land-up{color:#1d6b45;font-weight:700}
+.land-down{color:#a32020;font-weight:700}
+.land-same{color:#5c6570;font-weight:700}
 .chart-frame{display:flex;align-items:flex-start;max-width:100%;background:#f7faf8;border:1px solid var(--line);overflow:hidden}
 .chart-y{position:relative;flex:0 0 108px;background:#f7faf8;border-right:1px solid var(--line)}
 .chart-y span{position:absolute;left:6px;right:4px;font-size:11px;line-height:1.1;color:#5d6b64;white-space:nowrap;overflow:hidden}
@@ -990,3 +1000,18 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .de-map path{fill:#006ab2;stroke:#08324d}
 .land-matrix tbody th.l{color:var(--text);background:#fff}
 .box,.card{border-color:#d7e0e7}
+.rueckblick{display:flex;flex-direction:column;gap:14px;width:100%;max-width:100%}
+.rb-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%}
+.rb-card,.rb-hero{background:#fff;border:1px solid #d7e0e7;padding:12px 16px;min-width:0}
+.rb-card h3{margin:0 0 8px;color:#08324d}
+.rb-hero{background:#006ab2;color:#fff;display:flex;align-items:center;min-height:84px}
+.rb-hero .club .nm,.rb-hero .rb-note,.rb-hero p{color:#fff}
+.rb-hero .club img{width:56px;height:56px;flex-basis:56px}
+.rb-hero .club .nm{font-size:22px;font-weight:700}
+.rb-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;border-top:1px solid #e3e9ee}
+.rb-liga{font-weight:700;min-width:11em}
+.rb-club{display:inline-flex;align-items:center;gap:8px;margin:2px 16px 2px 0;max-width:100%}
+.rb-note{color:#5c6570;font-size:12px}
+.rb-match{max-width:720px}
+.rb-swing{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rb-card .club{padding:2px 0}
