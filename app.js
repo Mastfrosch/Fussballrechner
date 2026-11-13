@@ -11356,6 +11356,48 @@ function uiSelfTestBody(fails){
     const ligaAt=planHtml.indexOf('Liga zu Ende simulieren');
     check('Spielplan simuliert die Liga, die Saison steht in der Leiste', ligaAt>=0 && planHtml.indexOf('Komplette Saison simulieren')<0 && planHtml.indexOf('Saison simulieren')<0);
   })();
+  (()=>{
+    const keep={tab:S.ui.tab, cup:S.ui.cup, cupView:S.ui.cupView};
+    const near=(n, want)=>Math.abs(n-want)<=1;
+    const potGaps=()=>{
+      const bad=[];
+      document.querySelectorAll('.ov-lg').forEach(g=>{
+        const cells=[...g.querySelectorAll(':scope > .ov-row > .ov-c')];
+        if (cells.length<2) return;
+        const gaps=[];
+        for (let i=1;i<cells.length;i++){
+          const a=cells[i-1].getBoundingClientRect(), b=cells[i].getBoundingClientRect();
+          if (Math.abs(a.top-b.top)>2) continue;
+          if (!near(a.width, 34) || !near(b.width, 34)) bad.push('breite');
+          gaps.push(b.left-a.right);
+        }
+        if (gaps.some(g=>!near(g, 6))) bad.push((g.querySelector('.ov-lg-h span')||{}).textContent||'gruppe');
+      });
+      document.querySelectorAll('.ov-level').forEach(lv=>{
+        const gs=[...lv.querySelectorAll(':scope > .ov-lg')];
+        for (let i=1;i<gs.length;i++){
+          const a=gs[i-1].getBoundingClientRect(), b=gs[i].getBoundingClientRect();
+          if (Math.abs(a.top-b.top)>2) continue;
+          if (!near(b.left-a.right, 22)) bad.push('ebene');
+        }
+      });
+      return bad;
+    };
+    S.ui.tab='pokal'; S.ui.cup='dfb'; S.ui.cupView='uebersicht';
+    render();
+    const dfbBad=potGaps();
+    check('DFB-Übersicht: Wappen lückenlos, Gruppen gleichmäßig', dfbBad.length===0 && document.querySelectorAll('.ov-c').length>10, dfbBad.slice(0,3).join(' | '));
+    const land=cur() && cur().cups && cur().cups.land;
+    const landKey=land && Object.keys(land).find(k=>land[k] && (land[k].entrants||[]).length>4);
+    if (landKey){
+      S.ui.cup=landKey; S.ui.cupView='uebersicht';
+      render();
+      const landBad=potGaps();
+      check('Landespokal-Übersicht hält denselben Wappenabstand', landBad.length===0 && document.querySelectorAll('.ov-c').length>4, landKey+' '+landBad.slice(0,3).join(' | '));
+    }
+    S.ui.tab=keep.tab; S.ui.cup=keep.cup; S.ui.cupView=keep.cupView;
+    render();
+  })();
   if (navScreen>=2500 && navWide){
     const brand=document.querySelector('.brand');
     const tools=document.querySelector('.top-tools');
