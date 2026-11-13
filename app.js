@@ -4377,7 +4377,7 @@ function renderMigrate(){
   let el=$('#migrate');
   if(!S.ui.showMigrate){ if(el) el.remove(); return; }
   if(!el){ el=document.createElement('div'); el.id='migrate'; el.className='notice'; $('#main').prepend(el); }
-  el.innerHTML='Die Terminierung läuft jetzt in Blöcken von vier Spieltagen. Ein älterer Spielstand wird nicht übernommen. <button type="button" class="btn small" id="btnMigrate">Neu starten</button>';
+  el.innerHTML='Die Terminierung beginnt mit den Spieltagen 1 bis 6 und läuft danach in Blöcken von vier Spieltagen. Ein älterer Spielstand wird nicht übernommen. <button type="button" class="btn small" id="btnMigrate">Neu starten</button>';
   $('#btnMigrate').onclick=()=>{ try{ localStorage.removeItem(OLD_KEY); localStorage.removeItem('fussballrechner_v1'); }catch(e){} S=newGame(); save(); render(); toast('Neuer Spielstand gestartet.'); };
 }
 function renderPokal(s){
@@ -5477,7 +5477,11 @@ function spielplanHTML(s,lid){
       const above='<span class="hin-score"'+(hin?' title="Hinspiel"':'')+'>'+(hin||'')+'</span>';
       h+=matchLineHTML({h:hid, a:aid, km, bl:true, ansehen:true, klass:'unscheduled', above, hin:true, attr:' data-k="'+k+'"'});
     });
-    if (ed && lastScheduled(s,lid)<0) h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage 1–4 terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
+    if (ed && lastScheduled(s,lid)<0){
+      const first=nextBlockRange(lg.teams.length, 0);
+      const span=first?(first[0]+1)+'–'+(first[1]+1):'1–6';
+      h+='<div class="sp-tools"><button class="btn primary" data-act="termBlock">Spieltage '+span+' terminieren</button></div><div class="sp-hint">Erst nach der Terminierung können Ergebnisse eingetragen werden. Danach folgen die nächsten Blöcke automatisch.</div>';
+    }
     else if (ed) h+='<div class="sp-hint">Dieser Spieltag ist noch nicht terminiert.</div>';
     return h;
   }
@@ -5495,7 +5499,7 @@ function spielplanHTML(s,lid){
     const step=side=>ed?'<span class="stepper"><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="1" title="Tor">+</button><button type="button" data-act="goal" data-k="'+k+'" data-side="'+side+'" data-dir="-1" title="Tor zurück">−</button></span>':'';
     h+=matchLineHTML({h:hid, a:aid, hg:has?m[2]:null, ag:has?m[3]:null, km, bl:true, ansehen:true, step, above, hin:true, attr:' data-k="'+k+'"', del:ed?'<button type="button" class="del" data-act="del" data-k="'+k+'" title="Auf -:- zurücksetzen">×</button>':'<span></span>'});
   });
-  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die vier Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>';
+  if (ed) h+='<div class="sp-tools"><button class="btn small" data-act="simMd" title="Nur leere Spiele dieses Spieltags">Spieltag simulieren</button><button class="btn small" data-act="simBlock" title="Die Spieltage des aktuellen Blocks">Block simulieren</button><button class="btn small" data-act="simLeague">Liga zu Ende simulieren</button></div>';
   if (lg.decide && lg.decide.length && shownMd===lg.md.length-1) h+=decideHTML(s, lid);
   return h;
 }
@@ -6251,7 +6255,8 @@ function nextBlockRange(n, from){
   const sh=seasonShape(n);
   if (from>=sh.total) return null;
   const halfEnd=from<sh.half ? sh.half-1 : sh.total-1;
-  return [from, Math.min(from+3, halfEnd)];
+  const len=from===0 ? 6 : 4;
+  return [from, Math.min(from+len-1, halfEnd)];
 }
 function hungarian(cost){
   const n=cost.length, u=Array(n+1).fill(0), v=Array(n+1).fill(0), p=Array(n+1).fill(0), way=Array(n+1).fill(0);
@@ -6834,7 +6839,7 @@ function assignMatchday(season, lid, mi, snap, counts){
           const scarce=!!(specOfKey && specOfKey.n===1 && key!==closingKey);
           const soften=slot.kind==='regional' && !(slot.dow==='So' && latest.has(key)) && !tight;
           const onTop=slot.kind==='top' && !tight;
-          const scale=onTop?0.03:(soften?0.06:1);
+          const scale=mi<6?1:(onTop?0.03:(soften?0.06:1));
           if (scarce && gotTime===0 && confSlack>=1) hard -= Math.round(12000000*scale);
           else if (scarce && gotTime===0) hard -= Math.round(5000000*scale);
           else if (scarce && gotTime<TIME_MIN && confSlack>=2) hard -= Math.round(4000000*scale);
@@ -7470,6 +7475,7 @@ function balanceFrSaBlock(season, lid, from, to, snap){
     return c;
   };
   const absSum=(map, ids)=>{ let s=0; ids.forEach(id=>{ const x=map[id]||{fr:0,sa:0}; s+=Math.abs(x.fr-x.sa); }); return s; };
+  const skipped={};
   for (let guard=0; guard<lg.teams.length*2; guard++){
     const c=tally();
     let best=null;
@@ -7494,11 +7500,16 @@ function balanceFrSaBlock(season, lid, from, to, snap){
       ids.slice(0,2).forEach(id=>{ next[id].fr--; next[id].sa++; });
       ids.slice(2).forEach(id=>{ next[id].sa--; next[id].fr++; });
       const after=absSum(next, uniq);
+      if (skipped[mi+':'+fr+':'+sa]) continue;
       if (after<before && swapKeepsTimes(season, lid, mi, to, fr, sa) && (!best || before-after>best.gain)) best={mi, fr, sa, gain:before-after};
     }
-    if (!best) return true;
+      if (!best) return true;
     const row=bag[best.mi];
     const tmp=row[best.fr]; row[best.fr]=row[best.sa]; row[best.sa]=tmp;
+    if (!blockObligations(season, lid, to).ok){
+      row[best.sa]=row[best.fr]; row[best.fr]=tmp;
+      skipped[best.mi+':'+best.fr+':'+best.sa]=1;
+    }
   }
   return false;
 }
@@ -8294,13 +8305,14 @@ function placeBestTops(season, lid, from, to, snap){
   for (let mi=from; mi<=to; mi++){
     if (isClosingDay(total, mi)) continue;
     const row=bag[mi]; if (!row) continue;
+    const skipped={};
     for (let guard=0; guard<row.length; guard++){
       let best=null;
       row.forEach((slot,i)=>{
         if (!slot || slot.kind!=='top') return;
         const here=matchValue(lg.teams[lg.md[mi][i][0]], lg.teams[lg.md[mi][i][1]], snap, mi).total;
         row.forEach((other,j)=>{
-          if (j===i || !other || other.kind==='top') return;
+          if (j===i || !other || other.kind==='top' || skipped[i+':'+j]) return;
           const ids=[lg.teams[lg.md[mi][j][0]], lg.teams[lg.md[mi][j][1]]];
           const v=matchValue(ids[0], ids[1], snap, mi).total;
           if (v<=here+1) return;
@@ -8316,6 +8328,10 @@ function placeBestTops(season, lid, from, to, snap){
       });
       if (!best) break;
       const tmp=row[best.i]; row[best.i]=row[best.j]; row[best.j]=tmp;
+      if (!blockObligations(season, lid, to).ok){
+        row[best.j]=row[best.i]; row[best.i]=tmp;
+        skipped[best.i+':'+best.j]=1;
+      }
     }
   }
 }
@@ -8335,7 +8351,10 @@ function nudgeLateRegional(season, lid, from, to){
       if (!cap.allows(kms[j])) continue;
       if (best<0 || kms[j]<kms[best]) best=j;
     }
-    if (best>=0 && swapKeepsTimes(season, lid, mi, to, late, best)){ const tmp=row[late]; row[late]=row[best]; row[best]=tmp; }
+    if (best>=0 && swapKeepsTimes(season, lid, mi, to, late, best)){
+      const tmp=row[late]; row[late]=row[best]; row[best]=tmp;
+      if (!blockObligations(season, lid, to).ok){ row[best]=row[late]; row[late]=tmp; }
+    }
   }
 }
 function enforceDistance(season, lid, from, to){
@@ -8915,8 +8934,8 @@ function rulesHTML(){
   } else h+='<p>In der Saison '+esc(s.name)+' steigt nach dem aktuellen Stand aus jeder Regionalliga nur der Meister auf.</p>';
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
-  h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Er beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
+  h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Die Anstoßzeiten beginnen mit den Spieltagen 1 bis 6. Danach kommen Blöcke von vier Spieltagen, also 7 bis 10, 11 bis 14 und so weiter. Vor der Hin- und Rückrundengrenze und am Saisonende bleibt der Rest ein kürzerer Block. Kein Spieltag fällt weg, und ein Block überschreitet die Grenze nicht. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
+  h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Die Spieltage 1 bis 6 bleiben bei 80 Prozent Ansehen und 20 Prozent Sport. Danach wandert der Sportanteil alle vier Spieltage um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
   h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“ am Ende der Unterreiterleiste, nach Regeln. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
@@ -10999,7 +11018,7 @@ document.addEventListener('click', ev=>{
     applyMap();
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
-  else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
+  else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieses Blocks werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
   else if (act==='simSeason'){ const r=rollSimulatedSeason(); if(!r.rolled){ toast('Die Saison konnte nicht gewechselt werden.'); return; } toast(r.c+' Spiele simuliert.'); }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ S.ui.tab='regeln'; render(); }
@@ -12877,6 +12896,22 @@ function terminSelfTest(){
     if (total>=27 && (Math.abs(tail.h-0.2)>1e-9 || Math.abs(tail.s-0.8)>1e-9)) fails.push('Phase '+total+' Ende ist '+tail.h+'/'+tail.s);
   });
   check('Phasen staffeln den Sportanteil alle vier Spieltage', !fails.some(f=>f.indexOf('Phase ')===0));
+  [16,18,20,22].forEach(n=>{
+    const sh=seasonShape(n);
+    const seen=[];
+    let from=0, first=null, crossed=false;
+    while (from<sh.total){
+      const range=nextBlockRange(n, from);
+      if (!range || range[0]!==from || range[1]<from){ seen.push(-1); break; }
+      const halfEnd=from<sh.half ? sh.half-1 : sh.total-1;
+      if (range[1]>halfEnd || (from<sh.half && range[1]>=sh.half)) crossed=true;
+      for (let i=range[0]; i<=range[1]; i++) seen.push(i);
+      if (!first) first=range;
+      from=range[1]+1;
+    }
+    const covered=seen.length===sh.total && seen.every((v,i)=>v===i);
+    check(n+' beginnt mit sechs Spieltagen und verliert keinen', !!first && first[0]===0 && first[1]===5 && covered && !crossed, JSON.stringify({first, n:seen.length, total:sh.total, crossed}));
+  });
   const blZones={n:20, up:0, down:3, meister:1, cl:4, el:6, uecl:7};
   const ladder=[];
   for (let pl=1; pl<=20; pl++) ladder.push({pl, pkt:90-pl*3, sp:34, id:'p'+pl});
@@ -13433,12 +13468,14 @@ function terminSelfTest(){
     const raw=JSON.stringify(snapC.raw)===JSON.stringify(snapD.raw);
     const endOk=snapC.ansehenEnd===2098 && snapD.ansehenEnd===2098;
     const formOk=snapC.form && snapD.form && JSON.stringify(snapC.form)===JSON.stringify(snapD.form);
-    for (let mi=0; mi<=3; mi++) clean.leagues.RLN.md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
+    const firstBlock=nextBlockRange(clean.leagues.RLN.teams.length, 0);
+    for (let mi=firstBlock[0]; mi<=firstBlock[1]; mi++) clean.leagues.RLN.md[mi].forEach(m=>{ m[2]=1; m[3]=0; });
     scheduleNextBlock(clean, 'RLN');
-    const played=tableBefore(clean, 'RLN', 4);
-    const stored=clean.termSnap.RLN[4];
-    const formMatch=played.every(r=>JSON.stringify(stored.form[r.id]||[])===JSON.stringify(r.form||[]));
-    const edgeOk=played.every(r=>formEdge({form:stored.form[r.id]})===formEdge(r));
+    const nextFrom=firstBlock[1]+1;
+    const played=tableBefore(clean, 'RLN', nextFrom);
+    const stored=clean.termSnap.RLN[nextFrom];
+    const formMatch=!!stored && played.every(r=>JSON.stringify(stored.form[r.id]||[])===JSON.stringify(r.form||[]));
+    const edgeOk=!!stored && played.every(r=>formEdge({form:stored.form[r.id]})===formEdge(r));
     S.chronicle=chronKeep; S.pokalRuns=runKeep; chronSeen=null; chronIndex=null; chronBuilt=-1; touchAnsehen();
     return slots && zones && raw && endOk && formOk && formMatch && edgeOk;
   })();
