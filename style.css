@@ -335,6 +335,11 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .alike-side img{width:36px;height:36px;object-fit:contain;flex:0 0 36px}
 .alike-arrow{text-align:center;color:var(--muted)}
 .alike-meta{grid-column:1 / -1;margin:0;font-size:12px;color:var(--muted)}
+.alike-tools{display:flex;align-items:center;gap:12px;margin:0 0 8px;flex-wrap:wrap}
+.alike-tools #alikeCount{font-weight:700;color:#08324d}
+.alike-choice{grid-column:1 / -1;display:flex;gap:8px}
+.alike-pick{border:1px solid #8aa4b8;background:#fff;color:#08324d;padding:4px 10px;font-weight:700;cursor:pointer}
+.alike-pick.on{background:#006ab2;border-color:#006ab2;color:#fff}
 .alike-tag{display:inline-block;margin-right:6px;padding:0 4px;background:#8a5a00;color:#fff;font-size:10px;font-weight:700;line-height:1.45}
 .searchbox{padding:5px 8px;border:1px solid #ccc;border-radius:0;width:100%;max-width:320px}
 .map-wrap{position:relative;background:#1d4f86}

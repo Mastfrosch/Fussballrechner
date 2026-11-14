@@ -6430,17 +6430,67 @@ function neuMark(id){
   // Markierung entfernen: return '' und neu.js löschen.
   return NEU_SET.has(id)?' <span class="neu-badge">neu</span>':'';
 }
+const ALIKE_CHOICE_KEY='fussballrechner_aehnlich_wahl';
+function alikeChoiceKey(r){ return encodeURIComponent(String(r&&r.fupa||''))+'|'+String(r&&r.id||''); }
+function alikeChoices(){
+  try{
+    const raw=localStorage.getItem(ALIKE_CHOICE_KEY);
+    const o=raw?JSON.parse(raw):{};
+    return o&&typeof o==='object'&&!Array.isArray(o)?o:{};
+  }catch(e){ return {}; }
+}
+function alikeNeuId(fupa){
+  const name=String(fupa||'');
+  return (window.FR_NEU||[]).find(id=>TEAMS[id]&&TEAMS[id].name===name)||'';
+}
+function alikeDecidedCount(){
+  const choice=alikeChoices();
+  return (window.FR_AEHNLICH||[]).filter(r=>{ const v=choice[alikeChoiceKey(r)]; return v==='gleich'||v==='anders'; }).length;
+}
+function alikeSetChoice(key, value){
+  const all=alikeChoices();
+  if (value==='gleich'||value==='anders') all[key]=value;
+  else delete all[key];
+  try{ localStorage.setItem(ALIKE_CHOICE_KEY, JSON.stringify(all)); }catch(e){}
+}
+function alikeChoiceText(){
+  const choice=alikeChoices();
+  return (window.FR_AEHNLICH||[]).map(r=>{
+    const v=choice[alikeChoiceKey(r)];
+    if (v!=='gleich'&&v!=='anders') return '';
+    const neu=alikeNeuId(r.fupa);
+    const old=TEAMS[r.id];
+    return r.fupa+' ('+(neu||'—')+') | '+(old?old.name:'')+' ('+r.id+') | '+(v==='gleich'?'gleich':'anders');
+  }).filter(Boolean).join('\n');
+}
+function alikeCopySelection(){
+  const text=alikeChoiceText();
+  const done=ok=>{ toast(text?(ok?'Auswahl kopiert.':'Auswahl konnte nicht kopiert werden.'):'Noch nichts angekreuzt.'); };
+  if (!text){ done(false); return; }
+  const area=()=>{
+    const el=document.createElement('textarea');
+    el.value=text; el.setAttribute('readonly',''); el.style.position='fixed'; el.style.left='-9999px';
+    document.body.appendChild(el); el.select();
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
+    el.remove(); return ok;
+  };
+  if (navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(()=>done(true), ()=>done(area()));
+  else done(area());
+}
 function alikeCard(r){
   const t=TEAMS[r.id];
   const right=t?clubHTML(r.id,{nobl:true}):'<span class="muted">Verein fehlt</span>';
   const tag=r.art==='unsicher'?'<span class="alike-tag">unsicher</span> ':'';
-  return '<article class="alike-row" data-name="'+esc((r.fupa+' '+(t?t.name:'')).toLowerCase())+'"><div class="alike-side"><img src="'+esc(r.wappen)+'" alt=""><div><b>'+esc(r.fupa)+'</b><div class="muted">FuPa 2026/27</div></div></div><div class="alike-arrow" aria-hidden="true">→</div><div class="alike-side">'+right+'</div><p class="alike-meta">'+tag+'Ebene '+esc(r.ebene)+' · '+esc(r.bl||'')+' · '+esc(r.liga||'')+' · '+esc(r.hinweis||'')+'</p></article>';
+  const key=alikeChoiceKey(r);
+  const v=alikeChoices()[key]||'';
+  const pick=(val,label)=>'<button type="button" class="alike-pick'+(v===val?' on':'')+'" data-act="alikePick" data-key="'+esc(key)+'" data-v="'+val+'" aria-pressed="'+(v===val?'true':'false')+'">'+label+'</button>';
+  return '<article class="alike-row" data-name="'+esc((r.fupa+' '+(t?t.name:'')).toLowerCase())+'"><div class="alike-side"><img src="'+esc(r.wappen)+'" alt=""><div><b>'+esc(r.fupa)+'</b><div class="muted">FuPa 2026/27</div></div></div><div class="alike-arrow" aria-hidden="true">→</div><div class="alike-side">'+right+'</div><p class="alike-meta">'+tag+'Ebene '+esc(r.ebene)+' · '+esc(r.bl||'')+' · '+esc(r.liga||'')+' · '+esc(r.hinweis||'')+'</p><div class="alike-choice">'+pick('gleich','Gleicher Verein')+pick('anders','Anderer Verein')+'</div></article>';
 }
 function viewAlike(){
   const rows=window.FR_AEHNLICH||[];
   const uns=rows.filter(r=>r.art==='unsicher');
   const sim=rows.filter(r=>r.art!=='unsicher');
-  return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><p class="muted">'+uns.length+' ähnliche Namen. 12 davon sind nicht angelegt. 8 Vereine mit gleichem Ort sind eigenständige erste Mannschaften und stehen zusätzlich im Bestand. '+sim.length+' Zuordnungen liefen nur über den Namen. Die Ligen der Pyramide bleiben unverändert.</p><h3>Unsicher</h3><div class="alike-list">'+uns.map(alikeCard).join('')+'</div><h3>Nur über den Namen zugeordnet</h3><div class="alike-list">'+sim.map(alikeCard).join('')+'</div></div>';
+  return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><div class="alike-tools"><span id="alikeCount">'+alikeDecidedCount()+' von '+rows.length+' entschieden</span><button type="button" class="btn" id="alikeCopy" data-act="alikeCopy">Auswahl kopieren</button></div><p class="muted">'+uns.length+' ähnliche Namen. 12 davon sind nicht angelegt. 8 Vereine mit gleichem Ort sind eigenständige erste Mannschaften und stehen zusätzlich im Bestand. '+sim.length+' Zuordnungen liefen nur über den Namen. Die Ligen der Pyramide bleiben unverändert. Die Kreuze bleiben im Browser und ändern noch keine Vereine.</p><h3>Unsicher</h3><div class="alike-list">'+uns.map(alikeCard).join('')+'</div><h3>Nur über den Namen zugeordnet</h3><div class="alike-list">'+sim.map(alikeCard).join('')+'</div></div>';
 }
 function renderAmateur(){
   const s=cur();
@@ -11234,6 +11284,22 @@ document.addEventListener('click', ev=>{
   if (act==='amateurList'){ S.ui.amateurView=''; save(); render(); return; }
   if (act==='amateurMap'){ S.ui.amateurView='karte'; save(); render(); return; }
   if (act==='amateurAlike'){ S.ui.amateurView='aehnlich'; save(); render(); return; }
+  if (act==='alikePick'){
+    const key=a.dataset.key, want=a.dataset.v;
+    const now=alikeChoices()[key];
+    const next=now===want?'':want;
+    alikeSetChoice(key, next);
+    const row=a.closest('.alike-row');
+    if (row) row.querySelectorAll('[data-act="alikePick"]').forEach(btn=>{
+      const on=btn.dataset.v===next;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on?'true':'false');
+    });
+    const count=document.querySelector('#alikeCount');
+    if (count) count.textContent=alikeDecidedCount()+' von '+(window.FR_AEHNLICH||[]).length+' entschieden';
+    return;
+  }
+  if (act==='alikeCopy'){ alikeCopySelection(); return; }
   if (act==='cupDraw'){
     ensureCups(s);
     const cup=getCup(s, a.dataset.cup);
@@ -13180,6 +13246,30 @@ function uiSelfTestBody(fails){
   render();
   const alike=document.querySelector('#view');
   check('Ähnliche Vereine zeigen FuPa-Namen und Bestand', !!alike && alike.querySelectorAll('.alike-row').length===alikeRows.length && alike.innerHTML.indexOf('alike-tag')>=0 && alike.innerHTML.indexOf('FuPa 2026/27')>=0);
+  const choiceWas=localStorage.getItem(ALIKE_CHOICE_KEY);
+  const gameWas=localStorage.getItem(KEY);
+  const teamsWas=JSON.stringify(TEAMS);
+  try{
+    localStorage.removeItem(ALIKE_CHOICE_KEY);
+    const gif=alikeRows.find(r=>r.fupa==='SV Gifhorn');
+    const first=alikeRows[0];
+    alikeSetChoice(alikeChoiceKey(gif), 'gleich');
+    render();
+    const gifBtn=document.querySelector('#view [data-key="'+alikeChoiceKey(gif)+'"][data-v="gleich"]');
+    check('Gleicher Verein bleibt nach dem Zeichnen angekreuzt', !!gif && !!gifBtn && gifBtn.getAttribute('aria-pressed')==='true' && document.querySelector('#alikeCount').textContent===('1 von '+alikeRows.length+' entschieden'));
+    gifBtn.click();
+    check('nochmal klicken hebt die Wahl auf', !alikeChoices()[alikeChoiceKey(gif)] && document.querySelector('#alikeCount').textContent===('0 von '+alikeRows.length+' entschieden'));
+    const anders=document.querySelector('#view [data-key="'+alikeChoiceKey(first)+'"][data-v="anders"]');
+    anders.click();
+    alikeSetChoice(alikeChoiceKey(gif), 'gleich');
+    const copied=alikeChoiceText();
+    check('Auswahl nennt FuPa, neue ID, Bestand und gleich oder anders', copied.indexOf(first.fupa+' (—) | '+TEAMS[first.id].name+' ('+first.id+') | anders')>=0 && copied.indexOf('SV Gifhorn (t1172) | MTV Gifhorn (t312) | gleich')>=0, copied.split('\n').slice(0,3).join(' / '));
+    const gameNow=localStorage.getItem(KEY);
+    check('die Kreuze liegen außerhalb des Spielstands und ändern keine Vereine', !!localStorage.getItem(ALIKE_CHOICE_KEY) && gameNow===gameWas && JSON.stringify(TEAMS)===teamsWas && (gameNow==null || gameNow.indexOf(ALIKE_CHOICE_KEY)<0));
+  }finally{
+    if (choiceWas==null) localStorage.removeItem(ALIKE_CHOICE_KEY);
+    else localStorage.setItem(ALIKE_CHOICE_KEY, choiceWas);
+  }
   S.ui.league=uiLeague; S.ui.amateurView=uiView; S.ui.amateurBl=uiBl;
   render();
   return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name), sizes, regionBad};
