@@ -1036,8 +1036,10 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .rb-result{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 0}
 .rb-result .rb-note{margin:0}
 .rb-auf,.rb-land{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 0}
-.rb-arrow{color:#14804a;font-weight:700;font-size:18px;line-height:1}
+.rb-auf-clubs{display:flex;flex-wrap:wrap;align-items:center;gap:0;min-width:0}
+.rb-auf-clubs .rb-club{margin:0}
+.rb-arrow{color:#00a63e;font-weight:800;font-size:30px;line-height:1;flex:none;margin:0 4px}
 .rb-ziel,.rb-land-name{font-weight:700;color:#08324d}
-.rb-comma{color:#5c6b7a}
+.rb-comma{margin:0 0.4em 0 0;color:#14202b}
 .rb-swing{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .rb-card .club{padding:2px 0}

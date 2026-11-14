@@ -6392,8 +6392,9 @@ function viewRueckblick(season){
   const promoted={};
   moves.filter(m=>m&&m.type==='auf'&&L[m.to]&&!reviewSkip(m.id)).forEach(m=>{ (promoted[m.to]=promoted[m.to]||[]).push(m.id); });
   const promotedHtml=LEAGUES.filter(l=>promoted[l.id]&&promoted[l.id].length).map(l=>{
-    const clubs=promoted[l.id].map(id=>reviewClub(id)).filter(Boolean).join('<span class="rb-comma">, </span>');
-    return '<div class="rb-auf">'+clubs+'<span class="rb-arrow" aria-hidden="true">→</span><span class="rb-ziel">'+esc(l.name)+'</span></div>';
+    const clubs=promoted[l.id].map(id=>reviewClub(id)).filter(Boolean);
+    const list=clubs.map((club,i)=>club+(i<clubs.length-1?'<span class="rb-comma">,</span>':'')).join('');
+    return '<div class="rb-auf"><span class="rb-auf-clubs">'+list+'</span><span class="rb-arrow" aria-hidden="true">→</span><span class="rb-ziel">'+esc(l.name)+'</span></div>';
   }).join('');
   h+=card('Aufsteiger', promotedHtml||'<p class="muted">Keine.</p>');
   h+=card('Landespokalsieger', land.length?land.map(x=>'<div class="rb-land"><span class="rb-land-name">Landespokal '+esc(x.bl)+':</span>'+reviewClub(x.id, reviewLigaName(season, x.id))+'</div>').join(''):'<p class="muted">Noch keine Landespokal-Endspiele.</p>');
