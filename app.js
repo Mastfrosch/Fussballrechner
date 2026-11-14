@@ -10708,13 +10708,32 @@ function clubRecordHTML(id){
   const amateur=noTable?(' '+noTable+' Die Ligazugehörigkeit bleibt, der Listenplatz einer Amateurstaffel zählt nicht.'):'';
   return recordTable('Rekorde', rows, 'Platzierung nur aus echten Tabellen, je Saison. Eine höhere Liga zählt vor einem besseren Platz in einer niedrigeren Liga. Bei der schlechtesten Platzierung zählt zuerst die niedrigste Liga, darin der schlechteste Platz. Tore, Punkte, Siege, Unentschieden und Niederlagen nur aus Ligatabellen des Rechners, drei Punkte pro Sieg. Serien nur aus Ligaspieltagen, auch über die Saison, und enden bei einer Saison ohne Spieltage oder beim Wechsel der Liga. Eine Serie bis zum letzten gespielten Spieltag der laufenden Saison ist noch offen. Genannt ist immer das jüngste Vorkommen.'+gap+amateur);
 }
+function isAddedClub(id){ return /^\d+$/.test(String(id).slice(1)) && +String(id).slice(1)>919; }
+function addedClubIds(){
+  return Object.keys(TEAMS).filter(isAddedClub).sort((a,b)=>TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+}
+function clubLeagueLabel(id){
+  const s=cur();
+  const lid=s?clubLeagueId(s, id):'';
+  if (L[lid]) return L[lid].name;
+  if (P[lid]) return P[lid].name;
+  return 'Amateurliga';
+}
+function addedClubsHTML(){
+  const ids=addedClubIds();
+  const rows=ids.map(id=>{
+    const t=TEAMS[id];
+    return '<tr data-added="'+id+'" data-name="'+esc((t.name+' '+t.bl).toLowerCase())+'"><td class="l">'+clubHTML(id,{nobl:true})+'</td><td class="l">'+esc(clubLeagueLabel(id))+'</td><td class="l">'+esc(t.bl)+'</td></tr>';
+  }).join('');
+  return '<div class="box"><h3>Hinzugefügte Vereine</h3><p class="muted">'+ids.length+' Vereine aus den 5., 6. und 7. Ligen der Saison 2026/27. Ein Klick öffnet die Vereinsinfo.</p><input id="addedSearch" class="searchbox" placeholder="Verein suchen …"><table class="tbl" id="addedList"><thead><tr><th class="l">Verein</th><th class="l">Liga</th><th class="l">Bundesland</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
 function renderInfo(){
   $('#tabs').innerHTML='';
   $('#subline').innerHTML='';
   $('#title').textContent='Vereinsinfo';
   const id=S.ui.infoId;
   let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
-  if (!id || !TEAMS[id]){ $('#view').innerHTML=h; wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
+  if (!id || !TEAMS[id]){ $('#view').innerHTML=h+addedClubsHTML(); wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
   const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
@@ -11454,6 +11473,7 @@ document.addEventListener('input', ev=>{
   const t=ev.target;
   if (t.id==='poolSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#view .amateur-list > div').forEach(d=>d.style.display=d.dataset.name.includes(q)?'':'none'); }
   else if (t.id==='alikeSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#view .alike-row').forEach(d=>d.style.display=(d.dataset.name||'').includes(q)?'':'none'); }
+  else if (t.id==='addedSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#addedList tbody tr').forEach(tr=>{ tr.style.display=(tr.dataset.name||'').includes(q)?'':'none'; }); }
   else if (t.id==='ansehenSearch'){
     const q=t.value.toLowerCase();
     document.querySelectorAll('#ansehenList tr[data-ansehen]').forEach(tr=>{ tr.style.display=(tr.dataset.name||'').includes(q)?'':'none'; });
@@ -13190,15 +13210,16 @@ function uiSelfTestBody(fails){
   if (match && scoreSnap){ match[0]=scoreSnap[0]; match[1]=scoreSnap[1]; match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; }
   const neuIds=window.FR_NEU||[];
   const neuSet=new Set(neuIds);
+  const addedIds=Object.keys(TEAMS).filter(isAddedClub);
   const pyWant='BL:t001,t002,t003,t005,t007,t006,t008,t004,t009,t013,t010,t011,t012,t014,t016,t017,t015,t019,t018,t021|BL2:t020,t022,t024,t023,t025,t027,t037,t026,t029,t028,t031,t033,t035,t030,t036,t034,t039,t032,t038,t040|L3:t046,t042,t041,t043,t044,t045,t085,t047,t050,t058,t049,t048,t053,t057,t051,t054,t052,t056,t060,t059|L4:t061,t064,t062,t069,t063,t066,t068,t065,t071,t067,t073,t070,t084,t055,t072,t076,t101,t074,t077,t104|L5NO:t088,t083,t081,t087,t091,t086,t093,t079,t492,t089,t098,t090,t097,t137,t100,t120,t119,t121,t141,t094,t139,t125|L5SW:t078,t075,t110,t082,t109,t107,t111,t108,t113,t152,t116,t118,t151,t103,t168,t153,t167,t106,t112,t105,t170,t080|RLN:t123,t127,t129,t132,t095,t206,t205,t133,t126,t183,t187,t130,t203,t189,t192,t213|RLO:t140,t096,t142,t144,t149,t148,t138,t136,t147,t146,t217,t236,t231,t221,t228,t150|RLS:t155,t156,t160,t158,t159,t264,t263,t164,t249,t154,t157,t114,t115,t250,t247,t165|RLW:t169,t172,t102,t178,t173,t179,t174,t176,t181,t175,t279,t282,t284,t283,t296,t299';
   const pyNow=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'].map(id=>id+':'+(squads.leagues[id]||[]).join(',')).join('|');
-  check('Bestand ist 2306 Vereine', Object.keys(TEAMS).length===2306 && neuIds.length===1380 && neuIds.every(id=>TEAMS[id] && TEAMS[id].rang==null));
+  check('Bestand ist 2306 Vereine', Object.keys(TEAMS).length===2306 && addedIds.length===1387 && neuIds.length===0);
   const plainNeu=['t1172','t1463','t1527','t1814','t2162','t2170','t2187'];
   const freshNeu=['t2322','t2323','t2324','t2325','t2326','t2327','t2328','t2329'];
   const once=id=>LEAGUES.every(l=>(squads.leagues[l.id]||[]).indexOf(id)<0) && POOLS.filter(p=>(squads.pools[p.id]||[]).indexOf(id)>=0).length===1;
   check('SpVg Hagen 11 ist in SpVgg Hagen aufgegangen', !TEAMS.t1582 && TEAMS.t807 && TEAMS.t807.name==='SpVgg Hagen' && once('t807') && LEAGUES.every(l=>(squads.leagues[l.id]||[]).length===l.size));
   check('sieben eigenständige Vereine ohne Neu-Marke', plainNeu.every(id=>TEAMS[id] && !neuSet.has(id) && neuMark(id)==='' && once(id)));
-  check('acht weitere erste Mannschaften sind neu', freshNeu.every(id=>TEAMS[id] && neuSet.has(id) && TEAMS[id].rang==null && ansehenValue(id)===0 && once(id)));
+  check('acht weitere erste Mannschaften sind in der Amateurliga', freshNeu.every(id=>TEAMS[id] && TEAMS[id].rang==null && ansehenValue(id)===0 && once(id) && neuMark(id)===''));
   const secondTeamMark=name=>{
     const s=String(name||'');
     if (/\b(II|III|IV)\b/.test(s)) return true;
@@ -13239,15 +13260,16 @@ function uiSelfTestBody(fails){
     return same || tail(a.core,b.core) || tail(b.core,a.core);
   };
   const dups=[];
-  neuIds.forEach(id=>{
+  addedIds.forEach(id=>{
     const a=normClubKey(TEAMS[id].name);
     Object.keys(TEAMS).forEach(oid=>{
-      if (neuSet.has(oid) || TEAMS[oid].bl!==TEAMS[id].bl) return;
+      if (isAddedClub(oid) || TEAMS[oid].bl!==TEAMS[id].bl) return;
       if (normDup(a, normClubKey(TEAMS[oid].name))) dups.push(id+'='+oid);
     });
   });
   check('keine normalisierte Namensdublette', dups.length===0 && normDup(normClubKey('SSG Rot-Schwarz Kiel'), normClubKey('Rot-Schwarz Kiel')) && normDup(normClubKey('SV Blau-Weiß 50 Baabe'), normClubKey('SV Blau-Weiß Baabe')) && !normDup(normClubKey('SV Gifhorn'), normClubKey('MTV Gifhorn')) && !normDup(normClubKey('DJK Rhede'), normClubKey('VfL Rhede')) && !normDup(normClubKey('Mülheimer SV 07'), normClubKey('Mülheimer FC 97')) && !normDup(normClubKey('SpVg Hagen 11'), normClubKey('SpVgg Hagen')) && !normDup(normClubKey('TSV 1860 Hanau'), normClubKey('FC Hanau 93')) && !normDup(normClubKey('FSV Bayreuth'), normClubKey('SpVgg Bayreuth')) && !normDup(normClubKey('MTV 1879 München'), normClubKey('TSV 1860 München')) && !normDup(normClubKey('SpVgg Erlangen'), normClubKey('ATSV Erlangen')), dups.slice(0,6).join(', '));
-  check('neue Vereine bleiben in der Amateurliga', LEAGUES.every(l=>(squads.leagues[l.id]||[]).every(id=>!neuSet.has(id))) && neuIds.every(id=>ansehenValue(id)===0));
+  check('neue Vereine bleiben in der Amateurliga', LEAGUES.every(l=>(squads.leagues[l.id]||[]).every(id=>!isAddedClub(id))) && addedIds.every(id=>ansehenValue(id)===0));
+  check('jeder Verein hat Koordinaten in Deutschland', Object.keys(TEAMS).every(id=>{ const c=coordOf(id); return !!(c && c.lat>=47.2 && c.lat<=55.2 && c.lon>=5.7 && c.lon<=15.1); }));
   check('Pyramiden-Start bleibt unverändert', pyNow===pyWant);
   const alikeRows=window.FR_AEHNLICH||[];
   check('entschiedene Ähnliche sind nicht mehr offen', alikeOpenRows().length===0 && alikeRows.length===185 && alikeRows.filter(r=>r.entschieden==='anders').length===15);
@@ -13255,7 +13277,12 @@ function uiSelfTestBody(fails){
   S.ui.league='AM'; S.ui.tab='tabelle'; S.ui.amateurView=''; S.ui.amateurBl='Bayern';
   render();
   const bayern=document.querySelector('#view');
-  check('Neu-Marke steht in der Amateurliga am Namen', !!bayern && !!bayern.querySelector('.neu-badge') && bayern.innerHTML.indexOf('neu-badge">neu<')>=0);
+  check('keine Neu-Marke mehr', !!bayern && !bayern.querySelector('.neu-badge') && neuMark('t2323')==='');
+  S.ui.tab='info'; S.ui.infoId='';
+  render();
+  const added=document.querySelector('#addedList');
+  check('Verein listet die hinzugefügten Vereine', !!added && added.querySelectorAll('tr[data-added]').length===addedIds.length && added.innerHTML.indexOf('SV Schwaig b. Nbg.')>=0 && added.innerHTML.indexOf('Amateurliga')>=0);
+  S.ui.tab='tabelle'; S.ui.league='AM'; S.ui.amateurView=''; S.ui.amateurBl='Bayern';
   S.ui.amateurView='aehnlich';
   render();
   const alike=document.querySelector('#view');
