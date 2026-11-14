@@ -6226,9 +6226,27 @@ function reviewClub(id, note){
   if (reviewSkip(id)) return '';
   return '<span class="rb-club">'+clubHTML(id,{nobl:true})+(note?'<span class="rb-note">'+note+'</span>':'')+'</span>';
 }
-function reviewMatch(m, note){
-  if (!m || reviewSkip(m.h) || reviewSkip(m.a)) return '';
-  return '<div class="rb-match">'+matchLineHTML({h:m.h, a:m.a, hg:m.hg, ag:m.ag, bl:true, nodel:true, klass:'rb-line'})+(note?'<span class="rb-note">'+note+'</span>':'')+'</div>';
+function reviewLigaName(season, id){
+  const lid=clubLeagueId(season, id);
+  if (L[lid]) return L[lid].name;
+  if (P[lid]) return 'Amateurliga';
+  return '';
+}
+function reviewTight(m, season, cup){
+  if (!m || reviewSkip(m.h) || reviewSkip(m.a) || !TEAMS[m.h] || !TEAMS[m.a]) return '';
+  const liga=id=>{
+    if (!cup) return '';
+    const name=reviewLigaName(season, id);
+    return name?'<span class="rb-liga-tag">'+esc(name)+'</span>':'';
+  };
+  const crest=id=>'<img class="rb-crest" src="'+esc(TEAMS[id].crest)+'" alt="">';
+  const score=(m.hg==null?'–':m.hg)+':'+(m.ag==null?'–':m.ag);
+  return '<div class="rb-tight">'+liga(m.h)+'<span class="rb-nm">'+esc(TEAMS[m.h].name)+'</span>'+crest(m.h)+'<b class="rb-sc">'+score+'</b>'+crest(m.a)+'<span class="rb-nm">'+esc(TEAMS[m.a].name)+'</span>'+liga(m.a)+'</div>';
+}
+function reviewSurpriseOk(winnerAn, loserAn, pot){
+  if (pot) return true;
+  if (winnerAn==null || loserAn==null || !(loserAn>winnerAn)) return false;
+  return loserAn>=winnerAn*2;
 }
 function viewRueckblick(season){
   if (!season) return '<div class="box"><p class="muted">Keine Saison gewählt.</p></div>';
@@ -6236,10 +6254,6 @@ function viewRueckblick(season){
   const prev=prevSeason(season);
   const open=season.status!=='done' && season.status!=='ending';
   const moves=(season.endData && season.endData.moves)||[];
-  const chipList=(ids, noteOf)=>{
-    const html=(ids||[]).map(id=>reviewClub(id, noteOf?noteOf(id):'')).filter(Boolean);
-    return html.length?html.join(''):'<p class="muted">Keine.</p>';
-  };
   let meister='';
   LEAGUES.forEach(l=>{
     const rows=seasonRows(season, l.id);
@@ -6268,12 +6282,6 @@ function viewRueckblick(season){
     }
     if (w && !reviewSkip(w)) land.push({bl, id:w});
   });
-  const levelOf=id=>{
-    const lid=clubLeagueId(season, id);
-    if (L[lid]) return L[lid].level;
-    if (lid && (P[lid] || Object.keys(season.pools||{}).some(pid=>(season.pools[pid]||[]).indexOf(id)>=0))) return 7;
-    return 0;
-  };
   const anOf=id=>reviewAnsehen(id, year);
   const leagueAn=lid=>{
     const rows=seasonRows(season, lid);
@@ -6287,13 +6295,13 @@ function viewRueckblick(season){
     const an=anOf(m.id), mid=leagueAn(m.to);
     return {m, an, mid};
   }).filter(x=>x.an!=null && x.mid!=null && x.an<x.mid).sort((a,b)=>a.an-b.an)).slice(0, 8);
-  let best=null;
-  const consider=(m, comp)=>{
+  const wins=[];
+  const consider=(m, comp, cup)=>{
     if (!m || m.hg==null || m.ag==null || m.hg===m.ag) return;
     if (reviewSkip(m.h) || reviewSkip(m.a)) return;
-    const diff=Math.abs(m.hg-m.ag), gf=Math.max(m.hg, m.ag);
-    const rank=diff*1000+gf;
-    if (!best || rank>best.rank) best={m, comp, rank, diff};
+    const rank=winRank(m);
+    if (rank==null) return;
+    wins.push({m, comp, cup:!!cup, rank, diff:Math.abs(m.hg-m.ag)});
   };
   LEAGUES.forEach(l=>{
     const lg=season.leagues && season.leagues[l.id];
@@ -6301,7 +6309,7 @@ function viewRueckblick(season){
     if (lg.md){
       lg.md.forEach(md=>(md||[]).forEach(row=>{
         if (!row || row[2]==null) return;
-        consider({h:lg.teams[row[0]], a:lg.teams[row[1]], hg:row[2], ag:row[3]}, l.name);
+        consider({h:lg.teams[row[0]], a:lg.teams[row[1]], hg:row[2], ag:row[3]}, l.name, false);
       }));
       return;
     }
@@ -6312,14 +6320,16 @@ function viewRueckblick(season){
       let o=null;
       try{ o=decShared(rec); }catch(e){ o=null; }
       if (!o || o.hg==null || o.ag==null || !teamSet.has(o.homeId) || !teamSet.has(o.awayId)) return;
-      consider({h:o.homeId, a:o.awayId, hg:o.hg, ag:o.ag}, l.name);
+      consider({h:o.homeId, a:o.awayId, hg:o.hg, ag:o.ag}, l.name, false);
     });
   });
   const takeCup=(cup, name)=>{
-    (cup&&cup.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>consider(m, name)));
+    (cup&&cup.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>consider(m, name, true)));
   };
   takeCup(season.cups&&season.cups.dfb, 'DFB-Pokal');
   if (season.cups&&season.cups.land) BL_ORDER.forEach(bl=>takeCup(season.cups.land[bl], 'Landespokal '+bl));
+  const bestRank=wins.reduce((n,row)=>Math.max(n, row.rank), -1);
+  const bestWins=wins.filter(row=>row.rank===bestRank);
   let attack=null, defense=null;
   LEAGUES.forEach(l=>{
     const rows=seasonRows(season, l.id);
@@ -6330,22 +6340,27 @@ function viewRueckblick(season){
       if (r.gt!=null && +r.sp===full && full>0 && (!defense || r.gt<defense.gt)) defense={id:r.id, gt:r.gt, liga:l.name};
     });
   });
-  let upset=null;
-  const considerUpset=(m, comp)=>{
+  const upsets=[];
+  const considerUpset=(m, comp, cup)=>{
     if (!m || m.hg==null || m.ag==null) return;
     const w=cupWinner(m);
     if (!w) return;
     const loser=w===m.h?m.a:m.h;
     if (reviewSkip(w) || reviewSkip(loser)) return;
-    const wl=levelOf(w), ll=levelOf(loser);
-    if (!(wl>0 && ll>0 && wl>ll)) return;
-    const gap=wl-ll;
-    const diff=Math.abs((m.hg||0)-(m.ag||0));
-    const rank=gap*1000+diff;
-    if (!upset || rank>upset.rank) upset={m, comp, gap, rank};
+    const pot=!!(cup && (cup.amateur||[]).indexOf(w)>=0 && (cup.pro||[]).indexOf(loser)>=0);
+    const winnerAn=anOf(w), loserAn=anOf(loser);
+    if (!reviewSurpriseOk(winnerAn, loserAn, pot)) return;
+    const gap=(winnerAn!=null && loserAn!=null)?loserAn-winnerAn:0;
+    upsets.push({m, comp, pot, gap});
   };
-  (season.cups&&season.cups.dfb&&season.cups.dfb.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>considerUpset(m, 'DFB-Pokal')));
-  if (season.cups&&season.cups.land) BL_ORDER.forEach(bl=>{(season.cups.land[bl]&&season.cups.land[bl].rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>considerUpset(m, 'Landespokal '+bl)));});
+  const dfbCup=season.cups&&season.cups.dfb;
+  (dfbCup&&dfbCup.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>considerUpset(m, 'DFB-Pokal', dfbCup)));
+  if (season.cups&&season.cups.land) BL_ORDER.forEach(bl=>{
+    const cup=season.cups.land[bl];
+    (cup&&cup.rounds||[]).forEach(r=>(r.matches||[]).forEach(m=>considerUpset(m, 'Landespokal '+bl, cup)));
+  });
+  const bestGap=upsets.reduce((n,row)=>Math.max(n, row.gap), -1);
+  const bestUpsets=upsets.filter(row=>row.gap===bestGap);
   const swings=[];
   if (prev){
     const py=seasonYear(prev.name);
@@ -6374,21 +6389,30 @@ function viewRueckblick(season){
   h+=card('Meister', meister||'<p class="muted">Noch keine Tabelle.</p>');
   h+=card('Weitere Sieger', (sc&&!reviewSkip(sc)?reviewClub(sc, 'Supercup'):'<p class="muted">Kein Supercup-Sieger.</p>')+(relay||'<p class="muted">Kein Relegationssieger.</p>'));
   h+='</div>';
-  h+=card('Aufsteiger', chipList(moves.filter(m=>m&&m.type==='auf'&&L[m.to]).map(m=>m.id), id=>{
-    const m=moves.find(x=>x.id===id&&x.type==='auf');
-    return m&&L[m.to]?L[m.to].name:'';
-  }));
-  h+=card('Landespokalsieger', land.length?land.map(x=>reviewClub(x.id, x.bl)).join(''):'<p class="muted">Noch keine Landespokal-Endspiele.</p>');
+  const promoted={};
+  moves.filter(m=>m&&m.type==='auf'&&L[m.to]&&!reviewSkip(m.id)).forEach(m=>{ (promoted[m.to]=promoted[m.to]||[]).push(m.id); });
+  const promotedHtml=LEAGUES.filter(l=>promoted[l.id]&&promoted[l.id].length).map(l=>{
+    const clubs=promoted[l.id].map(id=>reviewClub(id)).filter(Boolean).join('<span class="rb-comma">, </span>');
+    return '<div class="rb-auf">'+clubs+'<span class="rb-arrow" aria-hidden="true">→</span><span class="rb-ziel">'+esc(l.name)+'</span></div>';
+  }).join('');
+  h+=card('Aufsteiger', promotedHtml||'<p class="muted">Keine.</p>');
+  h+=card('Landespokalsieger', land.length?land.map(x=>'<div class="rb-land"><span class="rb-land-name">Landespokal '+esc(x.bl)+':</span>'+reviewClub(x.id, reviewLigaName(season, x.id))+'</div>').join(''):'<p class="muted">Noch keine Landespokal-Endspiele.</p>');
   h+='<div class="rb-grid">';
   h+=card('Prominente Absteiger', prominent.length?prominent.map(x=>reviewClub(x.m.id, ansehenPts(x.an)+' · '+L[x.m.from].name)).join(''):'<p class="muted">Kein Absteiger liegt beim Ansehen über dem Schnitt seiner Liga.</p>');
   h+=card('Überraschungsaufsteiger', surprises.length?surprises.map(x=>reviewClub(x.m.id, ansehenPts(x.an)+' · '+L[x.m.to].name)).join(''):'<p class="muted">Kein Aufsteiger liegt beim Ansehen unter dem Schnitt der Liga, in die er kommt.</p>');
   h+='</div>';
   h+='<div class="rb-grid">';
-  h+=card('Höchster Sieg', best?reviewMatch(best.m, best.comp+' · '+best.diff+' Tore Vorsprung'):'<p class="muted">Noch kein entschiedenes Spiel.</p>');
+  const winHtml=bestWins.map(row=>{
+    const line=reviewTight(row.m, season, row.cup);
+    const note=row.cup?row.comp:(row.comp+' · '+row.diff+' Tore Vorsprung');
+    return '<div class="rb-result">'+line+'<div class="rb-note">'+esc(note)+'</div></div>';
+  }).join('');
+  h+=card('Höchster Sieg', winHtml||'<p class="muted">Noch kein entschiedenes Spiel.</p>');
   h+=card('Beste Offensive und Defensive', (attack?reviewClub(attack.id, attack.tg+' Tore · '+attack.liga):'<p class="muted">Keine Tore gespeichert.</p>')+(defense?reviewClub(defense.id, defense.gt+' Gegentore · '+defense.liga):''));
   h+='</div>';
   h+='<div class="rb-grid">';
-  h+=card('Pokal-Überraschung', upset?reviewMatch(upset.m, upset.comp+' · '+upset.gap+' '+(upset.gap===1?'Liga':'Ligen')+' darunter'):'<p class="muted">Kein Sieg einer schwächeren Liga gegen eine stärkere.</p>');
+  const upsetHtml=bestUpsets.map(row=>'<div class="rb-result">'+reviewTight(row.m, season, true)+'<div class="rb-note">'+esc(row.comp+(row.pot?' · Amateurtopf gegen Profitopf':''))+'</div></div>').join('');
+  h+=card('Pokal-Überraschung', upsetHtml||'<p class="muted">Kein Außenseiter mit großem Ansehen-Rückstand und kein Amateurtopf gegen einen Profitopf.</p>');
   h+=card('Ansehen zur Vorsaison', '<div class="rb-swing"><div><b>Größter Gewinn</b>'+swingTies(upSwing, 1)+'</div><div><b>Größter Verlust</b>'+swingTies(downSwing, -1)+'</div></div>');
   h+='</div></div>';
   return h;
@@ -9189,7 +9213,7 @@ function rulesHTML(){
   h+='<p>Die Amateurliga hat keinen Spielbetrieb und keine Staffeln in der Navigation. In der Vereinsliste steht der Rang direkt unter dem Namen. Zum Saisonende wählst du pro Regionalliga mindestens zwei Aufsteiger, und weitere, wenn die Staffel mehr nach oben abgibt als von oben kommt. Regionalliga-Absteiger gehen in die Amateurliga ihres Bundeslandes. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. In der 5. Liga und der Regionalliga kann die Abstiegszahl über die zwei festen Plätze hinausgehen. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Die Regionalliga hat 16 Vereine und 30 Spieltage. Ein neues Spiel beginnt mit den 16 Vereinen je Staffel, die das höchste Ansehen haben. Läuft noch eine Staffel mit 18, spielt sie zu Ende. Danach gehen einmalig die zwei schwächsten, die sonst geblieben wären, in die Amateurliga, ohne dass jemand nachrückt. Die 4. Liga bleibt bei 20, die 5. Ligen bei 22.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Wappen und Vereinsname im Spielplan öffnen die Vereinsinfo. Die Anstoßzeiten kommen in Blöcken von vier Spieltagen. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
-  h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, DFB-Pokal, Supercup, Relegation, Aufsteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung einer schwächeren Liga und die größte Veränderung des Ansehens gegenüber der Vorsaison. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
+  h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, DFB-Pokal, Supercup, Relegation, Aufsteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung und die größte Veränderung des Ansehens gegenüber der Vorsaison. Eine Pokalüberraschung ist ein Sieg mit mindestens doppelt so viel Ansehen auf der Verliererseite oder ein Amateurtopf gegen einen Profitopf. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
   h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Er beginnt mit 80 Prozent Ansehen und 20 Prozent Sport. Alle vier Spieltage wandert der Sportanteil um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
   h+='<p>Die Relegation der Regionalliga-Vizemeister hat in der 5. Liga und in jeder Regionalliga einen eigenen Reiter „Relegation“ am Ende der Unterreiterleiste, nach Regeln. Der Reiter bleibt sichtbar, auch wenn in der Saison keine Relegation stattfindet. Darunter stehen „Aktuell“ und „Historie“. Aktuell zeigt die laufende Paarung oder einen kurzen Hinweis. Die Historie zeigt die abgeschlossenen Relegationen, neueste oben, als Spielzeilen mit Wappen, Namen, Bundesland und Ergebnis. In der Liga-Historie stehen keine Relegationsspiele. Der Relegationsaufsteiger bleibt in der Spalte, ohne (Rel.). Die Ergebniszeile steht unter den Spielen, davor das Wappen. Im Amateurtopf sind 5. Liga, Regionalliga und Amateurliga nach Staffel getrennt. Gleichauf stehende Rekordhalter teilen sich eine Zeile, der Name steht im Tooltip. Ein Vizemeister, der die offene Relegation spielt, ist in der Tabelle lila. Gewinnt er, wird die Zeile grün. Verliert er, verschwindet die Farbe. (Auf) ist grün, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, (Rel.) lila, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
@@ -12488,6 +12512,22 @@ function uiSelfTestBody(fails){
     check('SSV Jeddeloh II zählt im Rückblick wie eine erste Mannschaft', reviewSkip('t095')===false && reviewSkip('t095')===histSkipName(TEAMS.t095.name) && histSkipName('Holstein Kiel II') && meister.indexOf('Regionalliga Nord')>=0 && meister.indexOf('SSV Jeddeloh II')>=0);
     check('Jeddeloh II bleibt Meister, Aufsteiger, Absteiger und Überraschung', auf.indexOf('SSV Jeddeloh II')>=0 && ab.indexOf('SSV Jeddeloh II')>=0 && surprise.indexOf('SSV Jeddeloh II')>=0, [auf,ab,surprise].map(s=>s.slice(0,80)).join(' | '));
     check('Jeddeloh II bleibt in den Rückblick-Rekorden', sieg.indexOf('SSV Jeddeloh II')>=0 && tore.indexOf('SSV Jeddeloh II')>=0 && tore.indexOf('90 Tore')>=0 && tore.indexOf('10 Gegentore')>=0, sieg.slice(0,120)+' / '+tore.slice(0,160));
+    check('8:1 schlägt 7:0 und steht nicht daneben', winRank({hg:8,ag:1})>winRank({hg:7,ag:0}) && winRank({hg:8,ag:1})===winRank({hg:1,ag:8}) && winRank({hg:4,ag:4})==null);
+    check('Überraschung ist großer Ansehen-Rückstand oder Amateurtopf', reviewSurpriseOk(80, 4000, false) && !reviewSurpriseOk(4200, 4600, false) && reviewSurpriseOk(4200, 4600, true) && !reviewSurpriseOk(100, 150, false));
+    const rankSeason={name:'2098/99', status:'done', leagues:{
+      BL:{teams:['t001','t002'], md:[[[0,1,8,1]]]},
+      BL2:{teams:['t003','t004'], md:[[[0,1,7,0]]]},
+      L3:{teams:['t005','t006'], md:[[[0,1,3,1]]]}
+    }, pools:{AMBY:['t920']}, cups:{dfb:{pro:['t001'], amateur:['t920'], rounds:[
+      {name:'1. Runde', matches:[{h:'t920', a:'t001', hg:2, ag:1},{h:'t004', a:'t003', hg:1, ag:0}]}
+    ]}, land:{Bayern:{rounds:[{name:'Finale', drawn:true, matches:[{h:'t920', a:'t006', hg:1, ag:0}]}]}}}, endData:{moves:[{id:'t001', type:'auf', to:'BL'},{id:'t003', type:'auf', to:'BL2'}], tables:{}}};
+    const ranked=viewRueckblick(rankSeason);
+    const rankSec=(title)=>{ const mark='<h3>'+title+'</h3>'; const i=ranked.indexOf(mark); if (i<0) return ''; const j=ranked.indexOf('<h3>', i+mark.length); return j<0?ranked.slice(i):ranked.slice(i,j); };
+    const hoch=rankSec('Höchster Sieg'), pokal=rankSec('Pokal-Überraschung'), aufZ=rankSec('Aufsteiger'), landZ=rankSec('Landespokalsieger');
+    check('Höchster Sieg zeigt nur 8:1', hoch.indexOf('>8:1<')>=0 && hoch.indexOf('>7:0<')<0 && hoch.indexOf('Bundesliga')>=0 && hoch.split('rb-tight').length===2, hoch.slice(0,240));
+    check('Aufsteiger stehen je Zielliga mit grünem Pfeil', aufZ.indexOf('rb-arrow')>=0 && aufZ.indexOf('Bundesliga')<aufZ.indexOf('2. Bundesliga') && aufZ.indexOf(TEAMS.t001.name)>=0 && aufZ.indexOf(TEAMS.t003.name)>=0, aufZ.slice(0,240));
+    check('Landespokalsieger stehen untereinander mit Liga', landZ.indexOf('Landespokal Bayern:')>=0 && landZ.indexOf(TEAMS.t920.name)>=0 && landZ.indexOf('Amateurliga')>=0, landZ.slice(0,240));
+    check('Pokal-Überraschung ist der Amateurtopf, nicht der Zweitligist', pokal.indexOf(TEAMS.t920.name)>=0 && pokal.indexOf(TEAMS.t001.name)>=0 && pokal.indexOf(TEAMS.t004.name)<0 && pokal.indexOf('rb-tight')>=0 && pokal.indexOf('Amateurliga')>=0, pokal.slice(0,300));
   }finally{
     S.seasons=reviewKeep.seasons; S.view=reviewKeep.idx; S.ui.tab=reviewKeep.tab; S.ui.league=reviewKeep.league; S.ui.amateurBl=reviewKeep.bl; S.ui.amateurView=reviewKeep.view; touchAnsehen();
   }
