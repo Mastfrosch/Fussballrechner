@@ -1768,5 +1768,85 @@ window.FR_AEHNLICH=[
 "ebene": 6,
 "bl": "Baden-Württemberg",
 "hinweis": "Zugeordnet über den Namen. Die Schreibweise weicht ab (Kürzel, Jahreszahl, Zusatz oder fehlender Ort)."
+},
+{
+"art": "unsicher",
+"fupa": "SV Gifhorn",
+"wappen": "wappen/vgl/b4bf91094b02.webp",
+"id": "t312",
+"liga": "Bezirksliga Braunschweig Staffel 1",
+"ebene": 7,
+"bl": "Niedersachsen",
+"hinweis": "Nach Abzug der Rechtsform bleibt nur Gifhorn, wie beim vorhandenen MTV Gifhorn."
+},
+{
+"art": "unsicher",
+"fupa": "DJK Rhede",
+"wappen": "wappen/vgl/f8b7d2d13cfc.webp",
+"id": "t771",
+"liga": "Bezirksliga Niederrhein, Gruppe 4",
+"ebene": 7,
+"bl": "Nordrhein-Westfalen",
+"hinweis": "Nach Abzug der Rechtsform bleibt nur Rhede, wie beim vorhandenen VfL Rhede."
+},
+{
+"art": "unsicher",
+"fupa": "Mülheimer SV 07",
+"wappen": "wappen/vgl/f351d0a946e3.webp",
+"id": "t773",
+"liga": "Bezirksliga Niederrhein, Gruppe 6",
+"ebene": 7,
+"bl": "Nordrhein-Westfalen",
+"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname Mülheim bleibt gleich."
+},
+{
+"art": "unsicher",
+"fupa": "SpVg Hagen 11",
+"wappen": "wappen/vgl/77d6c61110fd.webp",
+"id": "t807",
+"liga": "Westfalenliga Staffel 2",
+"ebene": 6,
+"bl": "Nordrhein-Westfalen",
+"hinweis": "Jahreszahl und Schreibweise weichen ab, der Ortsname Hagen bleibt gleich."
+},
+{
+"art": "unsicher",
+"fupa": "TSV 1860 Hanau",
+"wappen": "wappen/vgl/376af44fe91e.webp",
+"id": "t815",
+"liga": "Gruppenliga Frankfurt Gruppe Ost",
+"ebene": 7,
+"bl": "Hessen",
+"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname Hanau bleibt gleich."
+},
+{
+"art": "unsicher",
+"fupa": "FSV Bayreuth",
+"wappen": "wappen/vgl/2e48626ad651.webp",
+"id": "t082",
+"liga": "Bezirksliga Oberfranken Ost",
+"ebene": 7,
+"bl": "Bayern",
+"hinweis": "Nach Abzug der Rechtsform bleibt nur Bayreuth, wie bei der vorhandenen SpVgg Bayreuth."
+},
+{
+"art": "unsicher",
+"fupa": "MTV 1879 München",
+"wappen": "wappen/vgl/c8dfc9cc289c.webp",
+"id": "t028",
+"liga": "Bezirksliga Oberbayern Süd",
+"ebene": 7,
+"bl": "Bayern",
+"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname München bleibt gleich."
+},
+{
+"art": "unsicher",
+"fupa": "SpVgg Erlangen",
+"wappen": "wappen/vgl/2e253d773e9c.webp",
+"id": "t260",
+"liga": "Bezirksliga Mittelfranken Nord",
+"ebene": 7,
+"bl": "Bayern",
+"hinweis": "Nach Abzug der Rechtsform bleibt nur Erlangen, wie beim vorhandenen ATSV Erlangen."
 }
 ];
