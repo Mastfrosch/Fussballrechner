@@ -7900,7 +7900,16 @@ function sharedConferenceSearch(season, lid, to, conf){
   let demand0=0;
   for (let i=0;i<extras.length;i++) demand0+=extras[i];
   if (demand0>2*konfPer*left0) return false;
-  if (demand0<=konfPer*left0) return true;
+  const needyMatches=(pairs)=>{
+    let n=0;
+    for (let i=0;i<pairs.length;i++) if ((extras[pairs[i][0]]||0)>0 || (extras[pairs[i][1]]||0)>0) n++;
+    return n;
+  };
+  const spreadOk=from=>{
+    for (let di=from; di<days.length; di++) if (needyMatches(days[di])>konfPer) return false;
+    return true;
+  };
+  if (demand0<=konfPer*left0 && spreadOk(0)) return true;
   const memo=new Map();
   function key(di){
     let s=di+'|';
@@ -7916,7 +7925,7 @@ function sharedConferenceSearch(season, lid, to, conf){
     }
     if (!demand) return true;
     if (demand>2*konfPer*left) return false;
-    if (demand<=konfPer*left) return true;
+    if (demand<=konfPer*left && spreadOk(di)) return true;
     const sig=key(di);
     if (memo.has(sig)) return memo.get(sig);
     const pairs=days[di];
@@ -8705,6 +8714,8 @@ function scheduleNextBlock(season, lid){
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeFeature[mi]||[]).map(s=>Object.assign({}, s));
   }
+  const beforeTail={};
+  for (let mi=range[0]; mi<=range[1]; mi++) beforeTail[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
   placeBestTops(season, lid, range[0], range[1], snap);
   balanceFrSaBlock(season, lid, range[0], range[1], snap);
   nudgeLateRegional(season, lid, range[0], range[1]);
@@ -8713,6 +8724,9 @@ function scheduleNextBlock(season, lid){
   seatFeatured(season, lid, range[0], range[1], snap);
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(afterPin[mi]||[]).map(s=>Object.assign({}, s));
+  }
+  if (konfPer && !blockObligations(season, lid, range[1]).ok){
+    for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeTail[mi]||[]).map(s=>Object.assign({}, s));
   }
   for (let mi=range[0]; mi<=range[1]; mi++){
     const row=bag[mi]; if (!row) continue;
