@@ -335,6 +335,11 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .alike-side img{width:36px;height:36px;object-fit:contain;flex:0 0 36px}
 .alike-arrow{text-align:center;color:var(--muted)}
 .alike-meta{grid-column:1 / -1;margin:0;font-size:12px;color:var(--muted)}
+.alike-tools{display:flex;align-items:center;gap:12px;margin:0 0 8px;flex-wrap:wrap}
+.alike-tools #alikeCount{font-weight:700;color:#08324d}
+.alike-choice{grid-column:1 / -1;display:flex;gap:8px}
+.alike-pick{border:1px solid #8aa4b8;background:#fff;color:#08324d;padding:4px 10px;font-weight:700;cursor:pointer}
+.alike-pick.on{background:#006ab2;border-color:#006ab2;color:#fff}
 .alike-tag{display:inline-block;margin-right:6px;padding:0 4px;background:#8a5a00;color:#fff;font-size:10px;font-weight:700;line-height:1.45}
 .searchbox{padding:5px 8px;border:1px solid #ccc;border-radius:0;width:100%;max-width:320px}
 .map-wrap{position:relative;background:#1d4f86}
@@ -902,7 +907,9 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .bfv-kicker{font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
 .bfv-stage h2{margin:2px 0 4px;font-size:34px;line-height:1.05;letter-spacing:.02em;font-weight:700}
 .bfv-meta{font-size:15px;opacity:.9}
-.bfv-stage .muted,.bfv-stage .ansehen-now{color:#fff}
+.bfv-stage .muted,.bfv-stage .ansehen-now,.bfv-stage .ansehen-now b,.bfv-stage .an-course,.bfv-stage .an-course b,.bfv-stage .rechner-tag{color:#fff;background:transparent}
+.bfv-stage .rechner-tag{border:0;padding:0 4px}
+.card-title .muted,.term-md-title .muted,.tbl th .muted,.rb-hero .muted,.rb-hero .bl,.rb-hero .liga-tag{background:transparent;color:inherit}
 .bfv-tabs,.bfv-subtabs{display:flex;flex-wrap:wrap;gap:0;background:#e7eef3;padding:0;margin:0}
 .bfv-tabs button,.bfv-subtabs button{border:0;background:transparent;color:#234;padding:12px 16px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer}
 .bfv-tabs button.active,.bfv-subtabs button.active{background:#006ab2;color:#fff}
@@ -1021,6 +1028,18 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .rb-liga{font-weight:700;min-width:11em}
 .rb-club{display:inline-flex;align-items:center;gap:8px;margin:2px 16px 2px 0;max-width:100%}
 .rb-note{color:#5c6570;font-size:12px}
-.rb-match{max-width:720px}
+.rb-tight{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;line-height:1.2}
+.rb-tight .rb-nm{font-weight:650;white-space:nowrap}
+.rb-tight .rb-crest{width:28px;height:28px;object-fit:contain;background:transparent;flex:0 0 28px}
+.rb-tight .rb-sc{color:#145c38;font-size:18px;font-variant-numeric:tabular-nums;padding:0 2px}
+.rb-liga-tag{color:#5c6b7a;font-size:12px;font-weight:650;white-space:nowrap}
+.rb-result{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 0}
+.rb-result .rb-note{margin:0}
+.rb-auf,.rb-land{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;padding:4px 0}
+.rb-auf-clubs{display:flex;flex-wrap:wrap;align-items:center;gap:0;min-width:0}
+.rb-auf-clubs .rb-club{margin:0}
+.rb-arrow{color:#00a63e;font-weight:800;font-size:30px;line-height:1;flex:none;margin:0 4px}
+.rb-ziel,.rb-land-name{font-weight:700;color:#08324d}
+.rb-comma{margin:0 0.4em 0 0;color:#14202b}
 .rb-swing{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .rb-card .club{padding:2px 0}
