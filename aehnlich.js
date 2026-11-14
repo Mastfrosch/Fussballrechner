@@ -1777,7 +1777,7 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Braunschweig Staffel 1",
 "ebene": 7,
 "bl": "Niedersachsen",
-"hinweis": "Nach Abzug der Rechtsform bleibt nur Gifhorn, wie beim vorhandenen MTV Gifhorn."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit MTV Gifhorn überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1787,7 +1787,7 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Niederrhein, Gruppe 4",
 "ebene": 7,
 "bl": "Nordrhein-Westfalen",
-"hinweis": "Nach Abzug der Rechtsform bleibt nur Rhede, wie beim vorhandenen VfL Rhede."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit VfL Rhede überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1797,7 +1797,7 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Niederrhein, Gruppe 6",
 "ebene": 7,
 "bl": "Nordrhein-Westfalen",
-"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname Mülheim bleibt gleich."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit Mülheimer FC 97 überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1807,7 +1807,7 @@ window.FR_AEHNLICH=[
 "liga": "Westfalenliga Staffel 2",
 "ebene": 6,
 "bl": "Nordrhein-Westfalen",
-"hinweis": "Jahreszahl und Schreibweise weichen ab, der Ortsname Hagen bleibt gleich."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit SpVgg Hagen überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1817,7 +1817,7 @@ window.FR_AEHNLICH=[
 "liga": "Gruppenliga Frankfurt Gruppe Ost",
 "ebene": 7,
 "bl": "Hessen",
-"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname Hanau bleibt gleich."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit FC Hanau 93 überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1827,7 +1827,7 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Oberfranken Ost",
 "ebene": 7,
 "bl": "Bayern",
-"hinweis": "Nach Abzug der Rechtsform bleibt nur Bayreuth, wie bei der vorhandenen SpVgg Bayreuth."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit SpVgg Bayreuth überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1837,7 +1837,7 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Oberbayern Süd",
 "ebene": 7,
 "bl": "Bayern",
-"hinweis": "Jahreszahl und Rechtsform weichen ab, der Ortsname München bleibt gleich."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit TSV 1860 München überein. Der Verein steht zusätzlich im Bestand."
 },
 {
 "art": "unsicher",
@@ -1847,6 +1847,6 @@ window.FR_AEHNLICH=[
 "liga": "Bezirksliga Mittelfranken Nord",
 "ebene": 7,
 "bl": "Bayern",
-"hinweis": "Nach Abzug der Rechtsform bleibt nur Erlangen, wie beim vorhandenen ATSV Erlangen."
+"hinweis": "Eigenständige erste Mannschaft. Nur der Ort stimmt mit ATSV Erlangen überein. Der Verein steht zusätzlich im Bestand."
 }
 ];

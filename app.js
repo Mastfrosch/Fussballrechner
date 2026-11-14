@@ -6416,7 +6416,7 @@ function viewAlike(){
   const rows=window.FR_AEHNLICH||[];
   const uns=rows.filter(r=>r.art==='unsicher');
   const sim=rows.filter(r=>r.art!=='unsicher');
-  return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><p class="muted">'+uns.length+' unsichere Fälle sind nicht als neue Vereine angelegt. '+sim.length+' Zuordnungen liefen nur über den Namen. Die Ligen der Pyramide bleiben unverändert.</p><h3>Unsicher</h3><div class="alike-list">'+uns.map(alikeCard).join('')+'</div><h3>Nur über den Namen zugeordnet</h3><div class="alike-list">'+sim.map(alikeCard).join('')+'</div></div>';
+  return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><p class="muted">'+uns.length+' ähnliche Namen. 12 davon sind nicht angelegt. 8 Vereine mit gleichem Ort sind eigenständige erste Mannschaften und stehen zusätzlich im Bestand. '+sim.length+' Zuordnungen liefen nur über den Namen. Die Ligen der Pyramide bleiben unverändert.</p><h3>Unsicher</h3><div class="alike-list">'+uns.map(alikeCard).join('')+'</div><h3>Nur über den Namen zugeordnet</h3><div class="alike-list">'+sim.map(alikeCard).join('')+'</div></div>';
 }
 function renderAmateur(){
   const s=cur();
@@ -13078,7 +13078,7 @@ function uiSelfTestBody(fails){
   const neuSet=new Set(neuIds);
   const pyWant='BL:t001,t002,t003,t005,t007,t006,t008,t004,t009,t013,t010,t011,t012,t014,t016,t017,t015,t019,t018,t021|BL2:t020,t022,t024,t023,t025,t027,t037,t026,t029,t028,t031,t033,t035,t030,t036,t034,t039,t032,t038,t040|L3:t046,t042,t041,t043,t044,t045,t085,t047,t050,t058,t049,t048,t053,t057,t051,t054,t052,t056,t060,t059|L4:t061,t064,t062,t069,t063,t066,t068,t065,t071,t067,t073,t070,t084,t055,t072,t076,t101,t074,t077,t104|L5NO:t088,t083,t081,t087,t091,t086,t093,t079,t492,t089,t098,t090,t097,t137,t100,t120,t119,t121,t141,t094,t139,t125|L5SW:t078,t075,t110,t082,t109,t107,t111,t108,t113,t152,t116,t118,t151,t103,t168,t153,t167,t106,t112,t105,t170,t080|RLN:t123,t127,t129,t132,t095,t206,t205,t133,t126,t183,t187,t130,t203,t189,t192,t213|RLO:t140,t096,t142,t144,t149,t148,t138,t136,t147,t146,t217,t236,t231,t221,t228,t150|RLS:t155,t156,t160,t158,t159,t264,t263,t164,t249,t154,t157,t114,t115,t250,t247,t165|RLW:t169,t172,t102,t178,t173,t179,t174,t176,t181,t175,t279,t282,t284,t283,t296,t299';
   const pyNow=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'].map(id=>id+':'+(squads.leagues[id]||[]).join(',')).join('|');
-  check('Bestand ist 919 plus 1372 neue Vereine', Object.keys(TEAMS).length===2291 && neuIds.length===1372 && neuIds.every(id=>TEAMS[id] && TEAMS[id].rang==null));
+  check('Bestand ist 919 plus 1380 neue Vereine', Object.keys(TEAMS).length===2299 && neuIds.length===1380 && neuIds.every(id=>TEAMS[id] && TEAMS[id].rang==null));
   const secondTeamMark=name=>{
     const s=String(name||'');
     if (/\b(II|III|IV)\b/.test(s)) return true;
@@ -13094,25 +13094,29 @@ function uiSelfTestBody(fails){
   check('außer SSV Jeddeloh II keine zweite Mannschaft', seconds.length===0 && secondTeamMark(TEAMS.t095.name) && !secondTeamMark('SC Berliner Amateure') && !secondTeamMark('TSC Zweibrücken'), seconds.map(id=>id+' '+TEAMS[id].name).slice(0,6).join(', '));
   const normClubKey=name=>{
     let s=String(name||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
-    s=s.replace(/sp\.?\s*vg\.?/g,' ');
+    s=s.replace(/sp\.?\s*vgg/g,'spvgg');
+    s=s.replace(/sp\.?\s*vg(?!g)/g,'spvg');
     s=s.replace(/\be\.?\s*v\.?\b/g,' ');
     s=s.replace(/\([^)]*\)/g,' ');
     s=s.replace(/\/[a-z0-9].*/g,' ');
     s=s.replace(/[^a-z0-9]+/g,' ');
     const forms={fc:1,sc:1,sv:1,tsv:1,fsv:1,ssv:1,vfb:1,vfl:1,vfr:1,spvgg:1,spvg:1,sg:1,etb:1,fk:1,djk:1,bv:1,bsv:1,ksv:1,tus:1,mtv:1,osc:1,bsc:1,ssg:1,sfg:1,fsg:1,tsg:1,atsv:1,esv:1,psv:1,sfc:1,gfc:1,polizei:1};
-    const parts=[];
+    const form=[], core=[];
     s.split(' ').forEach(p=>{
-      if (!p || forms[p] || /^\d+$/.test(p)) return;
-      parts.push(p==='lok'?'lokomotive':p);
+      if (!p || /^\d+$/.test(p)) return;
+      if (forms[p]){ form.push(p); return; }
+      core.push(p==='lok'?'lokomotive':p);
     });
-    return parts;
+    form.sort();
+    return {form, core};
   };
   const normDup=(a,b)=>{
-    if (!a.length || !b.length) return false;
-    if (a.join(' ')===b.join(' ')) return true;
-    if (a.length>=2 && b.length===a.length+1 && a.every((p,i)=>b[i]===p)) return true;
-    if (b.length>=2 && a.length===b.length+1 && b.every((p,i)=>a[i]===p)) return true;
-    return false;
+    if (!a.core.length || !b.core.length) return false;
+    const fa=a.form.join(' '), fb=b.form.join(' ');
+    if (fa && fb && fa!==fb) return false;
+    const tail=(short,long)=>short.length>=2 && long.length===short.length+1 && short.every((p,i)=>long[i]===p);
+    const same=a.core.length===b.core.length && a.core.every((p,i)=>b.core[i]===p);
+    return same || tail(a.core,b.core) || tail(b.core,a.core);
   };
   const dups=[];
   neuIds.forEach(id=>{
@@ -13122,7 +13126,7 @@ function uiSelfTestBody(fails){
       if (normDup(a, normClubKey(TEAMS[oid].name))) dups.push(id+'='+oid);
     });
   });
-  check('keine normalisierte Namensdublette', dups.length===0, dups.slice(0,6).join(', '));
+  check('keine normalisierte Namensdublette', dups.length===0 && normDup(normClubKey('SSG Rot-Schwarz Kiel'), normClubKey('Rot-Schwarz Kiel')) && normDup(normClubKey('SV Blau-Weiß 50 Baabe'), normClubKey('SV Blau-Weiß Baabe')) && !normDup(normClubKey('SV Gifhorn'), normClubKey('MTV Gifhorn')) && !normDup(normClubKey('DJK Rhede'), normClubKey('VfL Rhede')) && !normDup(normClubKey('Mülheimer SV 07'), normClubKey('Mülheimer FC 97')) && !normDup(normClubKey('SpVg Hagen 11'), normClubKey('SpVgg Hagen')) && !normDup(normClubKey('TSV 1860 Hanau'), normClubKey('FC Hanau 93')) && !normDup(normClubKey('FSV Bayreuth'), normClubKey('SpVgg Bayreuth')) && !normDup(normClubKey('MTV 1879 München'), normClubKey('TSV 1860 München')) && !normDup(normClubKey('SpVgg Erlangen'), normClubKey('ATSV Erlangen')), dups.slice(0,6).join(', '));
   check('neue Vereine bleiben in der Amateurliga', LEAGUES.every(l=>(squads.leagues[l.id]||[]).every(id=>!neuSet.has(id))) && neuIds.every(id=>ansehenValue(id)===0));
   check('Pyramiden-Start bleibt unverändert', pyNow===pyWant);
   const alikeRows=window.FR_AEHNLICH||[];
