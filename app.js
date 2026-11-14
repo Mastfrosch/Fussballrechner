@@ -5,6 +5,8 @@
 // ---------- Stammdaten ----------
 const TEAMS = {};
 window.FR_TEAMS.forEach(t => { TEAMS[t[0]] = {id:t[0], name:t[1], bl:t[2], rang:t[3], crest:'wappen/'+t[4]}; });
+// Neu-Markierung entfernen: diese Zeile und neu.js löschen, neuMark unten leer zurückgeben.
+const NEU_SET=new Set(window.FR_NEU||[]);
 
 // Nordost: die Länder von Regionalliga Nord und Ost. Südwest: Süd und West. Die Listen sind 1:1 dieselben.
 const RL_STATES = {
@@ -1088,7 +1090,8 @@ function ansehenSelfTestBody(fails){
     const n=squad.leagues[l.id] && squad.leagues[l.id].length;
     return l.level>=5 ? n>=16 && n<=20 : n===l.size;
   });
-  check('Startaufteilung setzt 919 Vereine einmal in die richtigen Größen', squad.used===919 && squad.total===919 && LEAGUES.every(l=>squad.leagues[l.id].length===l.size), squad.used+'/'+L5_IDS.map(id=>squad.leagues[id].length).join(',')+'/'+RL_IDS.map(id=>squad.leagues[id].length).join(','));
+  const teamN=Object.keys(TEAMS).length;
+  check('Startaufteilung setzt jeden Verein einmal in die richtigen Größen', squad.used===teamN && squad.total===teamN && LEAGUES.every(l=>squad.leagues[l.id].length===l.size), squad.used+'/'+teamN+'/'+L5_IDS.map(id=>squad.leagues[id].length).join(',')+'/'+RL_IDS.map(id=>squad.leagues[id].length).join(','));
   check('5. Liga trägt Nordost und Südwest', L.L5NO.name==='5. Liga Nordost' && L.L5SW.name==='5. Liga Südwest' && L.L5NO.size===22 && L.L5SW.size===22 && L.L5NO.up===2 && L.L5NO.down===2 && L.L4.size===20 && L.L4.down===4 && !L.OLBY);
   check('Regionalliga-Namen bleiben', L.RLN.name==='Regionalliga Nord' && L.RLO.name==='Regionalliga Ost' && L.RLS.name==='Regionalliga Süd' && L.RLW.name==='Regionalliga West' && RL_IDS.every(id=>L[id].level===6 && L[id].size===16 && L[id].up===1 && L[id].down===2));
   check('Startstaffeln folgen dem Bundesland', squad.leagues.L5NO.every(id=>BL_L5[TEAMS[id].bl]==='L5NO') && squad.leagues.L5SW.every(id=>BL_L5[TEAMS[id].bl]==='L5SW') && squad.leagues.RLN.every(id=>BL_RL[TEAMS[id].bl]==='RLN') && squad.leagues.RLS.every(id=>BL_RL[TEAMS[id].bl]==='RLS'));
@@ -6399,25 +6402,47 @@ function renderRueckblick(){
   setActions('');
   $('#view').innerHTML=viewRueckblick(cur());
 }
+function neuMark(id){
+  // Markierung entfernen: return '' und neu.js löschen.
+  return NEU_SET.has(id)?' <span class="neu-badge">neu</span>':'';
+}
+function alikeCard(r){
+  const t=TEAMS[r.id];
+  const right=t?clubHTML(r.id,{nobl:true}):'<span class="muted">Verein fehlt</span>';
+  const tag=r.art==='unsicher'?'<span class="alike-tag">unsicher</span> ':'';
+  return '<article class="alike-row" data-name="'+esc((r.fupa+' '+(t?t.name:'')).toLowerCase())+'"><div class="alike-side"><img src="'+esc(r.wappen)+'" alt=""><div><b>'+esc(r.fupa)+'</b><div class="muted">FuPa 2026/27</div></div></div><div class="alike-arrow" aria-hidden="true">→</div><div class="alike-side">'+right+'</div><p class="alike-meta">'+tag+'Ebene '+esc(r.ebene)+' · '+esc(r.bl||'')+' · '+esc(r.liga||'')+' · '+esc(r.hinweis||'')+'</p></article>';
+}
+function viewAlike(){
+  const rows=window.FR_AEHNLICH||[];
+  const uns=rows.filter(r=>r.art==='unsicher');
+  const sim=rows.filter(r=>r.art!=='unsicher');
+  return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><p class="muted">'+uns.length+' ähnliche Namen. 12 davon sind nicht angelegt. 8 Vereine mit gleichem Ort sind eigenständige erste Mannschaften und stehen zusätzlich im Bestand. '+sim.length+' Zuordnungen liefen nur über den Namen. Die Ligen der Pyramide bleiben unverändert.</p><h3>Unsicher</h3><div class="alike-list">'+uns.map(alikeCard).join('')+'</div><h3>Nur über den Namen zugeordnet</h3><div class="alike-list">'+sim.map(alikeCard).join('')+'</div></div>';
+}
 function renderAmateur(){
   const s=cur();
   const counts={};
   const ids=[]; POOLS.forEach(p=>(s.pools[p.id]||[]).forEach(id=>{ ids.push(id); const bl=TEAMS[id].bl; counts[bl]=(counts[bl]||0)+1; }));
   if (!S.ui.amateurBl || !counts[S.ui.amateurBl]) S.ui.amateurBl=BL_ORDER.find(bl=>counts[bl])||BL_ORDER[0];
   const bl=S.ui.amateurBl;
+  const view=S.ui.amateurView||'';
   $('#title').textContent='Amateurliga';
-  $('#subline').innerHTML=esc(bl)+' · kein Spielbetrieb. Zum Saisonende rücken je Regionalliga mindestens zwei Vereine nach.';
+  $('#subline').innerHTML=(view==='aehnlich'?'Prüfung der Namenszuordnung 2026/27. ':esc(bl)+' · ')+'kein Spielbetrieb. Zum Saisonende rücken je Regionalliga mindestens zwei Vereine nach.';
   setActions(seasonActions(s));
-  $('#tabs').innerHTML='<a class="tab'+(S.ui.amateurView==='karte'?'':' active')+'" data-act="amateurList">Vereine</a><a class="tab'+(S.ui.amateurView==='karte'?' active':'')+'" data-act="amateurMap">Karte</a>'+BL_ORDER.filter(b=>counts[b]).map(b=>'<a class="tab'+(b===bl?' active':'')+'" data-amateur="'+esc(b)+'">'+esc(b)+'</a>').join('');
+  const on=v=>view===v?' active':'';
+  $('#tabs').innerHTML='<a class="tab'+on('')+'" data-act="amateurList">Vereine</a><a class="tab'+on('karte')+'" data-act="amateurMap">Karte</a><a class="tab'+on('aehnlich')+'" data-act="amateurAlike">Ähnliche Vereine</a>'+BL_ORDER.filter(b=>counts[b]).map(b=>'<a class="tab'+(b===bl&&view!=='aehnlich'?' active':'')+'" data-amateur="'+esc(b)+'">'+esc(b)+'</a>').join('');
   const list=ids.filter(id=>TEAMS[id].bl===bl);
   list.sort(byAnsehen);
-  if (S.ui.amateurView==='karte'){
+  if (view==='aehnlich'){
+    $('#view').innerHTML=viewAlike();
+    return;
+  }
+  if (view==='karte'){
     $('#view').innerHTML=viewMap('Amateurliga '+bl, list, [bl], 'am:'+bl);
     bindMap();
     return;
   }
   let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine in '+esc(bl)+'.</p><div class="amateur-list">'+
-    list.map(id=>'<div class="am-row" data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true, under:'<span class="am-rang">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span>'})+'</div>').join('')+
+    list.map(id=>'<div class="am-row" data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true, tail:neuMark(id), under:'<span class="am-rang">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span>'})+'</div>').join('')+
     '</div></div>';
   $('#view').innerHTML=h;
 }
@@ -7875,7 +7900,16 @@ function sharedConferenceSearch(season, lid, to, conf){
   let demand0=0;
   for (let i=0;i<extras.length;i++) demand0+=extras[i];
   if (demand0>2*konfPer*left0) return false;
-  if (demand0<=konfPer*left0) return true;
+  const needyMatches=(pairs)=>{
+    let n=0;
+    for (let i=0;i<pairs.length;i++) if ((extras[pairs[i][0]]||0)>0 || (extras[pairs[i][1]]||0)>0) n++;
+    return n;
+  };
+  const spreadOk=from=>{
+    for (let di=from; di<days.length; di++) if (needyMatches(days[di])>konfPer) return false;
+    return true;
+  };
+  if (demand0<=konfPer*left0 && spreadOk(0)) return true;
   const memo=new Map();
   function key(di){
     let s=di+'|';
@@ -7891,7 +7925,7 @@ function sharedConferenceSearch(season, lid, to, conf){
     }
     if (!demand) return true;
     if (demand>2*konfPer*left) return false;
-    if (demand<=konfPer*left) return true;
+    if (demand<=konfPer*left && spreadOk(di)) return true;
     const sig=key(di);
     if (memo.has(sig)) return memo.get(sig);
     const pairs=days[di];
@@ -8680,6 +8714,8 @@ function scheduleNextBlock(season, lid){
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeFeature[mi]||[]).map(s=>Object.assign({}, s));
   }
+  const beforeTail={};
+  for (let mi=range[0]; mi<=range[1]; mi++) beforeTail[mi]=(bag[mi]||[]).map(s=>Object.assign({}, s));
   placeBestTops(season, lid, range[0], range[1], snap);
   balanceFrSaBlock(season, lid, range[0], range[1], snap);
   nudgeLateRegional(season, lid, range[0], range[1]);
@@ -8688,6 +8724,9 @@ function scheduleNextBlock(season, lid){
   seatFeatured(season, lid, range[0], range[1], snap);
   if (konfPer && !blockObligations(season, lid, range[1]).ok){
     for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(afterPin[mi]||[]).map(s=>Object.assign({}, s));
+  }
+  if (konfPer && !blockObligations(season, lid, range[1]).ok){
+    for (let mi=range[0]; mi<=range[1]; mi++) bag[mi]=(beforeTail[mi]||[]).map(s=>Object.assign({}, s));
   }
   for (let mi=range[0]; mi<=range[1]; mi++){
     const row=bag[mi]; if (!row) continue;
@@ -8954,7 +8993,7 @@ function moveReasonHTML(s, e){
   });
   h+='<p><b>5. Liga.</b> Plätze 1 und 2 steigen fest auf. Zwei Absteiger sind fest. Freie Plätze sind 4 minus k, also die Absteiger aus der 4. Liga in diese Staffel. Bei k = 0 steigen beide Meister und beide Vizemeister auf. Bei k = 1 steigen beide Meister auf, die Vizemeister spielen eine Relegation. Ab k = 2 steigen nur die Meister auf. Bei k = 3 oder 4 kommen ein beziehungsweise zwei Ausgleichsabsteiger dazu.</p>';
   h+='<p><b>Regionalliga.</b> Der Meister steigt fest auf. Der Vizemeister steigt bei k = 0 direkt mit auf. Bei k = 1 spielt er die Relegation, Hin- und Rückspiel, Gesamtergebnis, keine Auswärtstore, keine Verlängerung, bei Gleichstand Elfmeterschießen. Der Sieger steigt auf, der Verlierer bleibt. Zwei Absteiger sind fest. Kommen mehr Vereine aus der 5. Liga, als nach oben gehen, steigen zusätzlich so viele ab. Aus der Amateurliga kommen mindestens zwei, und weitere, bis die Staffel wieder 16 hat.</p>';
-  h+='<p><b>Amateurliga.</b> Sie hat keinen Spielbetrieb. Die Nachrücker kommen aus den Bundesländern der Regionalliga. Absteiger können nicht sofort wieder aufsteigen.</p>';
+  h+='<p><b>Amateurliga.</b> Sie hat keinen Spielbetrieb. Die Nachrücker kommen aus den Bundesländern der Regionalliga. Absteiger können nicht sofort wieder aufsteigen. Neu aufgenommene Vereine der Saison 2026/27 tragen in der Liste ein „neu“ und starten ohne Ansehen, wie jeder Verein ohne gespielte Platzierung. Unter „Ähnliche Vereine“ stehen die unsicheren Fälle und die Zuordnungen, die nur über den Namen liefen.</p>';
   h+='</div>';
   return h;
 }
@@ -11170,6 +11209,7 @@ document.addEventListener('click', ev=>{
   const act=a.dataset.act, s=cur(), lid=S.ui.league;
   if (act==='amateurList'){ S.ui.amateurView=''; save(); render(); return; }
   if (act==='amateurMap'){ S.ui.amateurView='karte'; save(); render(); return; }
+  if (act==='amateurAlike'){ S.ui.amateurView='aehnlich'; save(); render(); return; }
   if (act==='cupDraw'){
     ensureCups(s);
     const cup=getCup(s, a.dataset.cup);
@@ -11315,6 +11355,7 @@ document.addEventListener('change', ev=>{
 document.addEventListener('input', ev=>{
   const t=ev.target;
   if (t.id==='poolSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#view .amateur-list > div').forEach(d=>d.style.display=d.dataset.name.includes(q)?'':'none'); }
+  else if (t.id==='alikeSearch'){ const q=t.value.toLowerCase(); document.querySelectorAll('#view .alike-row').forEach(d=>d.style.display=(d.dataset.name||'').includes(q)?'':'none'); }
   else if (t.id==='ansehenSearch'){
     const q=t.value.toLowerCase();
     document.querySelectorAll('#ansehenList tr[data-ansehen]').forEach(tr=>{ tr.style.display=(tr.dataset.name||'').includes(q)?'':'none'; });
@@ -11696,7 +11737,7 @@ function uiSelfTestBody(fails){
         ids.add(id);
         if (TEAMS[id].bl!==p.bl) regionWrong.push(p.id+' '+id+' '+TEAMS[id].bl);
       }));
-      if (ids.size!==919) sizeWrong.push(sea.name+' vereine '+ids.size);
+      if (ids.size!==Object.keys(TEAMS).length) sizeWrong.push(sea.name+' vereine '+ids.size);
       if (!sea.endData) return;
       L5_IDS.forEach(lid=>{
         const up=sea.endData.moves.filter(m=>m.type==='auf' && m.from===lid).length;
@@ -11732,7 +11773,7 @@ function uiSelfTestBody(fails){
         });
       });
     });
-    check('Staffelgrößen bleiben und 919 Vereine je einmal', sizeWrong.length===0, sizeWrong.slice(0,8).join(' · '));
+    check('Staffelgrößen bleiben und jeder Verein kommt je einmal vor', sizeWrong.length===0, sizeWrong.slice(0,8).join(' · '));
     check('niemand spielt regionsfremd', regionWrong.length===0, regionWrong.slice(0,8).join(' · '));
   }finally{
     S=pyramidKeep;
@@ -11860,7 +11901,7 @@ function uiSelfTestBody(fails){
       seen.add(id);
       if (TEAMS[id].bl!==p.bl) foreign++;
     }));
-    check('k='+kNo+' hält die freien Plätze und die Staffelgrößen', bad.length===0 && penBad.length===0 && !dup && foreign===0 && seen.size===919, bad.slice(0,3).join(' · ')+' '+penBad.slice(0,3).join(' · ')+' fremd '+foreign+' n '+seen.size);
+    check('k='+kNo+' hält die freien Plätze und die Staffelgrößen', bad.length===0 && penBad.length===0 && !dup && foreign===0 && seen.size===Object.keys(TEAMS).length, bad.slice(0,3).join(' · ')+' '+penBad.slice(0,3).join(' · ')+' fremd '+foreign+' n '+seen.size);
   });
   const ruleText=rulesHTML();
   check('Regel nennt Relegation ohne Verlängerung', ruleText.indexOf('ohne Verlängerung')>=0 && ruleText.indexOf('Elfmeterschießen')>=0 && ruleText.indexOf('beide Vizemeister')>=0);
@@ -13033,6 +13074,73 @@ function uiSelfTestBody(fails){
   Object.assign(S.ui, uiWas);
   S.view=viewWas;
   if (match && scoreSnap){ match[0]=scoreSnap[0]; match[1]=scoreSnap[1]; match[2]=scoreSnap[2]; match[3]=scoreSnap[3]; }
+  const neuIds=window.FR_NEU||[];
+  const neuSet=new Set(neuIds);
+  const pyWant='BL:t001,t002,t003,t005,t007,t006,t008,t004,t009,t013,t010,t011,t012,t014,t016,t017,t015,t019,t018,t021|BL2:t020,t022,t024,t023,t025,t027,t037,t026,t029,t028,t031,t033,t035,t030,t036,t034,t039,t032,t038,t040|L3:t046,t042,t041,t043,t044,t045,t085,t047,t050,t058,t049,t048,t053,t057,t051,t054,t052,t056,t060,t059|L4:t061,t064,t062,t069,t063,t066,t068,t065,t071,t067,t073,t070,t084,t055,t072,t076,t101,t074,t077,t104|L5NO:t088,t083,t081,t087,t091,t086,t093,t079,t492,t089,t098,t090,t097,t137,t100,t120,t119,t121,t141,t094,t139,t125|L5SW:t078,t075,t110,t082,t109,t107,t111,t108,t113,t152,t116,t118,t151,t103,t168,t153,t167,t106,t112,t105,t170,t080|RLN:t123,t127,t129,t132,t095,t206,t205,t133,t126,t183,t187,t130,t203,t189,t192,t213|RLO:t140,t096,t142,t144,t149,t148,t138,t136,t147,t146,t217,t236,t231,t221,t228,t150|RLS:t155,t156,t160,t158,t159,t264,t263,t164,t249,t154,t157,t114,t115,t250,t247,t165|RLW:t169,t172,t102,t178,t173,t179,t174,t176,t181,t175,t279,t282,t284,t283,t296,t299';
+  const pyNow=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'].map(id=>id+':'+(squads.leagues[id]||[]).join(',')).join('|');
+  check('Bestand ist 919 plus 1380 neue Vereine', Object.keys(TEAMS).length===2299 && neuIds.length===1380 && neuIds.every(id=>TEAMS[id] && TEAMS[id].rang==null));
+  const secondTeamMark=name=>{
+    const s=String(name||'');
+    if (/\b(II|III|IV)\b/.test(s)) return true;
+    if (/\bU\s?(19|21|23)\b/i.test(s)) return true;
+    if (/\bReserve\b/i.test(s)) return true;
+    if (/\bzwei(te|ten)?\b/i.test(s)) return true;
+    if (/\bAmateure\b/i.test(s) && s!=='SC Berliner Amateure') return true;
+    if (/(?:^|\s)2\.$/.test(s) || /\s2$/.test(s)) return true;
+    if (/\s[Bb]$/.test(s)) return true;
+    return false;
+  };
+  const seconds=Object.keys(TEAMS).filter(id=>id!=='t095' && secondTeamMark(TEAMS[id].name));
+  check('außer SSV Jeddeloh II keine zweite Mannschaft', seconds.length===0 && secondTeamMark(TEAMS.t095.name) && !secondTeamMark('SC Berliner Amateure') && !secondTeamMark('TSC Zweibrücken'), seconds.map(id=>id+' '+TEAMS[id].name).slice(0,6).join(', '));
+  const normClubKey=name=>{
+    let s=String(name||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
+    s=s.replace(/sp\.?\s*vgg/g,'spvgg');
+    s=s.replace(/sp\.?\s*vg(?!g)/g,'spvg');
+    s=s.replace(/\be\.?\s*v\.?\b/g,' ');
+    s=s.replace(/\([^)]*\)/g,' ');
+    s=s.replace(/\/[a-z0-9].*/g,' ');
+    s=s.replace(/[^a-z0-9]+/g,' ');
+    const forms={fc:1,sc:1,sv:1,tsv:1,fsv:1,ssv:1,vfb:1,vfl:1,vfr:1,spvgg:1,spvg:1,sg:1,etb:1,fk:1,djk:1,bv:1,bsv:1,ksv:1,tus:1,mtv:1,osc:1,bsc:1,ssg:1,sfg:1,fsg:1,tsg:1,atsv:1,esv:1,psv:1,sfc:1,gfc:1,polizei:1};
+    const form=[], core=[];
+    s.split(' ').forEach(p=>{
+      if (!p || /^\d+$/.test(p)) return;
+      if (forms[p]){ form.push(p); return; }
+      core.push(p==='lok'?'lokomotive':p);
+    });
+    form.sort();
+    return {form, core};
+  };
+  const normDup=(a,b)=>{
+    if (!a.core.length || !b.core.length) return false;
+    const fa=a.form.join(' '), fb=b.form.join(' ');
+    if (fa && fb && fa!==fb) return false;
+    const tail=(short,long)=>short.length>=2 && long.length===short.length+1 && short.every((p,i)=>long[i]===p);
+    const same=a.core.length===b.core.length && a.core.every((p,i)=>b.core[i]===p);
+    return same || tail(a.core,b.core) || tail(b.core,a.core);
+  };
+  const dups=[];
+  neuIds.forEach(id=>{
+    const a=normClubKey(TEAMS[id].name);
+    Object.keys(TEAMS).forEach(oid=>{
+      if (neuSet.has(oid) || TEAMS[oid].bl!==TEAMS[id].bl) return;
+      if (normDup(a, normClubKey(TEAMS[oid].name))) dups.push(id+'='+oid);
+    });
+  });
+  check('keine normalisierte Namensdublette', dups.length===0 && normDup(normClubKey('SSG Rot-Schwarz Kiel'), normClubKey('Rot-Schwarz Kiel')) && normDup(normClubKey('SV Blau-Weiß 50 Baabe'), normClubKey('SV Blau-Weiß Baabe')) && !normDup(normClubKey('SV Gifhorn'), normClubKey('MTV Gifhorn')) && !normDup(normClubKey('DJK Rhede'), normClubKey('VfL Rhede')) && !normDup(normClubKey('Mülheimer SV 07'), normClubKey('Mülheimer FC 97')) && !normDup(normClubKey('SpVg Hagen 11'), normClubKey('SpVgg Hagen')) && !normDup(normClubKey('TSV 1860 Hanau'), normClubKey('FC Hanau 93')) && !normDup(normClubKey('FSV Bayreuth'), normClubKey('SpVgg Bayreuth')) && !normDup(normClubKey('MTV 1879 München'), normClubKey('TSV 1860 München')) && !normDup(normClubKey('SpVgg Erlangen'), normClubKey('ATSV Erlangen')), dups.slice(0,6).join(', '));
+  check('neue Vereine bleiben in der Amateurliga', LEAGUES.every(l=>(squads.leagues[l.id]||[]).every(id=>!neuSet.has(id))) && neuIds.every(id=>ansehenValue(id)===0));
+  check('Pyramiden-Start bleibt unverändert', pyNow===pyWant);
+  const alikeRows=window.FR_AEHNLICH||[];
+  check('unsichere Fälle sind nicht angelegt', alikeRows.filter(r=>r.art==='unsicher').length===20 && alikeRows.filter(r=>r.art==='unsicher').every(r=>TEAMS[r.id] && !neuSet.has(r.id)) && !alikeRows.some(r=>r.art==='unsicher' && neuIds.indexOf(r.id)>=0));
+  const uiLeague=S.ui.league, uiView=S.ui.amateurView, uiBl=S.ui.amateurBl;
+  S.ui.league='AM'; S.ui.tab='tabelle'; S.ui.amateurView=''; S.ui.amateurBl='Bayern';
+  render();
+  const bayern=document.querySelector('#view');
+  check('Neu-Marke steht in der Amateurliga am Namen', !!bayern && !!bayern.querySelector('.neu-badge') && bayern.innerHTML.indexOf('neu-badge">neu<')>=0);
+  S.ui.amateurView='aehnlich';
+  render();
+  const alike=document.querySelector('#view');
+  check('Ähnliche Vereine zeigen FuPa-Namen und Bestand', !!alike && alike.querySelectorAll('.alike-row').length===alikeRows.length && alike.innerHTML.indexOf('alike-tag')>=0 && alike.innerHTML.indexOf('FuPa 2026/27')>=0);
+  S.ui.league=uiLeague; S.ui.amateurView=uiView; S.ui.amateurBl=uiBl;
   render();
   return {ok:!fails.length, fails, bl:squads.leagues.BL.slice(0,5).map(id=>TEAMS[id].name), sizes, regionBad};
 }
