@@ -240,6 +240,7 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .hin-score{display:block;box-sizing:border-box;height:12px;min-height:12px;margin:0 0 2px;font-size:10px;line-height:12px;color:#6b7280;font-weight:650;text-align:center;white-space:nowrap;pointer-events:none}
 .match.cup .ie-slot,.match.cup .ie-link,.match.cup .ie-box{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:18px;min-height:18px;max-height:18px;margin:0 0 2px;font-size:10px;line-height:18px;overflow:hidden}
 .match.cup .ie-box input{width:12px;height:12px;margin:0}
+tr.band-open td:first-child{box-shadow:inset 3px 0 #c5cdd4}
 tr.band-full td:first-child{box-shadow:inset 3px 0 #1d6b45}
 tr.band-mid td:first-child{box-shadow:inset 3px 0 #3d8f62}
 tr.band-gentle td:first-child{box-shadow:inset 3px 0 #c4a15a}
