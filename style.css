@@ -407,7 +407,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .py-drop::before{content:'';width:1px;background:#c5cad0}
 .py-level.rl,.py-level.l5,.py-level.ol,.py-fork{display:grid;gap:var(--gap);align-items:stretch}
 .py-level.l5,.py-fork.n2,.py-fork.pairs.l5{grid-template-columns:repeat(2,minmax(0,1fr))}
-.py-level.rl,.py-fork.n4,.py-fork.pairs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.py-level.rl,.py-fork.n3,.py-fork.n4,.py-fork.pairs{grid-template-columns:repeat(3,minmax(0,1fr))}
 .py-level.ol,.py-fork.n8{grid-template-columns:repeat(8,minmax(var(--col),1fr))}
 .py-level.rl>.mv-card,.py-level.ol>.mv-card{height:100%}
 .py-stem{height:14px;display:flex;justify-content:center}
