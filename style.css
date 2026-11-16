@@ -160,6 +160,9 @@ table.tbl.stand th.sort-asc::after,table.tbl.stand th.sort-desc::after{position:
 #tableCard tr.row-live td{background-image:linear-gradient(rgba(70, 150, 230, 0.34), rgba(70, 150, 230, 0.34))}
 #tableCard tr.row-live td:first-child{background-image:linear-gradient(90deg,#2f7eb8 0 3px,rgba(70, 150, 230, 0.34) 3px)}
 .tbl th{background:var(--head);color:#fff;text-align:center;font-weight:700;padding:7px 4px;font-size:12px;white-space:nowrap}
+.w-mark{background:transparent;color:inherit;font-weight:700}
+.an-weight{margin:8px 0;font-size:13px;line-height:1.35}
+.an-weight .w-mark,.tbl th .w-mark,.bfv-page .w-mark,.bfv-stage .w-mark{background:transparent;color:inherit}
 .tbl tbody th{background:#fff;color:var(--text)}
 th[data-sort]{cursor:pointer}
 th.sort-asc::after{content:' ▲';font-size:8px}
@@ -237,6 +240,7 @@ th.sort-desc::after{content:' ▼';font-size:8px}
 .hin-score{display:block;box-sizing:border-box;height:12px;min-height:12px;margin:0 0 2px;font-size:10px;line-height:12px;color:#6b7280;font-weight:650;text-align:center;white-space:nowrap;pointer-events:none}
 .match.cup .ie-slot,.match.cup .ie-link,.match.cup .ie-box{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:18px;min-height:18px;max-height:18px;margin:0 0 2px;font-size:10px;line-height:18px;overflow:hidden}
 .match.cup .ie-box input{width:12px;height:12px;margin:0}
+tr.band-open td:first-child{box-shadow:inset 3px 0 #c5cdd4}
 tr.band-full td:first-child{box-shadow:inset 3px 0 #1d6b45}
 tr.band-mid td:first-child{box-shadow:inset 3px 0 #3d8f62}
 tr.band-gentle td:first-child{box-shadow:inset 3px 0 #c4a15a}

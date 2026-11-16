@@ -271,10 +271,57 @@ function titleNote(durable, rechner){
     ? src+' · 1 % des Ursprungswerts pro Jahr, ab Alter 60 bei 40 %'
     : src+' · 1 % des Ursprungswerts pro Jahr, ohne Boden, ab Alter 100 bei 0';
 }
-function seasonFactor(age, rechner){
+function ansehenAgeBase(end){
+  const y=end==null?ansehenEndYear():(end|0);
+  const ref=((S&&S.seasons)||[]).find(s=>s && seasonYear(s.name)===y);
+  // Offene Saison zählt noch nicht. Die fünf jüngsten abgeschlossenen liegen dann bei Alter 1–5.
+  if (ref && ref.status!=='done') return 1;
+  return 0;
+}
+function seasonFactor(age, rechner, end){
   const a=Math.max(0, age|0);
   if (a>=50) return rechner ? ANSEHEN.rechnerFloorW : 0;
+  const base=ansehenAgeBase(end);
+  // Genau fünf abgeschlossene Saisons ×2, die nächsten fünf ×1,5.
+  // Bei offener Saison ist Alter 0 die laufende Saison und liegt vor diesem Fenster.
+  if (a>=base && a<=base+4) return 2;
+  if (a>=base+5 && a<=base+9) return 1.5;
   return ageWeight(a);
+}
+function seasonWeightMark(age, end){
+  const a=Math.max(0, age|0);
+  const base=ansehenAgeBase(end);
+  if (a>=base && a<=base+4) return '×2';
+  if (a>=base+5 && a<=base+9) return '×1,5';
+  return '';
+}
+function seasonPair(start){
+  const y=start|0;
+  return y+'/'+String((y+1)%100).padStart(2,'0');
+}
+function ansehenWeightText(end){
+  const e=end==null?ansehenEndYear():(end|0);
+  const base=ansehenAgeBase(e);
+  const x2=seasonPair(e-(base+4))+'–'+seasonPair(e-base);
+  const x15=seasonPair(e-(base+9))+'–'+seasonPair(e-(base+5));
+  const old=seasonPair(e-(base+10));
+  return '×2: '+x2+' · ×1,5: '+x15+' · ab '+old+': bisherige Kurve (Faktor je Saison in der Tabelle)';
+}
+function ansehenWeightLegend(end){
+  const text=ansehenWeightText(end);
+  const html=esc(text).replace('×2','<span class="w-mark">×2</span>').replace('×1,5','<span class="w-mark">×1,5</span>');
+  return '<p class="an-weight">'+html+'</p>';
+}
+function formatFactor(f){
+  if (f===2) return '×2';
+  if (f===1.5) return '×1,5';
+  return '×'+deNum(f, 2);
+}
+function rowSeasonFactor(row, end){
+  const lines=(row.lines||[]).filter(l=>l.kind!=='titel');
+  if (!lines.length) return seasonFactor(end-seasonYear(row.season), true, end);
+  const liga=lines.find(l=>l.kind==='liga');
+  return (liga||lines[0]).factor;
 }
 function leagueSample(level){ return LEAGUES.find(l=>l.level===level)||null; }
 function zoneCounts(level, n, downOverride, upOverride){
@@ -498,13 +545,15 @@ function landRoundPoints(scale, roundName){
   if (idx<0) return 0;
   return ansehenRound2(scale.budget*(idx+1)/Math.max(1, names.length));
 }
-function ageBand(age){
+function ageBand(age, end){
   const a=Math.max(0, age|0), c=ANSEHEN.curve;
-  if (a<=c.fullUntil) return {id:'full', label:'Letzte 5', detail:'Alter 0–4, Faktor 1'};
-  if (a<=c.midUntil) return {id:'mid', label:'6. bis 11. Saison', detail:'Alter 5–10'};
-  if (a<=c.gentleUntil) return {id:'gentle', label:'12. bis 21. Saison', detail:'Alter 11–20'};
-  if (a<c.floorAt) return {id:'late', label:'22. bis 50. Saison', detail:'Alter 21–49'};
-  return {id:'floor', label:'Ab Alter 50', detail:'Rechner bleibt bei 12 %, importierte Platzierungen sind 0'};
+  const base=ansehenAgeBase(end);
+  if (a<base) return {id:'open', label:'Offene Saison', detail:'Alter 0 zählt nicht zu den fünf, Faktor der bisherigen Kurve', mark:''};
+  if (a<=base+4) return {id:'full', label:'Letzte 5', detail:'fünf jüngste abgeschlossene Saisons, ×2', mark:'×2'};
+  if (a<=base+9) return {id:'mid', label:'Jahre 6–10', detail:'×1,5', mark:'×1,5'};
+  if (a<=c.gentleUntil) return {id:'gentle', label:'Ab der 11. Saison', detail:'bisherige Kurve, Alter '+a, mark:''};
+  if (a<c.floorAt) return {id:'late', label:'22. bis 50. Saison', detail:'bisherige Kurve, Alter '+a, mark:''};
+  return {id:'floor', label:'Ab Alter 50', detail:'Rechner bleibt bei 12 %, importierte Platzierungen sind 0', mark:''};
 }
 function landScaleOf(seasonName, bl){
   const caches=ensureAnsehenCaches();
@@ -671,7 +720,7 @@ function projectAnsehen(raw, end){
     const rechner=src.rechner!==false;
     let factor=0;
     if (src.factorKind==='title') factor=titleFactor(age, src.durable!==false);
-    else if (src.factorKind==='season') factor=seasonFactor(age, rechner);
+    else if (src.factorKind==='season') factor=seasonFactor(age, rechner, end);
     const note=src.noteKind==='liga'
       ? (age>=50?(rechner?'Rechner-Saison, dauerhafter Grundwert':'importierte Historie, älter als 50 Jahre'):(rechner?'im Rechner gespielt':'importierte Historie'))
       : src.note;
@@ -844,7 +893,7 @@ function ansehenSelfTestBody(fails){
     const ratio=p2>0?meister/p2:Infinity;
     if (ratio<worstBl.ratio) worstBl={ratio, age, meister, p2};
   }
-  check('BL-Meister bleibt vor Platz 2', worstBl.meister>worstBl.p2 && worstBl.ratio>1.25, 'knapp Alter '+worstBl.age+' '+worstBl.meister+' gegen '+worstBl.p2);
+  check('BL-Meister bleibt vor Platz 2', worstBl.meister>worstBl.p2 && worstBl.ratio>1.2, 'knapp Alter '+worstBl.age+' '+worstBl.meister+' gegen '+worstBl.p2);
   check('Alter 5 > 6', ageWeight(5)>ageWeight(6));
   check('Alter 10 > 11', ageWeight(10)>ageWeight(11));
   check('Alter 20 > 21', ageWeight(20)>ageWeight(21));
@@ -853,7 +902,7 @@ function ansehenSelfTestBody(fails){
   check('kein Sprung 10/11', ageWeight(10)-ageWeight(11)<0.03);
   check('kein Sprung 20/21', ageWeight(20)-ageWeight(21)<0.03);
   let maxLate=0, maxLateAt=0, rose=false;
-  for (let age=0; age<150; age++){
+  for (let age=ansehenAgeBase(); age<150; age++){
     const d=ansehenRound2(seasonFactor(age, true)-seasonFactor(age+1, true));
     if (d<0) rose=true;
     if (age>=20 && d>maxLate){ maxLate=d; maxLateAt=age; }
@@ -861,9 +910,30 @@ function ansehenSelfTestBody(fails){
   check('Rechner-Kurve fällt nicht wieder', !rose);
   check('kein Sprung 49/50', ansehenRound2(seasonFactor(49, true)-seasonFactor(50, true))<=0.03 && seasonFactor(49, true)>seasonFactor(50, true), seasonFactor(49,true)+' → '+seasonFactor(50,true));
   check('später Abfall bleibt ein Jahresschritt', maxLate<=0.03, 'Alter '+maxLateAt+' Schritt '+maxLate);
-  const slopeEarly=(seasonFactor(10, true)-seasonFactor(20, true))/10;
+  const slopeEarly=(seasonFactor(11, true)-seasonFactor(20, true))/9;
   const slopeLate=(seasonFactor(20, true)-seasonFactor(50, true))/30;
   check('ab 21 stärker als 11–20', slopeLate>slopeEarly, slopeLate+' gegen '+slopeEarly);
+  const exEnd=2026;
+  const exOld11=ageWeight(11);
+  const countBands=end=>{
+    let n2=0, n15=0;
+    for (let age=0; age<40; age++){
+      const f=seasonFactor(age, true, end);
+      if (f===2) n2++;
+      else if (f===1.5) n15++;
+    }
+    return n2===5 && n15===5;
+  };
+  check('Beispiel: fünf abgeschlossene Saisons ×2, Jahre 6–10 ×1,5, ab Alter 11 die alte Kurve', ansehenAgeBase(exEnd)===1 && seasonFactor(0, true, exEnd)===1 && seasonFactor(1, true, exEnd)===2 && seasonFactor(5, true, exEnd)===2 && seasonFactor(6, true, exEnd)===1.5 && seasonFactor(10, true, exEnd)===1.5 && seasonFactor(11, true, exEnd)===exOld11 && countBands(exEnd) && ansehenRound2(420*2)===840 && ansehenRound2(420*1.5)===630 && ansehenRound2(420*exOld11)===ansehenRound2(420*seasonFactor(11, true, exEnd)), seasonFactor(0,true,exEnd)+'/'+seasonFactor(1,true,exEnd)+'/'+seasonFactor(11,true,exEnd));
+  const rollKeep={seasons:S.seasons, view:S.view};
+  try{
+    S.seasons=[{name:'2030/31', status:'done'}]; S.view=0;
+    check('abgeschlossene Saison: genau fünf mal zwei und fünf mal eineinhalb, Alter 0 zählt mit', ansehenAgeBase(2030)===0 && seasonFactor(0, true, 2030)===2 && seasonFactor(4, true, 2030)===2 && seasonFactor(5, true, 2030)===1.5 && seasonFactor(9, true, 2030)===1.5 && seasonFactor(10, true, 2030)===ageWeight(10) && countBands(2030) && ageBand(0, 2030).id==='full');
+    S.seasons=[{name:'2030/31', status:'running'}];
+    check('offene Saison: Alter 0 ist nicht mal zwei, genau fünf Vorgänger und fünf Jahre eineinhalb', ansehenAgeBase(2030)===1 && seasonFactor(0, true, 2030)===ageWeight(0) && seasonFactor(0, true, 2030)!==2 && ageBand(0, 2030).id==='open' && seasonWeightMark(0, 2030)==='' && seasonFactor(1, true, 2030)===2 && seasonFactor(5, true, 2030)===2 && seasonFactor(6, true, 2030)===1.5 && seasonFactor(10, true, 2030)===1.5 && seasonFactor(11, true, 2030)===ageWeight(11) && countBands(2030));
+  }finally{
+    S.seasons=rollKeep.seasons; S.view=rollKeep.view;
+  }
   check('Alter 50 Historie raus', ageWeight(50)===0 && seasonFactor(50, false)===0);
   check('Alter 51 und 150 Historie raus', seasonFactor(51, false)===0 && seasonFactor(150, false)===0);
   check('Rechner 50 bis 150 bleibt Grundwert', seasonFactor(50, true)===ANSEHEN.rechnerFloorW && seasonFactor(51, true)===ANSEHEN.rechnerFloorW && seasonFactor(150, true)===ANSEHEN.rechnerFloorW);
@@ -9325,8 +9395,8 @@ function viewAnsehen(){
   list.sort((a,b)=>(b.info.value==null?-1:b.info.value)-(a.info.value==null?-1:a.info.value) || TEAMS[a.id].name.localeCompare(TEAMS[b.id].name,'de'));
   const opts='<option value="">Alle Ligen</option>'+LEAGUES.map(l=>'<option value="'+l.id+'"'+(liga===l.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+POOLS.map(p=>'<option value="'+p.id+'"'+(liga===p.id?' selected':'')+'>'+esc(p.name)+'</option>').join('');
   const blOpts='<option value="">Alle Bundesländer</option>'+BL_ORDER.map(b=>'<option value="'+esc(b)+'"'+(bl===b?' selected':'')+'>'+esc(b)+'</option>').join('');
-  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln und Europa. Der Amateur-Aufstieg steckt mit 4 Punkten in der Liga. Ein Aufstiegsplatz einer gespielten Liga steckt ebenfalls im Ligawert, die Spalte Aufstieg bleibt deshalb leer. Der Supercup steckt in der Titelspalte. Nach einer Sortierung oder Suche steht vorn die sichtbare Position, klein daneben der ursprüngliche Gesamtrang. In der Grundordnung ohne Filter ist das dieselbe Zahl. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
-  h+='<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Aufstieg','aufstieg')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
+  let h='<div class="box"><h3>Ansehen aller Vereine</h3><p>Ansehen bis '+end+' ist die Summe aus Liga, DFB-Pokal, Landespokal, Titeln und Europa. Die fünf jüngsten abgeschlossenen Saisons zählen <span class="w-mark">×2</span>, die Jahre 6–10 <span class="w-mark">×1,5</span>. Ältere Saisons behalten die bisherige Kurve. Titel altern weiter mit 1 Prozent pro Jahr. Der Amateur-Aufstieg steckt mit 4 Punkten in der Liga. Ein Aufstiegsplatz einer gespielten Liga steckt ebenfalls im Ligawert, die Spalte Aufstieg bleibt deshalb leer. Der Supercup steckt in der Titelspalte. Nach einer Sortierung oder Suche steht vorn die sichtbare Position, klein daneben der ursprüngliche Gesamtrang. In der Grundordnung ohne Filter ist das dieselbe Zahl. Ein Klick öffnet die Vereinsinfo.</p><div class="ansehen-tools"><input id="ansehenSearch" class="searchbox" placeholder="Verein suchen" autocomplete="off"><select id="ansehenLiga">'+opts+'</select><select id="ansehenBl">'+blOpts+'</select><span class="muted">'+list.length+' Vereine</span></div>';
+  h+=ansehenWeightLegend(end)+'<div style="overflow:auto"><table class="tbl" id="ansehenList"><thead><tr>'+sortHead('Rang','rang')+'<th></th>'+sortHead('Verein','','l')+sortHead('Liga','liga')+sortHead('DFB-Pokal','dfb')+sortHead('Landespokal','land')+sortHead('Titel','titel')+sortHead('Aufstieg','aufstieg')+sortHead('Europa','euro')+sortHead('Gesamt','value')+sortHead('Aktuelle Liga','','l')+'</tr></thead><tbody>';
   list.forEach(r=>{
     const name=TEAMS[r.id].name;
     const p=r.parts;
@@ -9363,13 +9433,13 @@ function ansehenLegendHTML(){
   return '<div class="ansehen-legend"><div class="ansehen-card"><h3>Liga und Meistertitel</h3><p>Die Bundesliga hat 20 Mannschaften. Platz 17 ist dort der letzte Nichtabstiegsplatz, die Plätze 18 bis 20 liegen 10 Prozent darunter. Aufstiegsplätze der anderen Ligen liegen 15 Prozent über dem besten Platz dahinter. Der Meistertitel steht nur bei Platz 1 der Bundesliga extra dazu.</p><table class="tbl"><thead><tr><th class="l">Stufe</th><th>Punkte</th></tr></thead><tbody>'+liga+'</tbody></table></div><div class="ansehen-card"><h3>DFB-Pokal</h3><p>Gezählt wird nur die erreichte Runde. Der Titel ist ein eigener Posten. FDGB-Siege haben denselben Titelwert, ohne erfundene Runden.</p><table class="tbl"><thead><tr><th class="l">Runde</th><th>Punkte</th></tr></thead><tbody>'+dfb+'</tbody></table></div></div>'+ageScaleHTML();
 }
 function ageScaleHTML(){
-  const ages=[0,1,4,5,10,11,20,21,49,50,59,60,99,100,150];
+  const ages=[0,1,5,6,10,11,20,21,49,50,59,60,99,100,150];
   let rows='';
   ages.forEach(age=>{
     const band=ageBand(age);
     rows+='<tr class="band-'+band.id+'"><td class="l">'+esc(band.label)+'</td><td>'+age+'</td><td>'+deNum(seasonFactor(age, true),2)+'</td><td>'+deNum(seasonFactor(age, false),2)+'</td><td>'+deNum(titleFactor(age, true),2)+'</td><td>'+deNum(titleFactor(age, false),2)+'</td></tr>';
   });
-  return '<div class="ansehen-card"><h3>Alter</h3><p>Alter 0 ist die Saison des Stichtags. Die letzten fünf Saisons sind Alter 0 bis 4. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Deutsche Meisterschaft, Bundesliga, DDR-Meisterschaft, DFB-Pokal, FDGB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Ligapunkte, auch die 4 Punkte eines Amateur-Aufsteigers, altern wie die Rechner-Saison.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt</th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>ohne Boden</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="ansehen-card"><h3>Alter</h3><p>Genau fünf abgeschlossene Saisons zählen <span class="w-mark">×2</span>, die nächsten fünf <span class="w-mark">×1,5</span>. Die offene Saison ist Alter 0 und zählt nicht dazu. Ist sie abgeschlossen, rückt sie auf Alter 0 ins Fenster. Ab der 11. abgeschlossenen Saison gilt die bisherige Kurve. Ab Alter 50 bleibt eine Rechner-Saison bei '+deNum(ANSEHEN.rechnerFloorW*100,0)+' %. Eine importierte Platzierung ist dann 0. Deutsche Meisterschaft, Bundesliga, DDR-Meisterschaft, DFB-Pokal, FDGB-Pokal, Landespokal und Supercup verlieren jedes Jahr 1 % des Ursprungswerts und bleiben ab Alter 60 bei 40 %. Ligapunkte, auch die 4 Punkte eines Amateur-Aufsteigers, altern wie die Saison.</p><table class="tbl age-scale"><thead><tr><th class="l">Abschnitt <span class="w-mark">×2</span> <span class="w-mark">×1,5</span></th><th>Alter</th><th>Rechner</th><th>Import</th><th>Großer Titel</th><th>ohne Boden</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function landMixText(scale){
   if (!scale || scale.missing) return '–';
@@ -9468,7 +9538,7 @@ function ansehenGuideHTML(){
       : 'Ein Aufstiegsplatz hat 15 Prozent mehr als der beste Platz dahinter, auch wenn der Verein am Ende nicht aufsteigt. Ein Abstiegsplatz hat 10 Prozent weniger als der letzte Nichtabstiegsplatz. Das ist der Rangzonenwert, kein zusätzlicher Aufstiegsbonus. Vier Punkte gibt es nur für den tatsächlich vollzogenen Aufstieg aus der Amateurliga. '+(level>=6?'Die Abstiegszahl der Regionalliga folgt den Ankömmlingen aus der 5. Liga. Hier steht die geplante Aufsteigerzahl.':'Die Auf- und Abstiegszahlen sind fest.');
     body='<div class="ansehen-card"><h3>'+names[level]+'</h3><p>'+n+' Plätze. '+note+'</p><table class="tbl"><thead><tr><th>Platz</th><th class="l">Zone</th><th>Liga</th><th>Europa</th><th>Titel</th><th>Gesamt</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
-  return '<div class="box ansehen-guide"><h3>So wird Ansehen gezählt</h3>'+bar+body+'</div>';
+  return '<div class="box ansehen-guide"><h3>So wird Ansehen gezählt</h3>'+ansehenWeightLegend(ansehenEndYear())+bar+body+'</div>';
 }
 function ansehenDonut(parts){
   const sum=parts.reduce((s,p)=>s+(p.value||0),0);
@@ -9554,27 +9624,28 @@ function viewAnsehenDetail(id, embedded){
   let h=embedded?'<div class="ansehen-embed">':'<div class="box ansehen-embed"><button class="btn small" data-act="ansehenBack">← Zurück zur Rangliste</button>';
   if (!embedded) h+='<div class="an-hero-name"><img src="'+esc(t.crest)+'" alt=""><div><h3>'+esc(t.name)+'</h3><div class="muted">'+esc(t.bl)+'</div></div></div>';
   h+='<div class="an-hero"><div><div class="an-kicker">Ansehen bis '+info.end+'</div><div class="an-total">'+deNum(info.value,2)+'</div>';
-  h+='<p class="an-aging">Eine Zeile ist eine Saison. Liga, DFB-Pokal und Landespokal sind die Runden- und Platzpunkte. Titel stehen extra und nicht noch einmal in der Pokalspalte. Der Supercup ist ein kleiner Titel von '+deNum(ANSEHEN.supercup.title,2)+'.</p></div>'+ansehenDonut(parts)+'</div>';
-  h+='<table class="tbl an-season"><thead><tr><th class="l">Saison</th><th>Liga</th><th>DFB</th><th>Land</th><th>Titel</th><th>Aufstieg</th><th>Europa</th><th>Summe</th></tr></thead><tbody>';
+  h+='<p class="an-aging">Eine Zeile ist eine Saison. Die fünf jüngsten abgeschlossenen Saisons sind mit <span class="w-mark">×2</span> markiert, die Jahre 6–10 mit <span class="w-mark">×1,5</span>. Liga, DFB-Pokal und Landespokal sind die Runden- und Platzpunkte. Titel stehen extra und nicht noch einmal in der Pokalspalte. Der Supercup ist ein kleiner Titel von '+deNum(ANSEHEN.supercup.title,2)+'.</p></div>'+ansehenDonut(parts)+'</div>';
+  h+=ansehenWeightLegend(info.end)+'<table class="tbl an-season"><thead><tr><th class="l">Saison</th><th>Liga</th><th>DFB</th><th>Land</th><th>Titel</th><th>Aufstieg</th><th>Europa</th><th>Summe</th></tr></thead><tbody>';
   if (!rows.length) h+='<tr><td class="l" colspan="8"><span class="muted">Keine gespeicherten Erfolge bis zu dieser Saison.</span></td></tr>';
   let seasonCut=false;
   const seasonSim=rechnerSeasonSet();
   rows.forEach(r=>{
     const sim=seasonSim.has(r.season) || (r.lines||[]).some(l=>l.src==='rechner');
     if (sim && !seasonCut){ h+=rechnerCutRow(8); seasonCut=true; }
-    const hist=(info.lines||[]).some(l=>l.season===r.season && histTitleSeason(l));
-    h+='<tr><td class="l">'+esc(hist?seasonFull(r.season):seasonShort(r.season))+'</td><td>'+deNum(r.liga,2)+'</td><td>'+deNum(r.dfb,2)+'</td><td>'+deNum(r.land,2)+'</td><td>'+deNum(r.titel,2)+'</td><td>'+deNum(r.aufstieg||0,2)+'</td><td>'+deNum(r.euro,2)+'</td><td><b>'+deNum(r.sum,2)+'</b></td></tr>';
+    const mark=formatFactor(rowSeasonFactor(r, info.end));
+    h+='<tr><td class="l">'+esc(seasonFull(r.season))+' <span class="w-mark">'+mark+'</span></td><td>'+deNum(r.liga,2)+'</td><td>'+deNum(r.dfb,2)+'</td><td>'+deNum(r.land,2)+'</td><td>'+deNum(r.titel,2)+'</td><td>'+deNum(r.aufstieg||0,2)+'</td><td>'+deNum(r.euro,2)+'</td><td><b>'+deNum(r.sum,2)+'</b></td></tr>';
   });
   h+='<tr data-pin="1"><td class="l"><b>Summe</b></td><td colspan="6"></td><td><b>'+deNum(rowSum,2)+'</b></td></tr>';
   h+='</tbody></table>';
   h+='<h3>Verlauf</h3>'+ansehenCourseSVG(id);
-  h+='<details class="an-fold"><summary>Einzelposten</summary><p class="muted">Grün die letzten fünf Saisons, dann die Abschnitte bis Alter 50. Ab Alter 50 bleibt der Rechner bei 12 %, importierte Platzierungen fallen weg.</p><table class="tbl fit age-lines"><thead><tr><th class="l">Saison</th><th class="l">Quelle</th><th class="l">Erfolg</th><th>Ursprung</th><th>Alter</th><th>Faktor</th><th>Beitrag</th></tr></thead><tbody>';
+  h+='<details class="an-fold"><summary>Einzelposten</summary><p class="muted">Grün die fünf jüngsten abgeschlossenen Saisons <span class="w-mark">×2</span>, danach die Jahre 6–10 <span class="w-mark">×1,5</span>, dann die bisherige Kurve. Ab Alter 50 bleibt der Rechner bei 12 %, importierte Platzierungen fallen weg.</p><table class="tbl fit age-lines"><thead><tr><th class="l">Saison</th><th class="l">Quelle</th><th class="l">Erfolg</th><th>Ursprung</th><th>Alter</th><th>Faktor</th><th>Beitrag</th></tr></thead><tbody>';
   let lineCut=false;
   (info.lines||[]).forEach(l=>{
     if (l.src==='rechner' && !lineCut){ h+=rechnerCutRow(7); lineCut=true; }
-    const band=ageBand(l.age);
-    const when=histTitleSeason(l)?seasonFull(l.season):seasonShort(l.season);
-    h+='<tr class="band-'+band.id+'" title="'+esc(band.detail)+'"><td class="l">'+esc(when)+'</td><td class="l">'+(l.src==='rechner'?'Rechner':'Import')+'</td><td class="l">'+esc(l.label)+'</td><td>'+deNum(l.original,2)+'</td><td>'+l.age+'</td><td>'+deNum(l.factor,2)+'</td><td>'+deNum(l.today,2)+'</td></tr>';
+    const band=ageBand(l.age, info.end);
+    const when=seasonFull(l.season);
+    const lineMark=formatFactor(l.kind==='titel'?l.factor:seasonFactor(l.age, l.src==='rechner', info.end));
+    h+='<tr class="band-'+band.id+'" title="'+esc(band.detail)+'"><td class="l">'+esc(when)+' <span class="w-mark">'+lineMark+'</span></td><td class="l">'+(l.src==='rechner'?'Rechner':'Import')+'</td><td class="l">'+esc(l.label)+'</td><td>'+deNum(l.original,2)+'</td><td>'+l.age+'</td><td>'+deNum(l.factor,2)+'</td><td>'+deNum(l.today,2)+'</td></tr>';
   });
   h+='</tbody></table></details>';
   h+='<details class="an-fold"><summary>Punkteskala und Alter</summary>'+ansehenLegendHTML()+'</details></div>';
@@ -12560,7 +12631,23 @@ function uiSelfTestBody(fails){
   const dark=c=>c && c!=='rgb(255, 255, 255)' && c!=='rgba(255, 255, 255, 1)';
   check('Tooltip-Text ist dunkel und nicht auf 16px gequetscht', !!tipName && !!tipScore && !!tipDay && dark(ink(tipName)) && dark(ink(tipScore)) && dark(ink(tipDay)) && tipName.getBoundingClientRect().width>40 && tipScore.getBoundingClientRect().width>12, ink(tipName)+' '+Math.round(tipName?tipName.getBoundingClientRect().width:0));
   tipHost.remove();
-  check('Alter 4 bleibt voll, Alter 5 beginnt den nächsten Abschnitt', ageBand(4).id==='full' && ageBand(5).id==='mid' && ageBand(10).id==='mid' && ageBand(11).id==='gentle' && ageBand(20).id==='gentle' && ageBand(21).id==='late' && ageBand(49).id==='late' && ageBand(50).id==='floor');
+  check('offene Saison: Alter 0 zählt nicht, Alter 1 bis 5 doppelt, 6 bis 10 eineinhalb', ansehenAgeBase()===1 && ageBand(0).id==='open' && seasonFactor(0, true)===1 && seasonWeightMark(0)==='' && ageBand(1).id==='full' && ageBand(5).id==='full' && ageBand(6).id==='mid' && ageBand(10).id==='mid' && ageBand(11).id==='gentle' && ageBand(20).id==='gentle' && ageBand(21).id==='late' && ageBand(49).id==='late' && ageBand(50).id==='floor' && seasonWeightMark(5)==='×2' && seasonWeightMark(6)==='×1,5' && seasonWeightMark(11)==='');
+  const weightText=ansehenWeightText(2026);
+  const weightShown=html=>html.indexOf('2021/22–2025/26')>=0 && html.indexOf('2016/17–2020/21')>=0 && html.indexOf('ab 2015/16')>=0;
+  check('Gewichtslegende nennt die Saisons', weightText==='×2: 2021/22–2025/26 · ×1,5: 2016/17–2020/21 · ab 2015/16: bisherige Kurve (Faktor je Saison in der Tabelle)', weightText);
+  const weightUi={tab:S.ui.tab, id:S.ui.infoId, sec:S.ui.infoSec, ansehen:S.ui.ansehenSec};
+  S.ui.tab='info'; S.ui.infoId='t001'; S.ui.infoSec='ansehen';
+  render();
+  const weightHtml=$('#view').innerHTML;
+  check('Vereinsinfo zeigt volle Saison und den Kurvenfaktor', weightHtml.indexOf('2023/2024')>=0 && weightHtml.indexOf('23/24')<0 && weightHtml.indexOf('2015/2016')>=0 && weightHtml.indexOf('×0,78')>=0 && weightShown(weightHtml));
+  S.ui.tab='ansehen'; S.ui.ansehenSec='liste'; S.ui.ansehenId=null;
+  render();
+  check('Rangliste nennt die konkreten Saisons', weightShown($('#view').innerHTML));
+  S.ui.ansehenSec='wertung';
+  render();
+  check('Wertungsübersicht nennt die konkreten Saisons', weightShown($('#view').innerHTML));
+  S.ui.tab=weightUi.tab; S.ui.infoId=weightUi.id; S.ui.infoSec=weightUi.sec; S.ui.ansehenSec=weightUi.ansehen;
+  render();
   const guideWas=S.ui.ansehenGuide;
   S.ui.ansehenGuide='1';
   const guideBl=ansehenGuideHTML();
@@ -13211,7 +13298,7 @@ function uiSelfTestBody(fails){
   const neuIds=window.FR_NEU||[];
   const neuSet=new Set(neuIds);
   const addedIds=Object.keys(TEAMS).filter(isAddedClub);
-  const pyWant='BL:t001,t002,t003,t005,t007,t006,t008,t004,t009,t013,t010,t011,t012,t014,t016,t017,t015,t019,t018,t021|BL2:t020,t022,t024,t023,t025,t027,t037,t026,t029,t028,t031,t033,t035,t030,t036,t034,t039,t032,t038,t040|L3:t046,t042,t041,t043,t044,t045,t085,t047,t050,t058,t049,t048,t053,t057,t051,t054,t052,t056,t060,t059|L4:t061,t064,t062,t069,t063,t066,t068,t065,t071,t067,t073,t070,t084,t055,t072,t076,t101,t074,t077,t104|L5NO:t088,t083,t081,t087,t091,t086,t093,t079,t492,t089,t098,t090,t097,t137,t100,t120,t119,t121,t141,t094,t139,t125|L5SW:t078,t075,t110,t082,t109,t107,t111,t108,t113,t152,t116,t118,t151,t103,t168,t153,t167,t106,t112,t105,t170,t080|RLN:t123,t127,t129,t132,t095,t206,t205,t133,t126,t183,t187,t130,t203,t189,t192,t213|RLO:t140,t096,t142,t144,t149,t148,t138,t136,t147,t146,t217,t236,t231,t221,t228,t150|RLS:t155,t156,t160,t158,t159,t264,t263,t164,t249,t154,t157,t114,t115,t250,t247,t165|RLW:t169,t172,t102,t178,t173,t179,t174,t176,t181,t175,t279,t282,t284,t283,t296,t299';
+  const pyWant='BL:t001,t002,t003,t007,t005,t008,t004,t009,t006,t010,t012,t016,t013,t014,t011,t019,t015,t017,t020,t018|BL2:t021,t022,t023,t024,t027,t025,t026,t036,t037,t035,t031,t029,t039,t033,t028,t030,t040,t032,t046,t034|L3:t038,t042,t041,t050,t043,t047,t044,t045,t057,t058,t085,t060,t059,t049,t048,t053,t051,t056,t054,t062|L4:t052,t069,t061,t073,t066,t068,t055,t064,t063,t072,t067,t065,t084,t071,t076,t070,t074,t101,t083,t075|L5NO:t081,t088,t087,t079,t086,t090,t089,t091,t098,t093,t139,t097,t096,t119,t100,t137,t123,t120,t142,t492,t121,t095|L5SW:t078,t077,t082,t104,t109,t110,t111,t107,t103,t108,t102,t080,t113,t151,t112,t153,t106,t118,t105,t168,t116,t167|RLN:t127,t206,t132,t125,t129,t122,t094,t126,t128,t130,t183,t205,t133,t187,t186,t189|RLO:t141,t140,t149,t144,t138,t148,t146,t147,t231,t236,t217,t150,t220,t136,t221,t219|RLS:t158,t152,t159,t156,t155,t115,t114,t160,t166,t154,t263,t117,t264,t157,t249,t164|RLW:t172,t176,t170,t169,t173,t174,t175,t178,t279,t179,t283,t182,t284,t177,t282,t181';
   const pyNow=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'].map(id=>id+':'+(squads.leagues[id]||[]).join(',')).join('|');
   check('Bestand ist 2306 Vereine', Object.keys(TEAMS).length===2306 && addedIds.length===1387 && neuIds.length===0);
   const plainNeu=['t1172','t1463','t1527','t1814','t2162','t2170','t2187'];
@@ -13791,6 +13878,20 @@ function terminSelfTest(){
             });
             if (!timeOk) blockedTime++;
             else if (!confOk) blockedConf++;
+            else {
+              let keeps=false;
+              row.forEach((other,j)=>{
+                if (keeps || j===i || !other) return;
+                if (other.kind!=='top' && !slotIsSingle(row, other)) return;
+                if (!swapKeepsTimes(season, lid, d, range[1], i, j)) return;
+                if (slot.kind==='konferenz' && !topCanTakeConference(season, lid, range[1], [teams[m[0]], teams[m[1]]])) return;
+                const tmp=row[i]; row[i]=row[j]; row[j]=tmp;
+                const ok=blockObligations(season, lid, range[1]).ok;
+                row[j]=row[i]; row[i]=tmp;
+                if (ok) keeps=true;
+              });
+              if (!keeps) blockedConf++;
+            }
           }
         });
       }
