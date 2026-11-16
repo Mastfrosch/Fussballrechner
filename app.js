@@ -13401,6 +13401,10 @@ function uiSelfTestBody(fails){
   check('Bundesliga 2026/27 ohne den gesperrten Verein', !!blLeague && blLeague.ids.length===17 && blLeague.ids.indexOf('t001')>=0 && blLeague.ids.indexOf('t050')>=0 && blLeague.ids.indexOf('t006')>=0 && !viewHtml.toLowerCase().includes('rb leipzig') && !viewHtml.toLowerCase().includes('rasenballsport'));
   check('2. Bundesliga 2026/27 bleibt die zweite Liga', !!bl2 && bl2.name==='2. Bundesliga' && bl2.ids.length===18 && bl2.ids.indexOf('t004')>=0 && bl2.ids.indexOf('t021')>=0);
   check('SSV Jeddeloh II steht in der Regionalliga Nord', (real.levels.find(l=>l.level===4).leagues.find(l=>l.name==='Regionalliga Nord').ids||[]).indexOf('t095')>=0);
+  const inReal=(level, name, id)=>{ const row=((real.levels.find(l=>l.level===level)||{}).leagues||[]).find(l=>l.name===name); return !!(row && row.ids.indexOf(id)>=0); };
+  const hof=((real.levels.find(l=>l.level===8)||{}).leagues||[]).filter(l=>l.name.indexOf('Hof')>=0);
+  check('Kreisliga Hof ist die 8. Spielklasse', real.levels.every(l=>l.level!==9) && hof.length===2 && hof.some(l=>l.ids.indexOf('t692')>=0) && hof.some(l=>l.ids.indexOf('t690')>=0 && l.ids.indexOf('t700')>=0));
+  check('nachgereichte Vereine stehen in der belegten Liga 2026/27', inReal(5,'Oberliga Niedersachsen','t119') && inReal(5,'Oberliga Hamburg','t129') && inReal(5,'Oberliga Hamburg','t394') && inReal(5,'Oberliga Hamburg','t461') && inReal(5,'Oberliga Hamburg','t423') && inReal(5,'Oberliga Westfalen','t286') && inReal(5,'Bayernliga Süd','t255') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t824') && inReal(6,'Landesliga Bremen','t372') && inReal(6,'Landesliga Schleswig','t395') && inReal(7,'Landesklasse West Sachsen','t583') && realUnknown.length===2 && realUnknown.indexOf('t204')>=0 && realUnknown.indexOf('t697')>=0);
   check('Pyramide und Unbekannt stehen nur ohne gewählten Verein', !!document.querySelector('#realPyramid') && !!document.querySelector('#realUnknown') && document.querySelector('#realUnknown').innerHTML.indexOf('Liga unbekannt')>=0);
   S.ui.infoId='t001';
   render();
