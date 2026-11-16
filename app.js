@@ -10790,6 +10790,25 @@ function clubLeagueLabel(id){
   if (P[lid]) return P[lid].name;
   return 'Amateurliga';
 }
+function realPyramidHTML(){
+  const data=window.FR_REAL;
+  if (!data || !data.levels) return '';
+  const show=id=>TEAMS[id] && !blockedClubHit(TEAMS[id].name);
+  const club=id=>'<span class="real-club">'+clubHTML(id,{nobl:true})+'</span>';
+  const tiers=(data.levels||[]).map(level=>{
+    const leagues=(level.leagues||[]).map(league=>{
+      const ids=(league.ids||[]).filter(show);
+      if (!ids.length) return '';
+      return '<section class="real-league"><h4><span class="w-mark">'+esc(league.name)+'</span><span class="real-n w-mark">'+ids.length+'</span></h4><div class="real-clubs">'+ids.map(club).join('')+'</div><p class="real-src">'+esc(league.source||'')+'</p></section>';
+    }).join('');
+    if (!leagues) return '';
+    const width=Math.min(100, 48+(level.level-1)*7);
+    return '<div class="real-tier" style="width:'+width+'%"><div class="real-tier-label"><span class="w-mark">'+esc(level.label)+'</span></div>'+leagues+'</div>';
+  }).join('');
+  const unknown=(data.unknown||[]).filter(show);
+  const unk='<div class="box" id="realUnknown"><h3>Liga unbekannt</h3><p class="muted">'+unknown.length+' Vereine ohne sicher zugeordnete reale Liga der Saison '+esc(data.season||'2026/27')+'.</p><div class="real-clubs">'+unknown.map(club).join('')+'</div></div>';
+  return '<div class="box" id="realPyramid"><h3>Reale Liga '+esc(data.season||'2026/27')+'</h3><p class="muted">In welcher Liga der Verein in der Saison '+esc(data.season||'2026/27')+' wirklich spielt. Oben die Bundesliga, nach unten die Staffeln. Ein Klick öffnet die Vereinsinfo.</p><div class="real-py">'+tiers+'</div></div>'+unk;
+}
 function addedClubsHTML(){
   const ids=addedClubIds();
   const rows=ids.map(id=>{
@@ -10804,7 +10823,7 @@ function renderInfo(){
   $('#title').textContent='Vereinsinfo';
   const id=S.ui.infoId;
   let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
-  if (!id || !TEAMS[id]){ $('#view').innerHTML=h+addedClubsHTML(); wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
+  if (!id || !TEAMS[id]){ $('#view').innerHTML=h+realPyramidHTML()+addedClubsHTML(); wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
   const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
@@ -13369,6 +13388,25 @@ function uiSelfTestBody(fails){
   render();
   const added=document.querySelector('#addedList');
   check('Verein listet die hinzugefügten Vereine', !!added && added.querySelectorAll('tr[data-added]').length===addedIds.length && added.innerHTML.indexOf('SV Schwaig b. Nbg.')>=0 && added.innerHTML.indexOf('Amateurliga')>=0);
+  const real=window.FR_REAL;
+  const realIds=[];
+  (real&&real.levels||[]).forEach(level=>(level.leagues||[]).forEach(league=>(league.ids||[]).forEach(id=>realIds.push(id))));
+  const realUnknown=(real&&real.unknown)||[];
+  const realAll=realIds.concat(realUnknown);
+  const realSet=new Set(realAll);
+  const blLeague=((real.levels.find(l=>l.level===1)||{}).leagues||[])[0];
+  const bl2=((real.levels.find(l=>l.level===2)||{}).leagues||[])[0];
+  const viewHtml=document.querySelector('#view').innerHTML;
+  check('reale Liga 2026/27 nennt jeden Verein genau einmal', real.season==='2026/27' && realAll.length===Object.keys(TEAMS).length && realSet.size===realAll.length && Object.keys(TEAMS).every(id=>realSet.has(id)));
+  check('Bundesliga 2026/27 ohne den gesperrten Verein', !!blLeague && blLeague.ids.length===17 && blLeague.ids.indexOf('t001')>=0 && blLeague.ids.indexOf('t050')>=0 && blLeague.ids.indexOf('t006')>=0 && !viewHtml.toLowerCase().includes('rb leipzig') && !viewHtml.toLowerCase().includes('rasenballsport'));
+  check('2. Bundesliga 2026/27 bleibt die zweite Liga', !!bl2 && bl2.name==='2. Bundesliga' && bl2.ids.length===18 && bl2.ids.indexOf('t004')>=0 && bl2.ids.indexOf('t021')>=0);
+  check('SSV Jeddeloh II steht in der Regionalliga Nord', (real.levels.find(l=>l.level===4).leagues.find(l=>l.name==='Regionalliga Nord').ids||[]).indexOf('t095')>=0);
+  check('Pyramide und Unbekannt stehen nur ohne gewählten Verein', !!document.querySelector('#realPyramid') && !!document.querySelector('#realUnknown') && document.querySelector('#realUnknown').innerHTML.indexOf('Liga unbekannt')>=0);
+  S.ui.infoId='t001';
+  render();
+  check('Vereinsinfo verschiebt die Seite nicht durch die Pyramide', !document.querySelector('#realPyramid') && !document.querySelector('#realUnknown') && !!document.querySelector('.bfv-page'));
+  S.ui.infoId='';
+  render();
   S.ui.tab='tabelle'; S.ui.league='AM'; S.ui.amateurView=''; S.ui.amateurBl='Bayern';
   S.ui.amateurView='aehnlich';
   render();
