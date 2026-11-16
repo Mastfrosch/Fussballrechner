@@ -3084,6 +3084,44 @@ function simDecide(season, lid){
   });
   return c;
 }
+function seasonOpenReason(season){
+  if (!season) return 'Saison';
+  let league=false;
+  LEAGUES.forEach(l=>{
+    const lg=season.leagues && season.leagues[l.id];
+    if (!lg || !lg.md){ league=true; return; }
+    lg.md.forEach(md=>(md||[]).forEach(m=>{ if (!m || m[2]==null || m[3]==null) league=true; }));
+  });
+  if (league) return 'Liga';
+  if (decidePending(season)) return 'Entscheidungsspiele';
+  if (relayPending(season)) return 'Relegation';
+  if (dfbPending(season)) return 'DFB-Pokal';
+  if (season.cups && season.cups.land && BL_ORDER.some(bl=>{
+    const cup=season.cups.land[bl];
+    return cup && cup.rounds && cup.rounds.length && !cupFinalists(cup);
+  })) return 'Landespokal';
+  if (supercupPending(season)) return 'Supercup';
+  return '';
+}
+function completeRunningSeason(season){
+  const s=season||latest();
+  const n=S.seasons.length, view=S.view, name=s&&s.name;
+  if (!s || s.status!=='running') return {c:0, open:'Saison', stayed:false};
+  let c=0;
+  const hold=saveHold;
+  saveHold=1;
+  try{
+    c+=simSeason(s);
+    for (let i=0;i<8 && seasonOpenReason(s);i++){
+      LEAGUES.forEach(l=>{ c+=simLeague(s, l.id); c+=simDecide(s, l.id); });
+      c+=simRelay(s);
+      try{ ensureCups(s); }catch(e){}
+      c+=simAllCups(s);
+      c+=simSupercup(s);
+    }
+  } finally { saveHold=hold; }
+  return {c, open:seasonOpenReason(s), stayed:S.seasons.length===n && S.view===view && latest()===s && s.status==='running' && s.name===name};
+}
 function simSeason(season){
   const tr=window.FR_TIMING;
   let c=0;
@@ -3561,16 +3599,10 @@ function rollSimulatedSeason(){
   const tr=window.FR_TIMING;
   const tSim=tr?performance.now():0;
   try {
-    c=simSeason(s);
+    const done=completeRunningSeason(s);
+    c=done.c;
     if (tr) tr.onlySim=(tr.onlySim||0)+performance.now()-tSim;
-    try { ensureCups(s); } catch(e){}
-    for (let i=0; i<4 && seasonEndBlock(s); i++){
-      if (dfbPending(s)) c+=simAllCups(s);
-      LEAGUES.forEach(l=>{ c+=simDecide(s, l.id); });
-      c+=simRelay(s);
-      c+=simSupercup(s);
-    }
-    if (seasonEndBlock(s)) rolled=false;
+    if (done.open || seasonEndBlock(s)) rolled=false;
     else {
       const tEnd=tr?performance.now():0;
       s.endData=computeTransition(s);
@@ -10806,7 +10838,8 @@ function realPyramidHTML(){
     return '<div class="real-tier" style="width:'+width+'%"><div class="real-tier-label"><span class="w-mark">'+esc(level.label)+'</span></div>'+leagues+'</div>';
   }).join('');
   const unknown=(data.unknown||[]).filter(show);
-  const unk='<div class="box" id="realUnknown"><h3>Liga unbekannt</h3><p class="muted">'+unknown.length+' Vereine ohne sicher zugeordnete reale Liga der Saison '+esc(data.season||'2026/27')+'.</p><div class="real-clubs">'+unknown.map(club).join('')+'</div></div>';
+  const unkNote=unknown.length===1 && unknown[0]==='t697' ? 'Eigener Verein, keine reale Liga.' : unknown.length+' Vereine ohne sicher zugeordnete reale Liga der Saison '+esc(data.season||'2026/27')+'.';
+  const unk='<div class="box" id="realUnknown"><h3>Liga unbekannt</h3><p class="muted">'+unkNote+'</p><div class="real-clubs">'+unknown.map(club).join('')+'</div></div>';
   return '<div class="box" id="realPyramid"><h3>Reale Liga '+esc(data.season||'2026/27')+'</h3><p class="muted">In welcher Liga der Verein in der Saison '+esc(data.season||'2026/27')+' wirklich spielt. Oben die Bundesliga, nach unten die Staffeln. Ein Klick öffnet die Vereinsinfo.</p><div class="real-py">'+tiers+'</div></div>'+unk;
 }
 function addedClubsHTML(){
@@ -11505,7 +11538,7 @@ document.addEventListener('click', ev=>{
   }
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieser vier Spieltage werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
-  else if (act==='simSeason'){ const r=rollSimulatedSeason(); if(!r.rolled){ toast('Die Saison konnte nicht gewechselt werden.'); return; } toast(r.c+' Spiele simuliert.'); }
+  else if (act==='simSeason'){ const r=completeRunningSeason(); save(); render(); if(r.open){ toast('Noch offen: '+r.open+'.'); return; } toast(r.c+' Spiele simuliert. Die Saison ist fertig.'); }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ S.ui.tab='regeln'; render(); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -11983,6 +12016,32 @@ function uiSelfTestBody(fails){
     });
     check('Staffelgrößen bleiben und jeder Verein kommt je einmal vor', sizeWrong.length===0, sizeWrong.slice(0,8).join(' · '));
     check('niemand spielt regionsfremd', regionWrong.length===0, regionWrong.slice(0,8).join(' · '));
+    const randomWas=Math.random;
+    try{
+      [11, 29, 47].forEach(seed=>{
+        Math.random=mulberry32(seed);
+        S=newGame();
+        resetDerivedIndex();
+        for (let step=0; step<3; step++){
+          const n=S.seasons.length, name=latest().name, view=S.view;
+          const r=completeRunningSeason();
+          const sea=latest();
+          const pr=seasonProgress(sea);
+          const dfb=cupFinalists(sea.cups&&sea.cups.dfb);
+          const lands=BL_ORDER.filter(bl=>{
+            const cup=sea.cups&&sea.cups.land&&sea.cups.land[bl];
+            return cup && cup.rounds && cup.rounds.length && !cupFinalists(cup);
+          });
+          check('Seed '+seed+' bleibt in der fertigen Saison '+name, !r.open && r.stayed && S.seasons.length===n && sea.status==='running' && S.view===view && sea.name===name && pr.done===pr.total && pr.total>0 && !!dfb && !lands.length && !seasonEndBlock(sea), 'open '+(r.open||'')+' land '+lands.length+' block '+seasonEndBlock(sea));
+          sea.endData=computeTransition(sea);
+          sea.status='ending';
+          suggestPicks(sea.endData);
+          const before=S.seasons.length;
+          finalizeSeason({quiet:true, batch:true});
+          check('Seed '+seed+' wechselt danach auf dem normalen Weg', S.seasons.length===before+1 && latest().status==='running' && latest().name!==name);
+        }
+      });
+    } finally { Math.random=randomWas; }
   }finally{
     S=pyramidKeep;
     chronSeen=null; chronIndex=null; chronBuilt=-1;
@@ -13404,10 +13463,10 @@ function uiSelfTestBody(fails){
   const inReal=(level, name, id)=>{ const row=((real.levels.find(l=>l.level===level)||{}).leagues||[]).find(l=>l.name===name); return !!(row && row.ids.indexOf(id)>=0); };
   const hof=((real.levels.find(l=>l.level===8)||{}).leagues||[]).filter(l=>l.name.indexOf('Hof')>=0);
   check('Kreisliga Hof ist die 8. Spielklasse', real.levels.every(l=>l.level!==9) && hof.length===2 && hof.some(l=>l.ids.indexOf('t692')>=0) && hof.some(l=>l.ids.indexOf('t690')>=0 && l.ids.indexOf('t700')>=0));
-  check('nachgereichte Vereine stehen in der belegten Liga 2026/27', inReal(5,'Oberliga Niedersachsen','t119') && inReal(5,'Oberliga Hamburg','t129') && inReal(5,'Oberliga Hamburg','t394') && inReal(5,'Oberliga Hamburg','t461') && inReal(5,'Oberliga Hamburg','t423') && inReal(5,'Oberliga Westfalen','t286') && inReal(5,'Bayernliga Süd','t255') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t824') && inReal(6,'Landesliga Bremen','t372') && inReal(6,'Landesliga Schleswig','t395') && inReal(7,'Landesklasse West Sachsen','t583') && realUnknown.length===2 && realUnknown.indexOf('t204')>=0 && realUnknown.indexOf('t697')>=0);
+  check('nachgereichte Vereine stehen in der belegten Liga 2026/27', inReal(5,'Oberliga Niedersachsen','t119') && inReal(5,'Oberliga Hamburg','t129') && inReal(5,'Oberliga Hamburg','t394') && inReal(5,'Oberliga Hamburg','t461') && inReal(5,'Oberliga Hamburg','t423') && inReal(5,'Oberliga Westfalen','t286') && inReal(5,'Bayernliga Süd','t255') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t824') && inReal(6,'Landesliga Bremen','t372') && inReal(6,'Landesliga Schleswig','t395') && inReal(7,'Landesklasse West Sachsen','t583') && realUnknown.length===1 && realUnknown[0]==='t697' && inReal(4,'Regionalliga Nord','t204') && TEAMS.t204.name==='Eimsbütteler TV' && Object.keys(TEAMS).filter(id=>TEAMS[id].name==='Eimsbütteler TV').length===1);
   const doubled=['t1916','t1925','t1929','t1845','t989','t1012','t1212','t1870','t2168','t1755','t1760','t991','t2048','t1325','t1340'];
   check('doppelte erste Mannschaften sind im älteren Verein aufgegangen', doubled.every(id=>!TEAMS[id]) && inReal(6,'Schröder-Liga Saar','t912') && inReal(6,'Schröder-Liga Saar','t835') && inReal(6,'Schröder-Liga Saar','t893') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t822') && inReal(5,'Oberliga Hamburg','t403') && inReal(5,'Oberliga Hamburg','t458') && inReal(6,'Landesliga Braunschweig','t329') && inReal(6,'Rheinlandliga','t180') && inReal(6,'Landesliga Südost - Bayern','t650') && inReal(6,'Verbandsliga Hessen Mitte','t874') && inReal(6,'Verbandsliga Hessen Nord','t898') && inReal(6,'Landesliga Hammonia','t471') && inReal(6,'Verbandsliga Nordbaden','t733') && inReal(7,'Landesliga Berlin - Staffel 2','t501') && inReal(6,'Brandenburgliga','t508'));
-  check('Pyramide und Unbekannt stehen nur ohne gewählten Verein', !!document.querySelector('#realPyramid') && !!document.querySelector('#realUnknown') && document.querySelector('#realUnknown').innerHTML.indexOf('Liga unbekannt')>=0);
+  check('Pyramide und Unbekannt stehen nur ohne gewählten Verein', !!document.querySelector('#realPyramid') && !!document.querySelector('#realUnknown') && document.querySelector('#realUnknown').innerHTML.indexOf('Liga unbekannt')>=0 && document.querySelector('#realUnknown').innerHTML.indexOf('Eigener Verein, keine reale Liga.')>=0 && document.querySelector('#realUnknown').innerHTML.indexOf('SV Viktoria Bad Alexandersbad')>=0);
   S.ui.infoId='t001';
   render();
   check('Vereinsinfo verschiebt die Seite nicht durch die Pyramide', !document.querySelector('#realPyramid') && !document.querySelector('#realUnknown') && !!document.querySelector('.bfv-page'));
@@ -14999,5 +15058,5 @@ function rlShrinkProbe(){
   const ok=rlOk && restOk && balanceOk && !dup && seen.size===Object.keys(TEAMS).length && placesOk && e.notes.some(n=>n.indexOf('einmalig')>=0);
   return {ok, detail:sizes.join(' ')+' cuts '+per.join(' ')+' dup '+(dup?1:0)+' n '+seen.size, sizes, cuts:per};
 }
-window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, l5Balance, L5_IDS, RL_IDS, L5_FEED, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, ensureLeagueSchedule, schedulePending, scheduleSelfTest, scheduleMassTest, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, l5Balance, L5_IDS, RL_IDS, L5_FEED, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, ensureLeagueSchedule, schedulePending, scheduleSelfTest, scheduleMassTest, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, completeRunningSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
