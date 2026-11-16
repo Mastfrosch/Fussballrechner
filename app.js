@@ -10790,6 +10790,25 @@ function clubLeagueLabel(id){
   if (P[lid]) return P[lid].name;
   return 'Amateurliga';
 }
+function realPyramidHTML(){
+  const data=window.FR_REAL;
+  if (!data || !data.levels) return '';
+  const show=id=>TEAMS[id] && !blockedClubHit(TEAMS[id].name);
+  const club=id=>'<span class="real-club">'+clubHTML(id,{nobl:true})+'</span>';
+  const tiers=(data.levels||[]).map(level=>{
+    const leagues=(level.leagues||[]).map(league=>{
+      const ids=(league.ids||[]).filter(show);
+      if (!ids.length) return '';
+      return '<section class="real-league"><h4><span class="w-mark">'+esc(league.name)+'</span><span class="real-n w-mark">'+ids.length+'</span></h4><div class="real-clubs">'+ids.map(club).join('')+'</div><p class="real-src">'+esc(league.source||'')+'</p></section>';
+    }).join('');
+    if (!leagues) return '';
+    const width=Math.min(100, 48+(level.level-1)*7);
+    return '<div class="real-tier" style="width:'+width+'%"><div class="real-tier-label"><span class="w-mark">'+esc(level.label)+'</span></div>'+leagues+'</div>';
+  }).join('');
+  const unknown=(data.unknown||[]).filter(show);
+  const unk='<div class="box" id="realUnknown"><h3>Liga unbekannt</h3><p class="muted">'+unknown.length+' Vereine ohne sicher zugeordnete reale Liga der Saison '+esc(data.season||'2026/27')+'.</p><div class="real-clubs">'+unknown.map(club).join('')+'</div></div>';
+  return '<div class="box" id="realPyramid"><h3>Reale Liga '+esc(data.season||'2026/27')+'</h3><p class="muted">In welcher Liga der Verein in der Saison '+esc(data.season||'2026/27')+' wirklich spielt. Oben die Bundesliga, nach unten die Staffeln. Ein Klick öffnet die Vereinsinfo.</p><div class="real-py">'+tiers+'</div></div>'+unk;
+}
 function addedClubsHTML(){
   const ids=addedClubIds();
   const rows=ids.map(id=>{
@@ -10804,7 +10823,7 @@ function renderInfo(){
   $('#title').textContent='Vereinsinfo';
   const id=S.ui.infoId;
   let h='<div class="box bfv-search"><h3>Verein wählen</h3><div class="suggest"><input id="infoQ" class="searchbox" placeholder="Vereinsname" autocomplete="off" value="'+esc(S.ui.infoQ||'')+'"><div id="infoHits" class="suggest-list" hidden></div></div></div>';
-  if (!id || !TEAMS[id]){ $('#view').innerHTML=h+addedClubsHTML(); wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
+  if (!id || !TEAMS[id]){ $('#view').innerHTML=h+realPyramidHTML()+addedClubsHTML(); wireSuggest('infoQ', 'infoHits', 'infoPick', ''); return; }
   const t=TEAMS[id];
   const secs=[['historie','Historie'],['bilanz','Gesamtbilanz'],['rekorde','Rekorde'],['gegner','Gegner'],['vergleich','Direkter Vergleich'],['termin','Terminplan'],['erfolge','Erfolge'],['ansehen','Ansehen']];
   let sec=S.ui.infoSec||'historie';
@@ -13300,7 +13319,7 @@ function uiSelfTestBody(fails){
   const addedIds=Object.keys(TEAMS).filter(isAddedClub);
   const pyWant='BL:t001,t002,t003,t007,t005,t008,t004,t009,t006,t010,t012,t016,t013,t014,t011,t019,t015,t017,t020,t018|BL2:t021,t022,t023,t024,t027,t025,t026,t036,t037,t035,t031,t029,t039,t033,t028,t030,t040,t032,t046,t034|L3:t038,t042,t041,t050,t043,t047,t044,t045,t057,t058,t085,t060,t059,t049,t048,t053,t051,t056,t054,t062|L4:t052,t069,t061,t073,t066,t068,t055,t064,t063,t072,t067,t065,t084,t071,t076,t070,t074,t101,t083,t075|L5NO:t081,t088,t087,t079,t086,t090,t089,t091,t098,t093,t139,t097,t096,t119,t100,t137,t123,t120,t142,t492,t121,t095|L5SW:t078,t077,t082,t104,t109,t110,t111,t107,t103,t108,t102,t080,t113,t151,t112,t153,t106,t118,t105,t168,t116,t167|RLN:t127,t206,t132,t125,t129,t122,t094,t126,t128,t130,t183,t205,t133,t187,t186,t189|RLO:t141,t140,t149,t144,t138,t148,t146,t147,t231,t236,t217,t150,t220,t136,t221,t219|RLS:t158,t152,t159,t156,t155,t115,t114,t160,t166,t154,t263,t117,t264,t157,t249,t164|RLW:t172,t176,t170,t169,t173,t174,t175,t178,t279,t179,t283,t182,t284,t177,t282,t181';
   const pyNow=['BL','BL2','L3','L4','L5NO','L5SW','RLN','RLO','RLS','RLW'].map(id=>id+':'+(squads.leagues[id]||[]).join(',')).join('|');
-  check('Bestand ist 2306 Vereine', Object.keys(TEAMS).length===2306 && addedIds.length===1387 && neuIds.length===0);
+  check('Bestand ist 2291 Vereine', Object.keys(TEAMS).length===2291 && addedIds.length===1372 && neuIds.length===0);
   const plainNeu=['t1172','t1463','t1527','t1814','t2162','t2170','t2187'];
   const freshNeu=['t2322','t2323','t2324','t2325','t2326','t2327','t2328','t2329'];
   const once=id=>LEAGUES.every(l=>(squads.leagues[l.id]||[]).indexOf(id)<0) && POOLS.filter(p=>(squads.pools[p.id]||[]).indexOf(id)>=0).length===1;
@@ -13369,6 +13388,31 @@ function uiSelfTestBody(fails){
   render();
   const added=document.querySelector('#addedList');
   check('Verein listet die hinzugefügten Vereine', !!added && added.querySelectorAll('tr[data-added]').length===addedIds.length && added.innerHTML.indexOf('SV Schwaig b. Nbg.')>=0 && added.innerHTML.indexOf('Amateurliga')>=0);
+  const real=window.FR_REAL;
+  const realIds=[];
+  (real&&real.levels||[]).forEach(level=>(level.leagues||[]).forEach(league=>(league.ids||[]).forEach(id=>realIds.push(id))));
+  const realUnknown=(real&&real.unknown)||[];
+  const realAll=realIds.concat(realUnknown);
+  const realSet=new Set(realAll);
+  const blLeague=((real.levels.find(l=>l.level===1)||{}).leagues||[])[0];
+  const bl2=((real.levels.find(l=>l.level===2)||{}).leagues||[])[0];
+  const viewHtml=document.querySelector('#view').innerHTML;
+  check('reale Liga 2026/27 nennt jeden Verein genau einmal', real.season==='2026/27' && realAll.length===Object.keys(TEAMS).length && realSet.size===realAll.length && Object.keys(TEAMS).every(id=>realSet.has(id)));
+  check('Bundesliga 2026/27 ohne den gesperrten Verein', !!blLeague && blLeague.ids.length===17 && blLeague.ids.indexOf('t001')>=0 && blLeague.ids.indexOf('t050')>=0 && blLeague.ids.indexOf('t006')>=0 && !viewHtml.toLowerCase().includes('rb leipzig') && !viewHtml.toLowerCase().includes('rasenballsport'));
+  check('2. Bundesliga 2026/27 bleibt die zweite Liga', !!bl2 && bl2.name==='2. Bundesliga' && bl2.ids.length===18 && bl2.ids.indexOf('t004')>=0 && bl2.ids.indexOf('t021')>=0);
+  check('SSV Jeddeloh II steht in der Regionalliga Nord', (real.levels.find(l=>l.level===4).leagues.find(l=>l.name==='Regionalliga Nord').ids||[]).indexOf('t095')>=0);
+  const inReal=(level, name, id)=>{ const row=((real.levels.find(l=>l.level===level)||{}).leagues||[]).find(l=>l.name===name); return !!(row && row.ids.indexOf(id)>=0); };
+  const hof=((real.levels.find(l=>l.level===8)||{}).leagues||[]).filter(l=>l.name.indexOf('Hof')>=0);
+  check('Kreisliga Hof ist die 8. Spielklasse', real.levels.every(l=>l.level!==9) && hof.length===2 && hof.some(l=>l.ids.indexOf('t692')>=0) && hof.some(l=>l.ids.indexOf('t690')>=0 && l.ids.indexOf('t700')>=0));
+  check('nachgereichte Vereine stehen in der belegten Liga 2026/27', inReal(5,'Oberliga Niedersachsen','t119') && inReal(5,'Oberliga Hamburg','t129') && inReal(5,'Oberliga Hamburg','t394') && inReal(5,'Oberliga Hamburg','t461') && inReal(5,'Oberliga Hamburg','t423') && inReal(5,'Oberliga Westfalen','t286') && inReal(5,'Bayernliga Süd','t255') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t824') && inReal(6,'Landesliga Bremen','t372') && inReal(6,'Landesliga Schleswig','t395') && inReal(7,'Landesklasse West Sachsen','t583') && realUnknown.length===2 && realUnknown.indexOf('t204')>=0 && realUnknown.indexOf('t697')>=0);
+  const doubled=['t1916','t1925','t1929','t1845','t989','t1012','t1212','t1870','t2168','t1755','t1760','t991','t2048','t1325','t1340'];
+  check('doppelte erste Mannschaften sind im älteren Verein aufgegangen', doubled.every(id=>!TEAMS[id]) && inReal(6,'Schröder-Liga Saar','t912') && inReal(6,'Schröder-Liga Saar','t835') && inReal(6,'Schröder-Liga Saar','t893') && inReal(5,'Oberliga Rheinland-Pfalz/Saar','t822') && inReal(5,'Oberliga Hamburg','t403') && inReal(5,'Oberliga Hamburg','t458') && inReal(6,'Landesliga Braunschweig','t329') && inReal(6,'Rheinlandliga','t180') && inReal(6,'Landesliga Südost - Bayern','t650') && inReal(6,'Verbandsliga Hessen Mitte','t874') && inReal(6,'Verbandsliga Hessen Nord','t898') && inReal(6,'Landesliga Hammonia','t471') && inReal(6,'Verbandsliga Nordbaden','t733') && inReal(7,'Landesliga Berlin - Staffel 2','t501') && inReal(6,'Brandenburgliga','t508'));
+  check('Pyramide und Unbekannt stehen nur ohne gewählten Verein', !!document.querySelector('#realPyramid') && !!document.querySelector('#realUnknown') && document.querySelector('#realUnknown').innerHTML.indexOf('Liga unbekannt')>=0);
+  S.ui.infoId='t001';
+  render();
+  check('Vereinsinfo verschiebt die Seite nicht durch die Pyramide', !document.querySelector('#realPyramid') && !document.querySelector('#realUnknown') && !!document.querySelector('.bfv-page'));
+  S.ui.infoId='';
+  render();
   S.ui.tab='tabelle'; S.ui.league='AM'; S.ui.amateurView=''; S.ui.amateurBl='Bayern';
   S.ui.amateurView='aehnlich';
   render();

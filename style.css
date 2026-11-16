@@ -161,6 +161,17 @@ table.tbl.stand th.sort-asc::after,table.tbl.stand th.sort-desc::after{position:
 #tableCard tr.row-live td:first-child{background-image:linear-gradient(90deg,#2f7eb8 0 3px,rgba(70, 150, 230, 0.34) 3px)}
 .tbl th{background:var(--head);color:#fff;text-align:center;font-weight:700;padding:7px 4px;font-size:12px;white-space:nowrap}
 .w-mark{background:transparent;color:inherit;font-weight:700}
+.real-py{display:flex;flex-direction:column;align-items:center;gap:14px}
+.real-tier{max-width:100%}
+.real-tier-label{background:#006ab2;color:#fff;text-align:center;font-weight:700;padding:6px 10px}
+.real-tier-label .w-mark{background:transparent;color:#fff}
+.real-league{margin-top:8px;border:1px solid #d5dbe0}
+.real-league h4{display:flex;justify-content:space-between;gap:8px;margin:0;background:#006ab2;color:#fff;padding:7px 10px;font-size:14px}
+.real-league h4 .w-mark{background:transparent;color:#fff}
+.real-n{font-weight:700}
+.real-clubs{display:flex;flex-wrap:wrap;gap:4px 12px;padding:8px 10px;background:#fff}
+.real-club{flex:0 1 240px;min-width:0}
+.real-src{margin:0;padding:4px 10px 8px;color:#5c6570;font-size:12px;background:#fff}
 .an-weight{margin:8px 0;font-size:13px;line-height:1.35}
 .an-weight .w-mark,.tbl th .w-mark,.bfv-page .w-mark,.bfv-stage .w-mark{background:transparent;color:inherit}
 .tbl tbody th{background:#fff;color:var(--text)}
