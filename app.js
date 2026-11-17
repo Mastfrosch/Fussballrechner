@@ -1182,15 +1182,21 @@ function ansehenSelfTestBody(fails){
   renderNav();
   const nav=$('#leagueNav').innerHTML;
   const mob=$('#mobileLeague').innerHTML;
-  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && ['RLNO','RLW','RLS'].every(id=>nav.indexOf('data-league="'+id+'"')>=0 && nav.indexOf('>Regionalliga '+(id==='RLNO'?'Nordost':id==='RLS'?'Süd':'West')+'<')>=0));
-  check('Leiste nennt Regionalliga und Oberliga, keine 5. Liga', nav.indexOf('data-league="L5NO"')<0 && nav.indexOf('>5. Liga<')<0 && nav.indexOf('>Regionalliga<')>=0 && nav.indexOf('>Oberliga<')>=0 && nav.indexOf('>Amateurliga<')>=0 && nav.indexOf('data-league="RLN"')>=0 && nav.indexOf('data-league="OLBYN"')>=0);
+  check('Bundesliga und Regionalligen stehen direkt oben', nav.indexOf('>Ligen<')<0 && nav.indexOf('>Bundesliga<')>=0 && nav.indexOf('title="Bundesliga"')>=0 && nav.indexOf('>2. Bundesliga<')>=0 && nav.indexOf('title="2. Bundesliga"')>=0 && nav.indexOf('>Regionalliga<')>=0 && nav.indexOf('>Oberliga<')>=0 && nav.indexOf('nav-drop')<0);
+  check('Leiste nennt Regionalliga und Oberliga, keine 5. Liga', nav.indexOf('data-league="L5NO"')<0 && nav.indexOf('>5. Liga<')<0 && nav.indexOf('>Regionalliga<')>=0 && nav.indexOf('>Oberliga<')>=0 && nav.indexOf('>Amateurliga<')>=0 && nav.indexOf('data-league="RLN"')>=0 && nav.indexOf('data-league="OLN"')>=0 && nav.indexOf('nav-drop')<0);
   check('Pokal steht direkt oben', nav.indexOf('data-tab="pokal"')>=0 && nav.indexOf('>Wettbewerbe<')<0 && nav.indexOf('>Pokal<')>=0);
   check('schmale Auswahl enthält alle Staffeln und den Pokal', RL_IDS.concat(OL_IDS).concat(['pokal','ansehen','info','gebiete']).every(v=>mob.indexOf('value="'+v+'"')>=0) && mob.indexOf('Regionalliga Nord')>=0 && mob.indexOf('Oberliga Nord')>=0 && mob.indexOf('5. Liga')<0);
-  S.ui.league='RLNO'; S.ui.tab='tabelle'; renderNav();
-  check('aktive Regionalliga Nordost', $('#leagueNav a.nav-link.active[data-league="RLNO"]') && $('#leagueNav a.nav-link.active[data-league="RLNO"]').textContent==='Regionalliga Nordost' && $('#leagueNav a.nav-link.active[data-league="RLNO"]').title==='Regionalliga Nordost');
-  S.ui.tab='pokal'; renderNav();
+  S.ui.league='RLNO'; S.ui.tab='tabelle'; render();
+  const rlLink=$('#leagueNav a.nav-link.active[data-league="RLNO"]');
+  const rlSel=$('#staffelSelect');
+  const rlNames=rlSel?[...rlSel.options].map(o=>o.textContent):[];
+  check('aktive Regionalliga Nordost', !!rlLink && rlLink.textContent==='Regionalliga' && rlLink.title==='Regionalliga' && !!rlSel && rlSel.closest('#tabs') && rlSel.value==='RLNO' && ['Regionalliga Nord','Regionalliga Nordost','Regionalliga West','Regionalliga Süd'].every(n=>rlNames.indexOf(n)>=0));
+  S.ui.league='OLBYN'; render();
+  const olSel=$('#staffelSelect');
+  check('Oberliga-Staffeln stehen in der Unterleiste', !!olSel && olSel.closest('#tabs') && olSel.value==='OLBYN' && OL_IDS.every(id=>[...olSel.options].some(o=>o.value===id)));
+  S.ui.tab='pokal'; render();
   check('aktiver Pokal', !!$('#leagueNav a.nav-link.active[data-tab="pokal"]'));
-  S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; renderNav();
+  S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; render();
   let reformFalse=0;
   Object.keys(TEAMS).forEach(id=>{
     const rows=historyEntries(id);
@@ -4465,12 +4471,13 @@ function renderNav(){
   const special=pokal||ansehen||tab==='verein'||tab==='supercup'||tab==='info'||tab==='rueckblick'||gebiete;
   let amN=0; POOLS.forEach(p=>amN+=(cur().pools[p.id]||[]).length);
   const top=(label, active, attrs, title)=>'<a class="nav-link'+(active?' active':'')+'" '+attrs+(title?' title="'+esc(title)+'"':'')+'>'+label+'</a>';
-  const menu=(id, title, on, body, wide)=>'<div class="nav-menu'+(on?' has-active':'')+'"><button type="button" class="nav-menu-btn'+(on?' active':'')+'" data-menu="'+id+'">'+title+'</button><div class="nav-drop'+(wide?' wide':'')+'">'+body+'</div></div>';
   const leagueOn=id=>!special && !amateur && S.ui.league===id;
+  const rlId=RL_IDS.indexOf(S.ui.league)>=0?S.ui.league:'RLN';
+  const olId=OL_IDS.indexOf(S.ui.league)>=0?S.ui.league:'OLN';
   let h='';
   LEAGUES.filter(l=>l.level<=4).forEach(l=>{ h+=top(esc(l.name), leagueOn(l.id), 'data-league="'+l.id+'"', l.name); });
-  h+=menu('rl', 'Regionalliga', RL_IDS.some(leagueOn), RL_IDS.map(id=>top(L[id].name, leagueOn(id), 'data-league="'+id+'"', L[id].name)).join(''), true);
-  h+=menu('ol', 'Oberliga', OL_IDS.some(leagueOn), OL_IDS.map(id=>top(L[id].name, leagueOn(id), 'data-league="'+id+'"', L[id].name)).join(''), true);
+  h+=top('Regionalliga', RL_IDS.some(leagueOn), 'data-league="'+rlId+'"', 'Regionalliga');
+  h+=top('Oberliga', OL_IDS.some(leagueOn), 'data-league="'+olId+'"', 'Oberliga');
   h+=top('Amateurliga', !special && amateur, 'data-league="AM"', 'Amateurliga'+(amN?' · '+amN+' Vereine':''));
   h+=top('Gebiete', gebiete, 'data-tab="gebiete"', 'Regionalligen und Oberligen');
   h+=top('Pokal', pokal, 'data-tab="pokal"', 'DFB-Pokal und Landespokale');
@@ -5441,13 +5448,17 @@ function leagueTabs(){
   }catch(e){}
   return tabs;
 }
+function staffelSelect(selectId, ids, current, labelOf){
+  return '<label class="tab-title staffel-pick'+(ids.length>4?' wide':'')+'"><select id="'+selectId+'" title="Staffel" aria-label="Staffel">'+ids.map(id=>'<option value="'+id+'"'+(id===current?' selected':'')+'>'+esc(labelOf(id))+'</option>').join('')+'</select></label>';
+}
 function leagueChrome(lid, tab){
   const lg=L[lid];
   const head=document.querySelector('.head');
   if (head) head.classList.add('head-off');
   $('#title').textContent=lg?lg.name:'';
   $('#subline').innerHTML='';
-  $('#tabs').innerHTML='<h1 class="tab-title">'+esc(lg?lg.name:'')+'</h1>'+leagueTabs().map(([k,n])=>'<a class="tab'+(tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
+  const title=lg&&(lg.level===5||lg.level===6)?staffelSelect('staffelSelect', lg.level===5?RL_IDS:OL_IDS, lg.id, id=>L[id].name):'<h1 class="tab-title">'+esc(lg?lg.name:'')+'</h1>';
+  $('#tabs').innerHTML=title+leagueTabs().map(([k,n])=>'<a class="tab'+(tab===k?' active':'')+'" data-tab="'+k+'">'+n+'</a>').join('');
 }
 function settleLeagueNav(){
   if (!S || !S.ui) return;
@@ -6697,23 +6708,26 @@ function renderAmateur(){
   const pid=S.ui.amateurBl;
   const pool=P[pid];
   const view=S.ui.amateurView||'';
+  const head=document.querySelector('.head');
+  if (head) head.classList.add('head-off');
   $('#title').textContent=pool?pool.name:'Amateurliga';
-  $('#subline').innerHTML=(view==='aehnlich'?'Prüfung der Namenszuordnung 2026/27. ':(pool?esc(pool.desc)+' · ':'') )+'kein Spielbetrieb. Zum Saisonende rücken zwei Vereine in die zugehörige Oberliga auf.';
+  $('#subline').innerHTML='';
   setActions(seasonActions(s));
   const on=v=>view===v?' active':'';
-  $('#tabs').innerHTML='<a class="tab'+on('')+'" data-act="amateurList">Vereine</a><a class="tab'+on('karte')+'" data-act="amateurMap">Karte</a><a class="tab'+on('aehnlich')+'" data-act="amateurAlike">Ähnliche Vereine</a>'+POOLS.map(p=>'<a class="tab'+(p.id===pid&&view!=='aehnlich'?' active':'')+'" data-amateur="'+p.id+'">'+esc(L[p.ol].short)+'</a>').join('');
+  const note=view==='aehnlich'?'Prüfung der Namenszuordnung 2026/27.':(pool?esc(pool.desc)+'. ':'')+'Kein Spielbetrieb. Zum Saisonende rücken zwei Vereine in die zugehörige Oberliga auf.';
+  $('#tabs').innerHTML=staffelSelect('amateurSelect', POOLS.map(p=>p.id), pid, id=>P[id].name)+'<a class="tab'+on('')+'" data-act="amateurList">Vereine</a><a class="tab'+on('karte')+'" data-act="amateurMap">Karte</a><a class="tab'+on('aehnlich')+'" data-act="amateurAlike">Ähnliche Vereine</a>';
   const list=(s.pools[pid]||[]).slice();
   list.sort(byAnsehen);
   if (view==='aehnlich'){
-    $('#view').innerHTML=viewAlike();
+    $('#view').innerHTML='<p class="muted">'+note+'</p>'+viewAlike();
     return;
   }
   if (view==='karte'){
-    $('#view').innerHTML=viewMap(pool.name, list, leagueStateNames(pool.ol), 'am:'+pid);
+    $('#view').innerHTML='<p class="muted">'+note+'</p>'+viewMap(pool.name, list, leagueStateNames(pool.ol), 'am:'+pid);
     bindMap();
     return;
   }
-  let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine. '+esc(pool.desc)+'.</p><div class="amateur-list">'+
+  let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine. '+note+'</p><div class="amateur-list">'+
     list.map(id=>'<div class="am-row" data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true, tail:neuMark(id), under:'<span class="am-rang">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span>'})+'</div>').join('')+
     '</div></div>';
   $('#view').innerHTML=h;
@@ -11719,6 +11733,8 @@ document.addEventListener('click', ev=>{
 document.addEventListener('change', ev=>{
   const t=ev.target;
   if (t.id==='seasonSelect'){ S.view=+t.value; if (S.ui.tab!=='rueckblick'){ if (S.ui.tab==='abschluss') S.ui.tab='aufab'; if (cur().status==='ending') S.ui.tab='aufab'; } save(); render(); }
+  else if (t.id==='staffelSelect'){ if(L[t.value]){ S.ui.league=t.value; save(); render(); } }
+  else if (t.id==='amateurSelect'){ if(P[t.value]){ S.ui.amateurBl=t.value; S.ui.league='AM'; save(); render(); } }
   else if (t.id==='mobileLeague'){
     const v=t.value;
     if (v==='ansehen'){ S.ui.tab='ansehen'; S.ui.ansehenId=null; S.ui.ansehenSec='liste'; }
@@ -12301,7 +12317,7 @@ function uiSelfTestBody(fails){
   const navLink=navBar&&navBar.querySelector('.nav-link');
   const navCs=navBar?getComputedStyle(navBar):null;
   const linkCs=navLink?getComputedStyle(navLink):null;
-  const navNames=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga Nordost','Regionalliga West','Regionalliga Süd','Amateurliga','Pokal','Supercup','Ansehen','Verein'];
+  const navNames=['Bundesliga','2. Bundesliga','3. Liga','4. Liga','Regionalliga','Oberliga','Amateurliga','Pokal','Supercup','Ansehen','Verein'];
   const navText=navBar?navBar.textContent:'';
   check('Leiste nennt die vollen Namen', !!navBar && navNames.every(name=>navText.indexOf(name)>=0));
   const navItems=navBar?[...navBar.querySelectorAll(':scope > .nav-link, :scope > .nav-menu')].map(el=>{
@@ -13318,7 +13334,10 @@ function uiSelfTestBody(fails){
   check('Regionalliga-Wechsel bleibt auf der Karte', S.ui.league==='RLS' && S.ui.tab==='karte' && document.querySelector('#title').textContent==='Regionalliga Süd' && document.querySelector('#tabs .tab.active').dataset.tab==='karte');
   document.querySelector('[data-tab="pokal"]').click();
   check('Pokal aus der Liga bleibt Pokal', S.ui.tab==='pokal' && document.querySelector('#title').textContent.indexOf('Pokal')>=0);
-  document.querySelector('[data-league="RLW"]').click();
+  document.querySelector('#leagueNav a[title="Regionalliga"]').click();
+  const rlPick=document.querySelector('#staffelSelect');
+  rlPick.value='RLW';
+  rlPick.dispatchEvent(new Event('change', {bubbles:true}));
   check('Regionalliga aus dem Pokal zeigt die Tabelle', S.ui.league==='RLW' && S.ui.tab==='tabelle' && document.querySelector('#tabs .tab.active').dataset.tab==='tabelle' && !!document.querySelector('#tableCard') && history.length===len0 && navIndex===i0);
   const muteWas=navMute;
   navMute++;
