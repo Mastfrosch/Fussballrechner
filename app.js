@@ -6655,9 +6655,9 @@ function viewAlike(){
 function renderGebiete(){
   const head=document.querySelector('.head');
   if (head) head.classList.add('head-off');
-  $('#title').textContent='Gebiete';
+  $('#title').textContent='Karte';
   $('#subline').innerHTML='';
-  $('#tabs').innerHTML='<h1 class="tab-title">Regionalligen und Oberligen</h1>';
+  $('#tabs').innerHTML='<h1 class="tab-title">Karte der Staffeln</h1>';
   setActions('');
   const paths=window.FR_AREA_PATH||{};
   const counts={};
@@ -13031,6 +13031,17 @@ function uiSelfTestBody(fails){
   check('Bundesliga-Karte zeigt die Saison', blMap.indexOf('de-map')>=0 && blMap.indexOf('Bundesliga')>=0);
   const rl=LEAGUES.filter(l=>l.level===5);
   check('Regionalliga-Karten zeigen die Staffeln', rl.length===4 && rl.every(l=>viewKarte(cur(), l.id).indexOf(l.name)>=0 && viewKarte(cur(), l.id).indexOf('de-map')>=0));
+  (()=>{
+    const keep={tab:S.ui.tab, league:S.ui.league, id:S.ui.infoId, sec:S.ui.infoSec};
+    S.ui.tab='gebiete'; render();
+    const map=(document.querySelector('#view')||{}).innerHTML||'';
+    const named=OL_IDS.every(id=>map.indexOf(L[id].name)>=0) && RL_IDS.every(id=>map.indexOf(L[id].name)>=0);
+    check('Karte zeigt vier Regionalligen und elf Oberligen mit Vereinszahl', !!document.querySelector('.area-map') && named && map.indexOf('>191<')>=0 && map.indexOf('>195<')>=0);
+    S.ui.tab='info'; S.ui.infoId='t001'; S.ui.infoSec='region'; render();
+    const reg=(document.querySelector('.region-ladder')||{}).innerText||'';
+    check('Region nennt 4. Liga, Regionalliga, Oberliga und Amateurliga', reg.indexOf('4. Liga')>=0 && reg.indexOf('Regionalliga Süd')>=0 && reg.indexOf('Oberliga Bayern Staffel Süd')>=0 && reg.indexOf('Amateurliga Bayern Staffel Süd')>=0, reg.slice(0,180));
+    S.ui.tab=keep.tab; S.ui.league=keep.league; S.ui.infoId=keep.id; S.ui.infoSec=keep.sec; render();
+  })();
   const mapInside=html=>{
     if (html.indexOf('de-map')<0) return false;
     const marks=[...html.matchAll(/data-cx="([\d.-]+)" data-cy="([\d.-]+)"/g)];
