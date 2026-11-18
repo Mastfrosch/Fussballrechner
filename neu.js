@@ -1,1 +1,0 @@
-window.FR_NEU=[];
