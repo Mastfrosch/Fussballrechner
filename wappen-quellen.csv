@@ -633,7 +633,7 @@ t631,TuS Geretsried,https://image.fupa.net/club/KJkLH0GTOVMd/800x800.png,49x64,1
 t632,TSV Grünwald,https://image.fupa.net/club/3Pf35QZLQo0D/800x800.png,64x54,256x222,verbessert,"fupa, raster, TSV Grünwald | Aussenflaeche transparent, Innenweiss bleibt"
 t633,TSV Karlburg,https://image.fupa.net/club/53ccvcCcqsms/800x800.png,55x64,226x248,verbessert,"fupa, raster, TSV Karlburg"
 t634,SC Luhe-Wildenau,https://image.fupa.net/club/pt8CUV9dO7hY/800x800.png,52x64,205x252,verbessert,"fupa, raster, SC Luhe-Wildenau"
-t635,SpVgg Mögeldorf 2000,https://image.fupa.net/club/aNpI5kwQCoMh/800x800.png,60x64,231x256,verbessert,"fupa, raster, SpVgg Mögeldorf 2000 | Aussenflaeche transparent, Innenweiss bleibt"
+t635,SpVgg Mögeldorf 2000,https://image.fupa.net/club/aNpI5kwQCoMh/800x800.png,60x64,231x256,verbessert,"fupa, raster, SpVgg Mögeldorf 2000 | Aussenflaeche transparent, Innenweiss bleibt | Loecher in der Kontur mit Originalfarbe geschlossen"
 t636,FC Coburg,https://upload.wikimedia.org/wikipedia/de/f/f2/FC_Coburg_%28Logo%29.svg,64x64,256x256,verbessert,"wikimedia, raster, Ort passt (2 km)"
 t637,TSV Seebach,https://image.fupa.net/club/f4aO6JopeWQv/800x800.png,53x64,211x255,verbessert,"fupa, raster, TSV Seebach"
 t638,FSV Stadeln 1958,https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Logo_FSV_Stadeln.svg/330px-Logo_FSV_Stadeln.svg.png,54x64,228x256,verbessert,"wiki, raster, FSV Stadeln"
@@ -899,7 +899,7 @@ t897,FC Eichenzell,https://www.fussball.de/export.media/-/action/getLogo/format/
 t898,TSV Jahn Calden,https://image.fupa.net/club/sMT7avb5X8op/800x800.png,53x64,218x256,verbessert,"fupa, raster, TSV Jahn Calden"
 t899,VfR Fehlheim,https://image.fupa.net/club/XjYJ9B5tBSI9/800x800.png,54x64,213x256,verbessert,"fupa, raster, VfR Fehlheim"
 t900,TuS Immendorf,,64x64,64x64,nicht verbessert,"Stichprobe: fussball.de-Wappen weicht im Motiv oder in den Farben ab, Wappenwechsel nicht belegt; altes Bild behalten. Vorher: fussball.de, raster, TuS Immendorf / Koblenz"
-t901,TSG Wieseck,https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/TSG_Wieseck.png/330px-TSG_Wieseck.png,54x64,256x113,verbessert,"wikimedia, raster, Ort im Artikel (wieseck) | Aussenflaeche transparent, Innenweiss bleibt"
+t901,TSG Wieseck,https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/TSG_Wieseck.png/330px-TSG_Wieseck.png,54x64,256x113,verbessert,"wikimedia, raster, Ort im Artikel (wieseck) | Aussenflaeche transparent, Innenweiss bleibt | Loecher in der Kontur mit Originalfarbe geschlossen"
 t902,TuS Mosella Schweich,https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Logo_tus-mosella-schweich.gif/330px-Logo_tus-mosella-schweich.gif,58x64,218x240,verbessert,"wikimedia, raster, Ort im Artikel (schweich)"
 t903,SC Reisbach,https://image.fupa.net/club/lw9xefMbi1q8/800x800.png,54x64,256x256,verbessert,"fupa, raster, SC Reisbach"
 t904,SSC Juno Burg,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
