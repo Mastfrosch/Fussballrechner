@@ -2281,32 +2281,31 @@ const L5_IDS=[];
 const L5_FEED=[];
 function buildInitialSquads(){
   return withHistoryOnly(()=>{
-    const ids=Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+    const byAnsehen=(a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de');
+    const ids=Object.keys(TEAMS).sort(byAnsehen);
     const used=new Set();
     const take=n=>{
       const out=[];
       ids.forEach(id=>{ if(out.length>=n || used.has(id)) return; out.push(id); used.add(id); });
       return out;
     };
-    const takeRegion=(lid, size, match)=>{
-      const pool=ids.filter(id=>!used.has(id) && match(TEAMS[id].bl));
-      const out=pool.slice(0, size);
-      out.forEach(id=>used.add(id));
-      return out;
-    };
-    const takeArea=(size, matchId)=>{
-      const pool=ids.filter(id=>!used.has(id) && matchId(id));
-      const out=pool.slice(0, size);
-      out.forEach(id=>used.add(id));
-      return out;
-    };
     const leagues={};
     ['BL','BL2','L3','L4'].forEach(id=>{ leagues[id]=take(L[id].size); });
+    // Regionalliga und Oberliga nach dem Ansehen, das die Start-Saison anzeigt.
+    S.seasons=[{name:'2026/27', status:'running'}];
+    S.view=0;
+    resetDerivedIndex();
+    const ranked=Object.keys(TEAMS).sort(byAnsehen);
+    const takeArea=(size, matchId)=>{
+      const out=[];
+      ranked.forEach(id=>{ if(out.length>=size || used.has(id) || !matchId(id)) return; out.push(id); used.add(id); });
+      return out;
+    };
     RL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).rl===lid); });
     OL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).ol===lid); });
     const pools={};
     POOLS.forEach(pp=>{
-      pools[pp.id]=ids.filter(id=>!used.has(id) && gebietOf(id).ol===pp.ol);
+      pools[pp.id]=ranked.filter(id=>!used.has(id) && gebietOf(id).ol===pp.ol);
       pools[pp.id].forEach(id=>used.add(id));
     });
     return {leagues, pools, used:used.size, total:ids.length};
