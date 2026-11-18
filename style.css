@@ -1049,17 +1049,14 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .h2h-nav button.active,.cmp-filters button.active{background:#006ab2;border-color:#006ab2;color:#fff}
 .de-map path{fill:#006ab2;stroke:#08324d}
 .de-map path.land{fill:#3c8fd4;stroke:none}
-.de-map path.line{fill:none;stroke-linejoin:round;stroke-linecap:round}
-.de-map path.line-fine{stroke:#08324d;stroke-width:.55}
-.de-map path.line-bez{stroke:#d6e7f4;stroke-width:1.15}
-.de-map path.line-state{stroke:#f4f8fb;stroke-width:1.7}
-.de-map path.line-outer{stroke:#fff;stroke-width:2.6}
+.de-map path.line{fill:none;stroke:#fff;stroke-linejoin:round;stroke-linecap:round}
+.de-map path.line-bez{stroke-width:1.05}
+.de-map path.line-state{stroke-width:1.45}
+.de-map path.line-outer{stroke-width:2.5}
 .area-map path.land{stroke:none}
-.area-map path.line{fill:none;stroke-linejoin:round;stroke-linecap:round}
-.area-map path.line-fine{stroke:rgba(20,32,43,.28);stroke-width:.45}
-.area-map path.line-bez{stroke:rgba(20,32,43,.55);stroke-width:.9}
-.area-map path.line-split{stroke:#14202b;stroke-width:1.35}
-.area-map path.line-state{stroke:#14202b;stroke-width:1.7}
+.area-map path.line{fill:none;stroke:#14202b;stroke-linejoin:round;stroke-linecap:round}
+.area-map path.line-split{stroke-width:1.25}
+.area-map path.line-state,.area-map path.line-outer{stroke-width:1.8}
 .land-matrix tbody th.l{color:var(--text);background:#fff}
 .box,.card{border-color:#d7e0e7}
 .rueckblick{display:flex;flex-direction:column;gap:14px;width:100%;max-width:100%}

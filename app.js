@@ -6999,6 +6999,74 @@ function lineHtml(cls, d){
   if (!d) return '';
   return '<path class="line '+cls+'" d="'+d+'"></path>';
 }
+function drawPolys(polys, px){
+  let d='';
+  (polys||[]).forEach(poly=>(poly||[]).forEach(ring=>{
+    if (!ring || ring.length<3) return;
+    d+=pathFromPts(ring, px)+'Z';
+  }));
+  return d;
+}
+function drawLines(lines, px, close){
+  let d='';
+  (lines||[]).forEach(ring=>{
+    if (!ring || ring.length<2) return;
+    d+=pathFromPts(ring, px);
+    if (close){
+      const p=px(ring[0][0], ring[0][1]);
+      d+='L'+p[0].toFixed(1)+' '+p[1].toFixed(1);
+    }
+  });
+  return d;
+}
+function walkMap(node, fn){
+  if (!node) return;
+  if (typeof node[0]==='number'){ fn(node); return; }
+  node.forEach(part=>walkMap(part, fn));
+}
+function mapFrame(shapes){
+  const lat0=51.2, cos=Math.cos(lat0*Math.PI/180);
+  const xy=(lon,lat)=>[(lon-10.4)*cos, -(lat-lat0)];
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  shapes.forEach(shape=>walkMap(shape, p=>{
+    const q=xy(p[0], p[1]);
+    if (q[0]<minX) minX=q[0]; if (q[1]<minY) minY=q[1]; if (q[0]>maxX) maxX=q[0]; if (q[1]>maxY) maxY=q[1];
+  }));
+  return {xy, minX, minY, maxX, maxY};
+}
+function mapSpec(key, allow){
+  const M=window.FR_MAP;
+  if (!M) return null;
+  const germany=()=>OL_IDS.reduce((acc,id)=>acc.concat(M.fill[id]||[]), []);
+  if (key && L[key]){
+    const lv=L[key].level;
+    if (lv<=4) return {fill:germany(), outer:M.outer, state:M.state, bez:M.bez||[]};
+    const Lspec=M.L&&M.L[key];
+    if (lv===5 && Lspec) return {fill:Lspec.fill||germany().filter(()=>false), outer:Lspec.outer, state:Lspec.state, bez:Lspec.bez};
+    if (lv===6 && M.fill[key]) return {fill:M.fill[key], outer:Lspec&&Lspec.outer, state:Lspec&&Lspec.state, bez:Lspec&&Lspec.bez};
+  }
+  if (key && String(key).indexOf('am:')===0 && P[key.slice(3)]){
+    const ol=P[key.slice(3)].ol;
+    const Lspec=M.L&&M.L[ol];
+    return {fill:M.fill[ol], outer:Lspec&&Lspec.outer, state:Lspec&&Lspec.state, bez:Lspec&&Lspec.bez};
+  }
+  if (allow && allow.length===1 && M.stateFill && M.stateFill[allow[0]]){
+    const s=M.stateFill[allow[0]];
+    return {fill:s.fill, outer:s.outer, state:[], bez:s.bez};
+  }
+  if (allow && allow.length && M.stateFill){
+    const fill=[], outer=[], bez=[];
+    allow.forEach(bl=>{
+      const s=M.stateFill[bl];
+      if (!s) return;
+      (s.fill||[]).forEach(p=>fill.push(p));
+      (s.outer||[]).forEach(p=>outer.push(p));
+      (s.bez||[]).forEach(p=>bez.push(p));
+    });
+    return {fill, outer, state:M.state, bez};
+  }
+  return {fill:germany(), outer:M.outer, state:M.state, bez:M.bez||[]};
+}
 function renderGebiete(){
   const head=document.querySelector('.head');
   if (head) head.classList.add('head-off');
@@ -7010,31 +7078,22 @@ function renderGebiete(){
   Object.keys(TEAMS).forEach(id=>{ const ol=gebietOf(id).ol; counts[ol]=(counts[ol]||0)+1; });
   const rlColor={RLN:'#1d4e89', RLNO:'#1e7a46', RLW:'#8c2f2f', RLS:'#a6842a'};
   const shade={OLN:'#1d4e89', OLNIW:'#4d86c5', OLNIO:'#8eb4dc', OLNON:'#1e7a46', OLNOS:'#6fbf8a', OLRH:'#8c2f2f', OLWN:'#c45c3e', OLSW:'#e0a36a', OLBYN:'#c4a035', OLBYS:'#e6c96a', OLBW:'#8a6a2f'};
-  const pack=topoKeep(null, null);
-  let svg='';
-  if (pack){
-    const topo=pack.topo;
-    const lat0=51.2, cos=Math.cos(lat0*Math.PI/180);
-    const xy=(lon,lat)=>[(lon-10.4)*cos, -(lat-lat0)];
-    let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
-    topo.arcs.forEach(arc=>arc.forEach(p=>{
-      const q=xy(p[0], p[1]);
-      if (q[0]<minX) minX=q[0]; if (q[1]<minY) minY=q[1]; if (q[0]>maxX) maxX=q[0]; if (q[1]>maxY) maxY=q[1];
-    }));
+  const M=window.FR_MAP;
+  let svg='', frame=null, sc=1, offX=0, offY=0;
+  if (M){
+    frame=mapFrame([M.outer, M.state, M.split].concat(OL_IDS.map(id=>M.fill[id])));
     const W=760, H=900, pad=18;
-    const sc=Math.min((W-2*pad)/(maxX-minX||1), (H-2*pad)/(maxY-minY||1));
-    const offX=(W-(maxX-minX)*sc)/2, offY=(H-(maxY-minY)*sc)/2;
-    const px=(lon,lat)=>{ const q=xy(lon,lat); return [(q[0]-minX)*sc+offX, (q[1]-minY)*sc+offY]; };
+    const spanX=Math.max(0.01, frame.maxX-frame.minX), spanY=Math.max(0.01, frame.maxY-frame.minY);
+    sc=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
+    offX=(W-spanX*sc)/2; offY=(H-spanY*sc)/2;
+    const px=(lon,lat)=>{ const q=frame.xy(lon,lat); return [(q[0]-frame.minX)*sc+offX, (q[1]-frame.minY)*sc+offY]; };
     OL_IDS.forEach(id=>{
-      const keep=new Set();
-      topo.kreise.forEach((k,i)=>{ if (k.ol===id) keep.add(i); });
-      const d=topoFill(topo, keep, px);
-      if (d) svg+='<path class="land" d="'+d+'" fill="'+shade[id]+'"><title>'+esc(L[id].name)+'</title></path>';
+      const d=drawPolys(M.fill&&M.fill[id], px);
+      if (d) svg+='<path class="land" data-ol="'+id+'" d="'+d+'" fill="'+shade[id]+'"><title>'+esc(L[id].name)+'</title></path>';
     });
-    svg+=lineHtml('line-fine', topoLines(topo, topo.fine, px));
-    svg+=lineHtml('line-bez', topoLines(topo, topo.bez, px));
-    svg+=lineHtml('line-split', topoLines(topo, topo.split, px));
-    svg+=lineHtml('line-state', topoLines(topo, topo.state.concat(topo.coast), px));
+    svg+=lineHtml('line-split', drawLines(M.split, px));
+    svg+=lineHtml('line-state', drawLines(M.state, px));
+    svg+=lineHtml('line-outer', drawLines(M.outer, px, true));
   }
   const legend=RL_IDS.map(rl=>{
     const kids=OL_IDS.filter(id=>L[id].upTo===rl);
@@ -7042,7 +7101,8 @@ function renderGebiete(){
     const sum=kids.reduce((s,id)=>s+(counts[id]||0),0);
     return '<section class="area-rg"><h3 style="color:'+rlColor[rl]+'">'+esc(L[rl].name)+' · '+sum+'</h3>'+rows+'</section>';
   }).join('');
-  $('#view').innerHTML='<div class="area-layout"><div class="card map-card"><svg class="area-map" viewBox="0 0 760 900" role="img" aria-label="Deutschland nach Oberligen">'+svg+'</svg><p class="map-credit">Gemeinsame Grenzlinien der Länder, Bezirke und Staffeln. Eine Farbe je Regionalliga, Abstufungen je Oberliga.</p></div><div class="area-legend">'+legend+'</div></div>';
+  const proj=frame?' data-minx="'+frame.minX+'" data-miny="'+frame.minY+'" data-sc="'+sc+'" data-offx="'+offX+'" data-offy="'+offY+'"':'';
+  $('#view').innerHTML='<div class="area-layout"><div class="card map-card"><svg class="area-map" viewBox="0 0 760 900"'+proj+' role="img" aria-label="Deutschland nach Oberligen">'+svg+'</svg><p class="map-credit">Außengrenze, Ländergrenzen und Staffelgrenzen. Eine Farbe je Regionalliga, Abstufungen je Oberliga.</p></div><div class="area-legend">'+legend+'</div></div>';
 }
 function regionLadderHTML(id){
   const g=gebietOf(id);
@@ -9512,17 +9572,14 @@ function viewKarte(s, lid){
   return viewMap(name+' – Vereine', seasonClubIds(s, lid), allow, lid);
 }
 function viewMap(title, ids, allow, key){
-  const pack=topoKeep(key, allow);
-  if(!pack) return '<div class="box">Kartendaten fehlen.</div>';
+  const spec=mapSpec(key, allow);
+  if(!spec) return '<div class="box">Kartendaten fehlen.</div>';
   const unique=[], seen={};
   (ids||[]).forEach(id=>{ if(id&&TEAMS[id]&&!seen[id]){ seen[id]=1; unique.push(id); } });
   if(!unique.length) return '<div class="box"><h3>'+esc(title)+'</h3><p class="muted">In dieser Saison sind keine Vereine eingetragen.</p></div>';
-  const topo=pack.topo, keep=pack.keep;
-  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
-  const lat0=51.2, cos=Math.cos(lat0*Math.PI/180);
-  const xy=(lon,lat)=>{ const x=(lon-10.4)*cos, y=-(lat-lat0); return [x,y]; };
-  const touch=p=>{ const q=xy(p[0], p[1]); if(q[0]<minX)minX=q[0]; if(q[1]<minY)minY=q[1]; if(q[0]>maxX)maxX=q[0]; if(q[1]>maxY)maxY=q[1]; };
-  keep.forEach(ki=>topo.kreise[ki].polys.forEach(poly=>(poly||[]).forEach(ring=>topoRing(topo.arcs, ring).forEach(touch))));
+  const frame=mapFrame([spec.fill, spec.outer, spec.state, spec.bez]);
+  let minX=frame.minX, minY=frame.minY, maxX=frame.maxX, maxY=frame.maxY;
+  const xy=frame.xy;
   unique.forEach(id=>{
     const c=coordOf(id);
     if (!c) return;
@@ -9537,12 +9594,10 @@ function viewMap(title, ids, allow, key){
   const sc=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
   const offX=(W-(spanX*sc))/2, offY=(H-(spanY*sc))/2;
   const px=(lon,lat)=>{ const [x,y]=xy(lon,lat); return [(x-minX)*sc+offX, (y-minY)*sc+offY]; };
-  const detail=key && ((L[key]&&L[key].level>=6) || String(key).indexOf('am:')===0 || String(key).indexOf('cup:')===0);
-  let paths='<path class="land" d="'+topoFill(topo, keep, px)+'"></path>';
-  if (detail) paths+=lineHtml('line-fine', topoLines(topo, topo.fine.filter(id=>topo.side.get(id).some(k=>keep.has(k))), px));
-  paths+=lineHtml('line-bez', topoLines(topo, topo.bez.filter(id=>topo.side.get(id).some(k=>keep.has(k))), px));
-  paths+=lineHtml('line-state', topoLines(topo, topo.state.filter(id=>topo.side.get(id).some(k=>keep.has(k))), px));
-  paths+=lineHtml('line-outer', topoLines(topo, topoOuter(topo, keep), px));
+  let paths='<path class="land" d="'+drawPolys(spec.fill, px)+'"></path>';
+  paths+=lineHtml('line-bez', drawLines(spec.bez, px));
+  paths+=lineHtml('line-state', drawLines(spec.state, px));
+  paths+=lineHtml('line-outer', drawLines(spec.outer, px, true));
   const missing=[];
   const marks=unique.map(id=>{ const c=coordOf(id); if(!c){ missing.push(id); return null; } const [x,y]=px(c.lon,c.lat); return {id,x,y,name:TEAMS[id].name,stadion:c.stadion,crest:TEAMS[id].crest}; }).filter(Boolean);
   const crests=marks.map(m=>{
