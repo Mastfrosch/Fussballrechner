@@ -31,8 +31,8 @@ const LEAGUES = [
 ];
 const POOL_DESC={
   OLN:'Schleswig-Holstein, Hamburg',
-  OLNIW:'Weser-Ems, Hannover',
-  OLNIO:'Bremen, Lüneburg, Braunschweig',
+  OLNIW:'Emsland bis Schaumburg, Bremen, Cuxhaven, Osterholz und Verden',
+  OLNIO:'Stade und Rotenburg bis Hannover, Braunschweig und Göttingen',
   OLNON:'Mecklenburg-Vorpommern, Berlin, Brandenburg',
   OLNOS:'Sachsen-Anhalt, Sachsen, Thüringen',
   OLRH:'Düsseldorf, Köln',
@@ -2281,32 +2281,31 @@ const L5_IDS=[];
 const L5_FEED=[];
 function buildInitialSquads(){
   return withHistoryOnly(()=>{
-    const ids=Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+    const byAnsehen=(a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de');
+    const ids=Object.keys(TEAMS).sort(byAnsehen);
     const used=new Set();
     const take=n=>{
       const out=[];
       ids.forEach(id=>{ if(out.length>=n || used.has(id)) return; out.push(id); used.add(id); });
       return out;
     };
-    const takeRegion=(lid, size, match)=>{
-      const pool=ids.filter(id=>!used.has(id) && match(TEAMS[id].bl));
-      const out=pool.slice(0, size);
-      out.forEach(id=>used.add(id));
-      return out;
-    };
-    const takeArea=(size, matchId)=>{
-      const pool=ids.filter(id=>!used.has(id) && matchId(id));
-      const out=pool.slice(0, size);
-      out.forEach(id=>used.add(id));
-      return out;
-    };
     const leagues={};
     ['BL','BL2','L3','L4'].forEach(id=>{ leagues[id]=take(L[id].size); });
+    // Regionalliga und Oberliga nach dem Ansehen, das die Start-Saison anzeigt.
+    S.seasons=[{name:'2026/27', status:'running'}];
+    S.view=0;
+    resetDerivedIndex();
+    const ranked=Object.keys(TEAMS).sort(byAnsehen);
+    const takeArea=(size, matchId)=>{
+      const out=[];
+      ranked.forEach(id=>{ if(out.length>=size || used.has(id) || !matchId(id)) return; out.push(id); used.add(id); });
+      return out;
+    };
     RL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).rl===lid); });
     OL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).ol===lid); });
     const pools={};
     POOLS.forEach(pp=>{
-      pools[pp.id]=ids.filter(id=>!used.has(id) && gebietOf(id).ol===pp.ol);
+      pools[pp.id]=ranked.filter(id=>!used.has(id) && gebietOf(id).ol===pp.ol);
       pools[pp.id].forEach(id=>used.add(id));
     });
     return {leagues, pools, used:used.size, total:ids.length};
@@ -3723,6 +3722,62 @@ function migrateArchive(){
   backfillLeagueStats();
   return n;
 }
+function advanceSeason(){
+  const s=latest();
+  if (!s || s.status!=='running') return {c:0, rolled:false, open:'Saison'};
+  const done=completeRunningSeason(s);
+  if (done.open || seasonEndBlock(s)) return {c:done.c, rolled:false, open:done.open||'Abschluss'};
+  s.endData=computeTransition(s);
+  s.status='ending';
+  suggestPicks(s.endData);
+  const before=S.seasons.length;
+  finalizeSeason({quiet:true, batch:true});
+  const rolled=S.seasons.length>before;
+  return {c:done.c, rolled, open:rolled?'':'Aufsteiger'};
+}
+let batchRun=0;
+function simInstant(){
+  if (batchRun) return;
+  const live=latest();
+  if (!live || live.status!=='running') return;
+  saveHold=1;
+  let r;
+  try { r=advanceSeason(); }
+  finally { saveHold=0; }
+  save(); render();
+  toast(r&&r.rolled?'Die nächste Saison ist offen.':('Noch offen: '+((r&&r.open)||'Abschluss')+'.'));
+}
+function simFifty(){
+  if (batchRun) return;
+  const live=latest();
+  if (!live || live.status!=='running') return;
+  batchRun=1;
+  const btn=document.getElementById('btnSimX50');
+  const t0=performance.now();
+  let i=0;
+  const finish=msg=>{
+    batchRun=0;
+    saveHold=0;
+    if (btn) btn.textContent='x50';
+    save(); render();
+    toast(msg);
+  };
+  const step=()=>{
+    if (!batchRun) return;
+    if (i>=50){ finish('50 Saisons sind gespielt ('+Math.round((performance.now()-t0)/100)/10+' s).'); return; }
+    saveHold=1;
+    let r;
+    try { r=advanceSeason(); }
+    catch(e){ finish('Abbruch.'); return; }
+    i++;
+    if (btn) btn.textContent=i+' / 50';
+    if (!r.rolled){ finish('Stopp nach '+i+(r.open?': '+r.open:'')); return; }
+    setTimeout(step, 0);
+  };
+  ['btnSimSeason','btnSimInstant','btnSimX50'].forEach(id=>{ const b=document.getElementById(id); if (b) b.disabled=true; });
+  if (btn) btn.disabled=false;
+  step();
+}
 function rollSimulatedSeason(){
   const s=latest();
   if (!s || s.status!=='running') return {c:0, rolled:false};
@@ -4627,11 +4682,12 @@ function legendHTML(lg, season){
 function setActions(html){
   const el=$('#headActions');
   if (el) el.innerHTML=html||'';
-  const sim=document.getElementById('btnSimSeason');
-  if (sim){
-    const live=latest();
-    sim.disabled=!(live && live.status==='running');
-  }
+  const live=latest();
+  const on=!!(live && live.status==='running') && !batchRun;
+  ['btnSimSeason','btnSimInstant','btnSimX50'].forEach(id=>{
+    const b=document.getElementById(id);
+    if (b) b.disabled=!on;
+  });
 }
 function seasonActions(s, withEnd){
   if (!s) return '';
@@ -6830,6 +6886,186 @@ function viewAlike(){
     : '<p class="muted">Keine offenen Paare. '+hidden+' entschiedene Zuordnungen sind ausgeblendet.</p>';
   return '<div class="box"><input class="searchbox" id="alikeSearch" placeholder="Verein suchen …"><h3>Ähnliche Vereine</h3><div class="alike-tools"><span id="alikeCount">'+alikeDecidedCount()+' von '+rows.length+' entschieden</span><button type="button" class="btn" id="alikeCopy" data-act="alikeCopy">Auswahl kopieren</button></div><p class="muted">Offene Paare lassen sich ankreuzen. Die Kreuze bleiben im Browser und ändern noch keine Vereine.</p>'+lists+'</div>';
 }
+let topoReady=null;
+function ensureTopo(){
+  if (topoReady) return topoReady;
+  const src=window.FR_TOPO;
+  if (!src || !src.arcs || !src.kreise) return null;
+  const tr=src.transform||{scale:[1,1], translate:[0,0]};
+  const arcs=src.arcs.map(arc=>{
+    let x=0, y=0;
+    const out=new Array(arc.length);
+    for (let i=0;i<arc.length;i++){
+      x+=arc[i][0]; y+=arc[i][1];
+      out[i]=[x*tr.scale[0]+tr.translate[0], y*tr.scale[1]+tr.translate[1]];
+    }
+    return out;
+  });
+  const kreise=src.kreise.map(k=>({bl:k.bl, ol:k.ol, rl:k.rl, bez:k.bez, polys:k.t==='MultiPolygon'?k.a:[k.a]}));
+  const side=new Map();
+  kreise.forEach((k,ki)=>{
+    k.polys.forEach(poly=>(poly||[]).forEach(ring=>(ring||[]).forEach(idx=>{
+      const id=idx<0?~idx:idx;
+      let a=side.get(id);
+      if (!a){ a=[]; side.set(id, a); }
+      if (a.indexOf(ki)<0) a.push(ki);
+    })));
+  });
+  const coast=[], state=[], split=[], bez=[], fine=[];
+  side.forEach((ks, id)=>{
+    if (ks.length<2){ coast.push(id); return; }
+    const A=kreise[ks[0]], B=kreise[ks[1]];
+    if (A.bl!==B.bl) state.push(id);
+    else if (A.ol!==B.ol) split.push(id);
+    else if (A.bez!==B.bez) bez.push(id);
+    else fine.push(id);
+  });
+  topoReady={arcs, kreise, side, coast, state, split, bez, fine};
+  return topoReady;
+}
+function topoRing(arcs, ring){
+  const pts=[];
+  (ring||[]).forEach(idx=>{
+    const rev=idx<0;
+    const arc=arcs[rev?~idx:idx];
+    if (!arc || !arc.length) return;
+    const seq=rev?arc.slice().reverse():arc;
+    const from=pts.length?1:0;
+    for (let i=from;i<seq.length;i++) pts.push(seq[i]);
+  });
+  return pts;
+}
+function pathFromPts(pts, px){
+  let d='';
+  for (let i=0;i<pts.length;i++){
+    const p=px(pts[i][0], pts[i][1]);
+    d+=(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1);
+  }
+  return d;
+}
+function topoFill(topo, keep, px){
+  let d='';
+  keep.forEach(ki=>{
+    const k=topo.kreise[ki];
+    k.polys.forEach(poly=>(poly||[]).forEach(ring=>{
+      const pts=topoRing(topo.arcs, ring);
+      if (pts.length<3) return;
+      d+=pathFromPts(pts, px)+'Z';
+    }));
+  });
+  return d;
+}
+function topoLines(topo, ids, px){
+  let d='';
+  ids.forEach(id=>{
+    const arc=topo.arcs[id];
+    if (!arc || arc.length<2) return;
+    d+=pathFromPts(arc, px);
+  });
+  return d;
+}
+function topoKeep(key, allow){
+  const topo=ensureTopo();
+  if (!topo) return null;
+  const set=new Set();
+  const all=topo.kreise;
+  const take=pred=>all.forEach((k,i)=>{ if (pred(k)) set.add(i); });
+  if (key && L[key]){
+    const lv=L[key].level;
+    if (lv<=4) all.forEach((_,i)=>set.add(i));
+    else if (lv===5) take(k=>k.rl===key);
+    else if (lv===6) take(k=>k.ol===key);
+  } else if (key && String(key).indexOf('am:')===0 && P[key.slice(3)]){
+    const ol=P[key.slice(3)].ol;
+    take(k=>k.ol===ol);
+  } else if (allow && allow.length){
+    take(k=>allow.indexOf(k.bl)>=0);
+  } else all.forEach((_,i)=>set.add(i));
+  if (!set.size) all.forEach((_,i)=>set.add(i));
+  return {topo, keep:set};
+}
+function topoOuter(topo, keep){
+  const ids=[];
+  topo.side.forEach((ks, id)=>{
+    let inn=0;
+    for (let i=0;i<ks.length;i++) if (keep.has(ks[i])) inn++;
+    if (inn && inn<ks.length) ids.push(id);
+    else if (inn && ks.length<2) ids.push(id);
+  });
+  return ids;
+}
+function lineHtml(cls, d){
+  if (!d) return '';
+  return '<path class="line '+cls+'" d="'+d+'" fill="none" stroke-linejoin="round" stroke-linecap="round"></path>';
+}
+function drawPolys(polys, px){
+  let d='';
+  (polys||[]).forEach(poly=>(poly||[]).forEach(ring=>{
+    if (!ring || ring.length<3) return;
+    d+=pathFromPts(ring, px)+'Z';
+  }));
+  return d;
+}
+function drawLines(lines, px, close){
+  let d='';
+  (lines||[]).forEach(ring=>{
+    if (!ring || ring.length<2) return;
+    d+=pathFromPts(ring, px);
+    if (close){
+      const p=px(ring[0][0], ring[0][1]);
+      d+='L'+p[0].toFixed(1)+' '+p[1].toFixed(1);
+    }
+  });
+  return d;
+}
+function walkMap(node, fn){
+  if (!node) return;
+  if (typeof node[0]==='number'){ fn(node); return; }
+  node.forEach(part=>walkMap(part, fn));
+}
+function mapFrame(shapes){
+  const lat0=51.2, cos=Math.cos(lat0*Math.PI/180);
+  const xy=(lon,lat)=>[(lon-10.4)*cos, -(lat-lat0)];
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  shapes.forEach(shape=>walkMap(shape, p=>{
+    const q=xy(p[0], p[1]);
+    if (q[0]<minX) minX=q[0]; if (q[1]<minY) minY=q[1]; if (q[0]>maxX) maxX=q[0]; if (q[1]>maxY) maxY=q[1];
+  }));
+  return {xy, minX, minY, maxX, maxY};
+}
+function mapSpec(key, allow){
+  const M=window.FR_MAP;
+  if (!M) return null;
+  const germany=()=>OL_IDS.reduce((acc,id)=>acc.concat(M.fill[id]||[]), []);
+  if (key && L[key]){
+    const lv=L[key].level;
+    if (lv<=4) return {fill:germany(), outer:M.outer, state:M.state, bez:M.bez||[]};
+    const Lspec=M.L&&M.L[key];
+    if (lv===5 && Lspec) return {fill:Lspec.fill||germany().filter(()=>false), outer:Lspec.outer, state:Lspec.state, bez:Lspec.bez};
+    if (lv===6 && M.fill[key]) return {fill:M.fill[key], outer:Lspec&&Lspec.outer, state:Lspec&&Lspec.state, bez:Lspec&&Lspec.bez};
+  }
+  if (key && String(key).indexOf('am:')===0 && P[key.slice(3)]){
+    const ol=P[key.slice(3)].ol;
+    const Lspec=M.L&&M.L[ol];
+    return {fill:M.fill[ol], outer:Lspec&&Lspec.outer, state:Lspec&&Lspec.state, bez:Lspec&&Lspec.bez};
+  }
+  if (allow && allow.length===1 && M.S && M.S[allow[0]]){
+    const s=M.S[allow[0]];
+    return {fill:s.fill, outer:s.outer, state:[], bez:s.bez};
+  }
+  if (allow && allow.length && M.S){
+    const fill=[], outer=[], bez=[];
+    allow.forEach(bl=>{
+      const s=M.S[bl];
+      if (!s) return;
+      (s.fill||[]).forEach(p=>fill.push(p));
+      (s.outer||[]).forEach(p=>outer.push(p));
+      (s.bez||[]).forEach(p=>bez.push(p));
+    });
+    return {fill, outer, state:M.state, bez};
+  }
+  return {fill:germany(), outer:M.outer, state:M.state, bez:M.bez||[]};
+}
 function renderGebiete(){
   const head=document.querySelector('.head');
   if (head) head.classList.add('head-off');
@@ -6837,20 +7073,35 @@ function renderGebiete(){
   $('#subline').innerHTML='';
   $('#tabs').innerHTML='<h1 class="tab-title">Karte der Staffeln</h1>';
   setActions('');
-  const paths=window.FR_AREA_PATH||{};
   const counts={};
   Object.keys(TEAMS).forEach(id=>{ const ol=gebietOf(id).ol; counts[ol]=(counts[ol]||0)+1; });
   const rlColor={RLN:'#1d4e89', RLNO:'#1e7a46', RLW:'#8c2f2f', RLS:'#a6842a'};
   const shade={OLN:'#1d4e89', OLNIW:'#4d86c5', OLNIO:'#8eb4dc', OLNON:'#1e7a46', OLNOS:'#6fbf8a', OLRH:'#8c2f2f', OLWN:'#c45c3e', OLSW:'#e0a36a', OLBYN:'#c4a035', OLBYS:'#e6c96a', OLBW:'#8a6a2f'};
-  let svg='';
-  OL_IDS.forEach(id=>{ if(paths[id]) svg+='<path class="area-'+id+'" d="'+paths[id]+'" fill="'+shade[id]+'" stroke="#fff" stroke-width="1"><title>'+esc(L[id].name)+'</title></path>'; });
+  const M=window.FR_MAP;
+  let svg='', frame=null, sc=1, offX=0, offY=0;
+  if (M){
+    frame=mapFrame([M.outer, M.state, M.split].concat(OL_IDS.map(id=>M.fill[id])));
+    const W=760, H=900, pad=18;
+    const spanX=Math.max(0.01, frame.maxX-frame.minX), spanY=Math.max(0.01, frame.maxY-frame.minY);
+    sc=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
+    offX=(W-spanX*sc)/2; offY=(H-spanY*sc)/2;
+    const px=(lon,lat)=>{ const q=frame.xy(lon,lat); return [(q[0]-frame.minX)*sc+offX, (q[1]-frame.minY)*sc+offY]; };
+    OL_IDS.forEach(id=>{
+      const d=drawPolys(M.fill&&M.fill[id], px);
+      if (d) svg+='<path class="land" data-ol="'+id+'" d="'+d+'" fill="'+shade[id]+'" stroke="'+shade[id]+'" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><title>'+esc(L[id].name)+'</title></path>';
+    });
+    svg+=lineHtml('line-split', drawLines(M.split, px));
+    svg+=lineHtml('line-state', drawLines(M.state, px));
+    svg+=lineHtml('line-outer', drawLines(M.outer, px, true));
+  }
   const legend=RL_IDS.map(rl=>{
     const kids=OL_IDS.filter(id=>L[id].upTo===rl);
     const rows=kids.map(id=>'<div class="area-row"><i style="background:'+shade[id]+'"></i><span>'+esc(L[id].name)+'</span><b>'+counts[id]+'</b></div>').join('');
     const sum=kids.reduce((s,id)=>s+(counts[id]||0),0);
     return '<section class="area-rg"><h3 style="color:'+rlColor[rl]+'">'+esc(L[rl].name)+' · '+sum+'</h3>'+rows+'</section>';
   }).join('');
-  $('#view').innerHTML='<div class="area-layout"><div class="card map-card"><svg class="area-map" viewBox="0 0 760 900" role="img" aria-label="Deutschland nach Oberligen">'+svg+'</svg><p class="map-credit">Grenzen der Länder und Regierungsbezirke. Eine Farbe je Regionalliga, Abstufungen je Oberliga. Quelle der Bezirke: deutschlandGeoJSON, Regierungsbezirke.</p></div><div class="area-legend">'+legend+'</div></div>';
+  const proj=frame?' data-minx="'+frame.minX+'" data-miny="'+frame.minY+'" data-sc="'+sc+'" data-offx="'+offX+'" data-offy="'+offY+'"':'';
+  $('#view').innerHTML='<div class="area-layout"><div class="card map-card"><svg class="area-map" viewBox="0 0 760 900"'+proj+' role="img" aria-label="Deutschland nach Oberligen">'+svg+'</svg><p class="map-credit">Außengrenze, Ländergrenzen und Staffelgrenzen. Eine Farbe je Regionalliga, Abstufungen je Oberliga.</p></div><div class="area-legend">'+legend+'</div></div>';
 }
 function regionLadderHTML(id){
   const g=gebietOf(id);
@@ -9320,22 +9571,14 @@ function viewKarte(s, lid){
   return viewMap(name+' – Vereine', seasonClubIds(s, lid), allow, lid);
 }
 function viewMap(title, ids, allow, key){
-  const states=window.FR_STATES;
-  if(!states) return '<div class="box">Kartendaten fehlen.</div>';
+  const spec=mapSpec(key, allow);
+  if(!spec) return '<div class="box">Kartendaten fehlen.</div>';
   const unique=[], seen={};
   (ids||[]).forEach(id=>{ if(id&&TEAMS[id]&&!seen[id]){ seen[id]=1; unique.push(id); } });
   if(!unique.length) return '<div class="box"><h3>'+esc(title)+'</h3><p class="muted">In dieser Saison sind keine Vereine eingetragen.</p></div>';
-  let features=states.features.filter(f=>!allow || allow.includes(f.properties.name));
-  if (!features.length) features=states.features.slice();
-  const rings=[];
-  features.forEach(f=>{
-    const g=f.geometry, polys=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];
-    polys.forEach(poly=>poly.forEach(ring=>rings.push(ring)));
-  });
-  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
-  const lat0=51.2, cos=Math.cos(lat0*Math.PI/180);
-  const xy=(lon,lat)=>{ const x=(lon-10.4)*cos, y=-(lat-lat0); return [x,y]; };
-  rings.forEach(ring=>ring.forEach(p=>{ const [x,y]=xy(p[0],p[1]); if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y; }));
+  const frame=mapFrame([spec.fill, spec.outer, spec.state, spec.bez]);
+  let minX=frame.minX, minY=frame.minY, maxX=frame.maxX, maxY=frame.maxY;
+  const xy=frame.xy;
   unique.forEach(id=>{
     const c=coordOf(id);
     if (!c) return;
@@ -9350,16 +9593,10 @@ function viewMap(title, ids, allow, key){
   const sc=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
   const offX=(W-(spanX*sc))/2, offY=(H-(spanY*sc))/2;
   const px=(lon,lat)=>{ const [x,y]=xy(lon,lat); return [(x-minX)*sc+offX, (y-minY)*sc+offY]; };
-  let paths='';
-  features.forEach(f=>{
-    const g=f.geometry, polys=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];
-    let d='';
-    polys.forEach(poly=>poly.forEach(ring=>{
-      ring.forEach((p,i)=>{ const [x,y]=px(p[0],p[1]); d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1); });
-      d+='Z';
-    }));
-    paths+='<path d="'+d+'"><title>'+esc(f.properties.name)+'</title></path>';
-  });
+  let paths='<path class="land" d="'+drawPolys(spec.fill, px)+'" fill="#3c8fd4" stroke="#3c8fd4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>';
+  paths+=lineHtml('line-bez', drawLines(spec.bez, px));
+  paths+=lineHtml('line-state', drawLines(spec.state, px));
+  paths+=lineHtml('line-outer', drawLines(spec.outer, px, true));
   const missing=[];
   const marks=unique.map(id=>{ const c=coordOf(id); if(!c){ missing.push(id); return null; } const [x,y]=px(c.lon,c.lat); return {id,x,y,name:TEAMS[id].name,stadion:c.stadion,crest:TEAMS[id].crest}; }).filter(Boolean);
   const crests=marks.map(m=>{
@@ -9368,7 +9605,7 @@ function viewMap(title, ids, allow, key){
   }).join('');
   const scope=allow?allow.join(', '):'Deutschland';
   const gap=missing.length?'<p class="muted">Ohne gespeicherten Standort: '+missing.map(id=>esc(TEAMS[id].name)).join(', ')+'.</p>':'';
-  return '<div class="card map-card"><div class="card-title"><span>'+esc(title)+'</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(key||title)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(title)+'">'+paths+crests+'</svg></div>'+gap+'<p class="map-credit">'+esc(scope)+' · '+marks.length+' von '+unique.length+' Vereinen mit Standort. Mausrad zoomt, Ziehen verschiebt. In der Übersicht sind die Wappen etwas größer; beim Heranzoomen bleiben sie auf dem Bildschirm gleich groß und liegen am Spielort. Kartendaten © OpenStreetMap-Mitwirkende, europlan-online.de · Grenzen: Natural Earth</p></div>';
+  return '<div class="card map-card"><div class="card-title"><span>'+esc(title)+'</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(key||title)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(title)+'">'+paths+crests+'</svg></div>'+gap+'<p class="map-credit">'+esc(scope)+' · '+marks.length+' von '+unique.length+' Vereinen mit Standort. Mausrad zoomt, Ziehen verschiebt. In der Übersicht sind die Wappen etwas größer; beim Heranzoomen bleiben sie auf dem Bildschirm gleich groß und liegen am Spielort. Außengrenze der Liga, darin Länder- und Bezirksgrenzen.</p></div>';
 }
 function clampMap(W, H){
   const z=mapView.z||1, w=W/z, h=H/z;
@@ -11800,6 +12037,8 @@ document.addEventListener('click', ev=>{
   else if (act==='simMd'){ if(!isScheduled(s,lid,currentMd(s,lid))){ toast('Spieltag ist noch nicht terminiert.'); return; } const c=simLeague(s,lid,currentMd(s,lid)); save(); render(); toast(c+' Spiele zufällig eingetragen.'); }
   else if (act==='simBlock'){ if(confirm('Den aktuellen Block der '+L[lid].name+' simulieren? Offene Spiele dieses Blocks werden zufällig aufgefüllt.')){ const c=simBlock(s,lid); save(); render(); toast(c?c+' Spiele simuliert.':'Nichts zu simulieren.'); } }
   else if (act==='simSeason'){ const r=completeRunningSeason(); save(); render(); if(r.open){ toast('Noch offen: '+r.open+'.'); return; } toast(r.c+' Spiele simuliert. Die Saison ist fertig.'); }
+  else if (act==='simInstant'){ simInstant(); }
+  else if (act==='simX50'){ simFifty(); }
   else if (act==='simLeague'){ if(confirm('Alle noch offenen Spiele der '+L[lid].name+' zufällig simulieren? Nicht terminierte Blöcke werden dabei der Reihe nach angesetzt.')){ const c=simLeague(s,lid); save(); render(); toast(c+' Spiele simuliert.'); } }
   else if (act==='rules'){ S.ui.tab='regeln'; render(); }
   else if (act==='end'){ const pr=seasonProgress(s); if (pr.done<pr.total && !confirm('Es fehlen noch '+(pr.total-pr.done)+' Spiele. Trotzdem zum Saisonabschluss? (Du kannst dort noch abbrechen oder die fehlenden Spiele simulieren.)')) return; startSeasonEnd(); }
@@ -13134,7 +13373,7 @@ function uiSelfTestBody(fails){
     S.ui.tab='gebiete'; render();
     const map=(document.querySelector('#view')||{}).innerHTML||'';
     const named=OL_IDS.every(id=>map.indexOf(L[id].name)>=0) && RL_IDS.every(id=>map.indexOf(L[id].name)>=0);
-    check('Karte zeigt vier Regionalligen und elf Oberligen mit Vereinszahl', !!document.querySelector('.area-map') && named && map.indexOf('>191<')>=0 && map.indexOf('>195<')>=0);
+    check('Karte zeigt vier Regionalligen und elf Oberligen mit Vereinszahl', !!document.querySelector('.area-map') && named && map.indexOf('>192<')>=0 && map.indexOf('>196<')>=0);
     S.ui.tab='info'; S.ui.infoId='t001'; S.ui.infoSec='region'; render();
     const reg=(document.querySelector('.region-ladder')||{}).innerText||'';
     check('Region nennt 4. Liga, Regionalliga, Oberliga und Amateurliga', reg.indexOf('4. Liga')>=0 && reg.indexOf('Regionalliga Süd')>=0 && reg.indexOf('Oberliga Bayern Staffel Süd')>=0 && reg.indexOf('Amateurliga Bayern Staffel Süd')>=0, reg.slice(0,180));
