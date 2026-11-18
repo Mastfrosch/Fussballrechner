@@ -995,6 +995,65 @@ function ansehenSelfTestBody(fails){
     const uniq=new Set(sums.map(String));
     check('alle geöffneten Landespokale liegen zwischen 10 und 35', sums.length===BL_ORDER.length && uniq.size>1 && sums.every(v=>v>=10 && v<=35), sums.join(' · '));
   }
+  const seat33=landSeatPlan(33, 400), seat90=landSeatPlan(90, 400), seat110=landSeatPlan(110, 80), seat100=landSeatPlan(100, 80);
+  check('volles Feld: 100 nach Liga und Ansehen, 28 gelost', seat33.field===128 && seat33.liga===33 && seat33.ansehen===67 && seat33.los===28 && seat90.ansehen===10 && seat90.los===28 && seat100.ansehen===0 && seat100.los===28, JSON.stringify({seat33, seat90, seat100}));
+  check('mehr als 100 Ligavereine lassen dem Los nur den Rest', seat110.field===128 && seat110.liga===110 && seat110.ansehen===0 && seat110.los===18);
+  const small40=landSeatPlan(8, 32), small121=landSeatPlan(15, 106);
+  check('höchstens 128 Kandidaten spielen alle, ohne Los', small40.all && small40.field===40 && small40.los===0 && small40.ansehen===0 && small121.all && small121.field===121 && small121.los===0, JSON.stringify({small40, small121}));
+  const seaCup=cur();
+  if (seaCup && seaCup.cups && seaCup.cups.land){
+    const lines=[];
+    let fieldOk=true, note='';
+    BL_ORDER.forEach(bl=>{
+      const cup=seaCup.cups.land[bl];
+      const pools=landClubPools(seaCup, bl);
+      const plan=landSeatPlan(pools.league.length, pools.amateur.length);
+      const fill=cup&&cup.landFill;
+      const ids=cup&&cup.entrants||[];
+      const uniq=new Set(ids);
+      const leagueMissing=pools.league.filter(id=>uniq.has(id)===false);
+      const ways=cup&&cup.ways||{};
+      let liga=0, an=0, los=0, marked=0;
+      ids.forEach(id=>{ if(ways[id]==='liga') liga++; else if(ways[id]==='ansehen') an++; else if(ways[id]==='los') los++; if(ways[id]) marked++; });
+      const badAll=plan.all && (ids.length!==pools.league.length+pools.amateur.length || marked>0 || (fill&&fill.los));
+      const badCut=!plan.all && (liga!==plan.liga || an!==plan.ansehen || los!==plan.los);
+      if (!cup || ids.length!==plan.field || uniq.size!==ids.length || ids.length>128 || badAll || badCut || (!plan.all && plan.liga===pools.league.length && leagueMissing.length)){
+        fieldOk=false;
+        note=bl+' soll '+(plan.all?'alle '+plan.field:plan.liga+'/'+plan.ansehen+'/'+plan.los)+' hat '+(fill?(fill.all?'alle ':fill.liga+'/'+fill.ansehen+'/'+fill.los):'ohne')+' n '+ids.length;
+      }
+      lines.push(bl+' '+(plan.all?'alle':liga+'/'+an+'/'+los)+'='+ids.length);
+    });
+    check('jedes Land hält Liga, Ansehen und Los ein', fieldOk, note||lines.join(' · '));
+    const bayern=seaCup.cups.land.Bayern;
+    const keepCup={cup:S.ui.cup, view:S.ui.cupView, round:S.ui.cupRound};
+    S.ui.cup='Bayern'; S.ui.cupView='spiele'; S.ui.cupRound=0;
+    const bayernHtml=viewPokal(seaCup, bayern, 'spiele');
+    S.ui.cup=keepCup.cup; S.ui.cupView=keepCup.view; S.ui.cupRound=keepCup.round;
+    const bf=bayern.landFill;
+    check('Hinweis nennt Liga, Ansehen und Los', !!bf && !bf.all && bayernHtml.indexOf('Liga '+bf.liga)>=0 && bayernHtml.indexOf('Ansehen '+bf.ansehen)>=0 && bayernHtml.indexOf('Los '+bf.los)>=0 && bayernHtml.indexOf('28')>=0);
+    S.ui.cup='Bremen'; S.ui.cupRound=0;
+    const bremen=seaCup.cups.land.Bremen;
+    const bremenHtml=viewPokal(seaCup, bremen, 'spiele');
+    const rp=seaCup.cups.land['Rheinland-Pfalz'];
+    const grid=n=>1<<Math.ceil(Math.log2(Math.max(2, n)));
+    const byes=cup=>(cup.rounds&&cup.rounds[0]&&cup.rounds[0].byes||[]).length;
+    check('kleines Land nennt kein Los und vergibt Freilose nach Ansehen', bremenHtml.indexOf('Los')<0 && bremenHtml.indexOf('alle Kandidaten')>=0 && bremenHtml.indexOf('Freilose gehen')>=0 && bremen.entrants.length===41 && byes(bremen)===grid(41)-41 && rp.entrants.length===121 && byes(rp)===grid(121)-121 && rp.rounds[0].name==='Vorrunde' && bremen.rounds[0].name==='Vorrunde');
+    const sh=seaCup.cups.land['Schleswig-Holstein'];
+    S.ui.cup='Schleswig-Holstein'; S.ui.cupRound=0;
+    const shHtml=viewPokal(seaCup, sh, 'spiele');
+    check('genau 128 nennt keine Freilose und keine Vorrunde', sh.entrants.length===128 && byes(sh)===0 && sh.rounds[0].name==='Runde der 128' && shHtml.indexOf('Freilos')<0 && shHtml.indexOf('Vorrunde')<0 && shHtml.indexOf('Los')<0 && shHtml.indexOf('alle Kandidaten')>=0);
+    S.ui.cup=keepCup.cup; S.ui.cupRound=keepCup.round;
+    const poolsB=landClubPools(seaCup, 'Bayern');
+    const ranked=poolsB.amateur.slice().sort((a,b)=>landAn(b)-landAn(a) || byRang(a,b));
+    const anSet=new Set(ranked.slice(0, bf.ansehen));
+    const anOk=(bayern.entrants||[]).filter(id=>bayern.ways[id]==='ansehen').every(id=>anSet.has(id));
+    const rest=new Set(ranked.slice(bf.ansehen));
+    const losIds=(bayern.entrants||[]).filter(id=>bayern.ways[id]==='los');
+    const losOk=losIds.every(id=>rest.has(id));
+    const restHasLow=ranked.slice(bf.ansehen).some(id=>!(landAn(id)>0));
+    check('Ansehen sind die besten Amateure, das Los kommt aus dem Rest', anOk && losOk && losIds.length===bf.los && anSet.size+rest.size===ranked.length && (bf.los===0 || rest.size>=bf.los));
+    check('Amateure ohne Ansehen bleiben im Lostopf', !restHasLow || ranked.slice(bf.ansehen).every(id=>!anSet.has(id)));
+  }
   const a=ansehenLedger('t001'), b=ansehenLedger('t001');
   const sum=ansehenRound2(a.lines.reduce((s,l)=>s+l.today,0));
   check('Summe der Übersicht', a.value===sum && a.value===b.value, a.value+' gegen '+sum);
@@ -2364,6 +2423,8 @@ function packCup(cup){
     return out;
   });
   const out={id:cup.id, name:cup.name, kind:cup.kind, bl:cup.bl, entrants:cup.entrants, pro:cup.pro, amateur:cup.amateur, spots:cup.spots, rounds};
+  if (cup.ways) out.ways=cup.ways;
+  if (cup.landFill) out.landFill=cup.landFill;
   if (cup.roundNames) out.roundNames=cup.roundNames;
   if (cup.archived) out.archived=true;
   if (cup.ansehenScale && cup.ansehenScale.budget!=null) out.ansehenScale=cup.ansehenScale;
@@ -3542,7 +3603,7 @@ function shrinkCup(cup){
   cup.roundNames=names;
   cup.archived=true;
   cup.rounds=[{name:'Finale', drawn:true, neutral:cup.kind==='dfb', archived:false, byes:[], matches:fin?[fin]:[]}];
-  delete cup.entrants; delete cup.pro; delete cup.amateur;
+  delete cup.entrants; delete cup.pro; delete cup.amateur; delete cup.ways; delete cup.landFill;
 }
 function freezeLandScale(season){
   if (!season || !season.cups || !season.cups.land) return;
@@ -3737,16 +3798,86 @@ function koName(teams){
   if (teams===256) return 'Runde der 256';
   return 'Runde der '+teams;
 }
-function landParticipants(season, bl){
-  const ids=[];
+const LAND_CAP=128;
+const LAND_SEEDED=100;
+const LAND_LOS=LAND_CAP-LAND_SEEDED;
+function landAn(id){
+  try{ return ansehenValue(id)||0; }catch(e){ return 0; }
+}
+function landSeatPlan(leagueN, amateurN){
+  const ligaAll=Math.max(0, leagueN|0), amAll=Math.max(0, amateurN|0);
+  const candidates=ligaAll+amAll;
+  if (candidates<=LAND_CAP) return {liga:ligaAll, ansehen:0, los:0, field:candidates, all:true};
+  const liga=Math.min(ligaAll, LAND_CAP);
+  let an=0, los=0;
+  if (liga>=LAND_CAP){ an=0; los=0; }
+  else if (liga>=LAND_SEEDED){ an=0; los=LAND_CAP-liga; }
+  else { an=LAND_SEEDED-liga; los=LAND_LOS; }
+  if (an+los>amAll){ an=Math.min(an, amAll); los=amAll-an; }
+  return {liga, ansehen:an, los, field:liga+an+los, all:false};
+}
+function landClubPools(season, bl){
+  const league=[], amateur=[], seen=new Set();
   LEAGUES.forEach(l=>{
-    if (l.level<3 || !season.leagues[l.id]) return;
-    season.leagues[l.id].teams.forEach(id=>{ if (TEAMS[id] && TEAMS[id].bl===bl) ids.push(id); });
+    if (!l || l.level<3 || l.level>6 || !season.leagues || !season.leagues[l.id]) return;
+    (season.leagues[l.id].teams||[]).forEach(id=>{
+      if (!TEAMS[id] || TEAMS[id].bl!==bl || seen.has(id)) return;
+      seen.add(id);
+      league.push(id);
+    });
   });
   POOLS.forEach(p=>{
-    ((season.pools&&season.pools[p.id])||[]).forEach(id=>{ if (TEAMS[id] && TEAMS[id].bl===bl) ids.push(id); });
+    ((season.pools&&season.pools[p.id])||[]).forEach(id=>{
+      if (!TEAMS[id] || TEAMS[id].bl!==bl || seen.has(id)) return;
+      seen.add(id);
+      amateur.push(id);
+    });
   });
-  return ids;
+  return {league, amateur};
+}
+function landField(season, bl){
+  const pools=landClubPools(season, bl);
+  const league=pools.league.slice().sort((a,b)=>{
+    const la=clubLeagueId(season, a), lb=clubLeagueId(season, b);
+    const va=L[la]?L[la].level:9, vb=L[lb]?L[lb].level:9;
+    return va-vb || landAn(b)-landAn(a) || byRang(a,b);
+  });
+  const amateur=pools.amateur.slice().sort((a,b)=>landAn(b)-landAn(a) || byRang(a,b));
+  const plan=landSeatPlan(league.length, amateur.length);
+  if (plan.all) return {ids:league.concat(amateur), ways:{}, fill:{liga:league.length, ansehen:0, los:0, all:true}};
+  const leagueIn=league.slice(0, plan.liga);
+  const byAn=amateur.slice(0, plan.ansehen);
+  const drawn=shuffle(amateur.slice(plan.ansehen)).slice(0, plan.los);
+  const ids=leagueIn.concat(byAn, drawn);
+  const ways={};
+  leagueIn.forEach(id=>{ ways[id]='liga'; });
+  byAn.forEach(id=>{ ways[id]='ansehen'; });
+  drawn.forEach(id=>{ ways[id]='los'; });
+  return {ids, ways, fill:{liga:leagueIn.length, ansehen:byAn.length, los:drawn.length, all:false}};
+}
+function landParticipants(season, bl){
+  return landField(season, bl).ids;
+}
+function landWayLabel(way){
+  return way==='liga'?'Liga':way==='ansehen'?'Ansehen':way==='los'?'Los':'';
+}
+function landByeCount(cup){
+  const listed=cup&&cup.rounds&&cup.rounds[0]&&cup.rounds[0].byes?cup.rounds[0].byes.length:0;
+  if (listed) return listed;
+  const n=(cup&&cup.entrants||[]).length;
+  if (n<2) return 0;
+  const target=1<<Math.ceil(Math.log2(n));
+  return target>n?target-n:0;
+}
+function landCupNote(cup){
+  const n=(cup.entrants||[]).length;
+  const f=cup.landFill;
+  const tail='Die schwächere Liga hat Heimrecht, innerhalb derselben Liga der zuerst gezogene. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.';
+  if (!f || f.all){
+    const bye=landByeCount(cup)?' Freilose gehen an die Vereine mit dem höchsten Ansehen, die übrigen spielen die Vorrunde.':'';
+    return n+' Vereine, alle Kandidaten aus '+(cup.bl||'dem Land')+'.'+bye+' '+tail;
+  }
+  return n+' Vereine. Liga '+f.liga+', Ansehen '+f.ansehen+', Los '+f.los+'. Zuerst die Vereine aus 3. Liga, 4. Liga, Regionalliga und Oberliga, dann die besten Amateure nach Ansehen bis '+LAND_SEEDED+'. Die letzten '+f.los+' Plätze werden unter den übrigen Amateuren gelost. '+tail;
 }
 function planLandRounds(ids, st){
   const n=ids.length;
@@ -3894,10 +4025,11 @@ function buildCups(season, prev){
   const byeSt=placementStanding(season, prev);
   const land={};
   BL_ORDER.forEach(bl=>{
-    const ids=landParticipants(season, bl);
+    const field=landField(season, bl);
+    const ids=field.ids;
     const rounds=planLandRounds(ids, byeSt);
     const names=rounds.map(r=>r.name);
-    land[bl]={id:'land:'+bl, name:'Landespokal '+bl, kind:'land', bl, entrants:ids, rounds, ansehenScale:landAnsehenScale(ids, season, names)};
+    land[bl]={id:'land:'+bl, name:'Landespokal '+bl, kind:'land', bl, entrants:ids, ways:field.ways, landFill:field.fill, rounds, ansehenScale:landAnsehenScale(ids, season, names)};
   });
   return {dfb, land};
 }
@@ -4235,6 +4367,7 @@ function matchLineHTML(o){
     const tags=(!o.markOuter && mk)?[].concat(mk).filter(Boolean).map(markHTML).join(' '):'';
     let after='';
     if (o.ligaAfter && o.season){ try{ const liga=ligaEdge(o.season, id); if(liga) after=' <span class="liga-tag">'+esc(liga)+'</span>'; }catch(e){} }
+    if (o.landWay && o.landWay[id]){ const lab=landWayLabel(o.landWay[id]); if (lab) after+=' <span class="liga-tag">'+esc(lab)+'</span>'; }
     const name='<span class="ml-name" data-club="'+id+'">'+esc(TEAMS[id].name)+after+'</span>';
     let line=name;
     if (tags && o.markOut) line=side==='h'?'<span class="ml-line">'+tags+' '+name+'</span>':'<span class="ml-line">'+name+' '+tags+'</span>';
@@ -4582,7 +4715,7 @@ function viewCupRound(s, cup, ed){
   }
   if (cup.archived) h+='<p class="cup-note">Ältere Runden dieses Pokals sind abgelegt. Das Finale bleibt hier, die erreichte Runde jedes Vereins in der Vereinsinfo.</p>';
   if (cup.kind==='land' && ri===0 && cup.entrants && cup.entrants.length){
-    h+='<p class="cup-note">'+cup.entrants.length+' Vereine aus '+esc(cup.bl)+', von der 3. Liga bis zur Amateurliga. Freilose gehen an die Vereine mit dem höchsten Ansehen. Die schwächere Liga hat Heimrecht, innerhalb derselben Liga der zuerst gezogene. Der Sieger zieht in den DFB-Pokal der nächsten Saison ein.</p>';
+    h+='<p class="cup-note">'+esc(landCupNote(cup))+'</p>';
   }
   if (!round.drawn){
     const ready=ri===0 || roundComplete(cup.rounds[ri-1]);
@@ -4592,7 +4725,7 @@ function viewCupRound(s, cup, ed){
     else if (ed && ready) h+='<button class="btn primary" data-act="cupDraw" data-cup="'+esc(key)+'" data-ri="'+ri+'">Auslosen</button>';
     else h+='<span class="muted">'+(ed?'Zuerst die vorherige Runde zu Ende spielen.':'Diese Runde ist nicht ausgelost.')+'</span>';
     h+='</div></div>';
-    if (round.byes && round.byes.length) h+='<div class="box"><b>Freilos in dieser Runde:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
+    if (round.byes && round.byes.length) h+='<div class="box"><b>Freilos in dieser Runde:</b> '+round.byes.map(id=>esc(TEAMS[id].name)+(cup.ways&&landWayLabel(cup.ways[id])?' ('+landWayLabel(cup.ways[id])+')':'')).join(', ')+'</div>';
     return h;
   }
   const rows=round.matches.map((m,i)=>({m,i})).sort((a,b)=>cupSlotOrder(a.m.slot,b.m.slot)||a.i-b.i);
@@ -4610,7 +4743,7 @@ function viewCupRound(s, cup, ed){
     buf.push(cupMatchHTML(s, m, key, ri, i, ed));
   });
   flush();
-  if (round.byes && round.byes.length) h+='<div class="sp-hint"><b>Freilos:</b> '+round.byes.map(id=>esc(TEAMS[id].name)).join(', ')+'</div>';
+  if (round.byes && round.byes.length) h+='<div class="sp-hint"><b>Freilos:</b> '+round.byes.map(id=>esc(TEAMS[id].name)+(cup.ways&&landWayLabel(cup.ways[id])?' ('+landWayLabel(cup.ways[id])+')':'')).join(', ')+'</div>';
   h+='</div>';
   return h;
 }
@@ -4831,12 +4964,13 @@ function cupMatchHTML(s, m, key, ri, i, ed){
   } else if (!draw && m.et) above='<span class="ie-box">n.V.</span>';
   const below='<span class="ie-slot"></span>';
   const dfb=key==='dfb';
+  const landWay=cup&&cup.kind==='land'&&ri===0?cup.ways:null;
   let marker=null;
   if (dfb){
     const pid=prevDfbWinner(s);
     if (pid && (m.h===pid || m.a===pid)) marker={[pid]:['P']};
   }
-  return matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, liga:true, cup:true, bl:dfb, marker, markOuter:!!marker, klass:'cup-spiel axis', done:!!win, step, above, below, km:meta?km:null, attr:' data-mi="'+i+'"', del:ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>'});
+  return matchLineHTML({h:m.h, a:m.a, hg:played?m.hg:null, ag:played?m.ag:null, season:s, liga:true, cup:true, bl:dfb, marker, markOuter:!!marker, landWay, klass:'cup-spiel axis', done:!!win, step, above, below, km:meta?km:null, attr:' data-mi="'+i+'"', del:ed?'<button type="button" class="del" data-act="cupDel" data-cup="'+esc(key)+'" data-ri="'+ri+'" data-mi="'+i+'" title="Zurücksetzen">×</button>':'<span></span>'});
 }
 let penEdit=null;
 function openPenDialog(cupKey, ri, mi){
