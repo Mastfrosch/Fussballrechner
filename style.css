@@ -87,7 +87,7 @@ select:focus,input:focus,button:focus{outline:1px solid var(--green);outline-off
   .top-tools{order:3}
   .head-actions{order:4}
   .season-field{order:5}
-  .top-sim{order:6}
+  .top-sim,.top-sim-wrap{order:6}
   .topnav{order:7;flex:1 1 100%;flex-wrap:wrap;padding-right:16px}
 }
 @media (min-width:2200px){
@@ -1034,7 +1034,8 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .card-title select option,.md-nav select option,#topbar select option{color:#14202b;background:#fff}
 #headActions .btn.primary{background:#fff;color:#006ab2;border-color:#fff}
 #headActions .btn.primary:hover{background:#e8f3fb;color:#00548f}
-#topbar .top-sim{align-self:stretch;display:flex;align-items:center;margin:0 8px 0 auto;background:transparent;color:#fff;border-color:rgba(255,255,255,.7);white-space:nowrap;padding:3px 10px;font-size:13px}
+.top-sim-wrap{display:flex;align-items:stretch;gap:6px;margin-left:auto}
+#topbar .top-sim{align-self:stretch;display:flex;align-items:center;margin:0;background:transparent;color:#fff;border-color:rgba(255,255,255,.7);white-space:nowrap;padding:3px 10px;font-size:13px}
 #topbar .top-sim:hover{background:rgba(255,255,255,.14)}
 #topbar .top-sim:disabled{opacity:.45}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
@@ -1047,6 +1048,18 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .ansehen-break .tot{background:#e5f1fa;border-color:#b9d4ea}
 .h2h-nav button.active,.cmp-filters button.active{background:#006ab2;border-color:#006ab2;color:#fff}
 .de-map path{fill:#006ab2;stroke:#08324d}
+.de-map path.land{fill:#3c8fd4;stroke:none}
+.de-map path.line{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.de-map path.line-fine{stroke:#08324d;stroke-width:.55}
+.de-map path.line-bez{stroke:#d6e7f4;stroke-width:1.15}
+.de-map path.line-state{stroke:#f4f8fb;stroke-width:1.7}
+.de-map path.line-outer{stroke:#fff;stroke-width:2.6}
+.area-map path.land{stroke:none}
+.area-map path.line{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.area-map path.line-fine{stroke:rgba(20,32,43,.28);stroke-width:.45}
+.area-map path.line-bez{stroke:rgba(20,32,43,.55);stroke-width:.9}
+.area-map path.line-split{stroke:#14202b;stroke-width:1.35}
+.area-map path.line-state{stroke:#14202b;stroke-width:1.7}
 .land-matrix tbody th.l{color:var(--text);background:#fff}
 .box,.card{border-color:#d7e0e7}
 .rueckblick{display:flex;flex-direction:column;gap:14px;width:100%;max-width:100%}
