@@ -2281,34 +2281,28 @@ const L5_IDS=[];
 const L5_FEED=[];
 function buildInitialSquads(){
   return withHistoryOnly(()=>{
+    // Alle Ligen der Start-Saison nach dem Ansehen, das 2026/27 anzeigt.
+    S.seasons=[{name:'2026/27', status:'running'}];
+    S.view=0;
+    resetDerivedIndex();
     const byAnsehen=(a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de');
-    const ids=Object.keys(TEAMS).sort(byAnsehen);
+    const ranked=Object.keys(TEAMS).sort(byAnsehen);
     const used=new Set();
-    const take=n=>{
+    const take=(size, matchId)=>{
       const out=[];
-      ids.forEach(id=>{ if(out.length>=n || used.has(id)) return; out.push(id); used.add(id); });
+      ranked.forEach(id=>{ if(out.length>=size || used.has(id) || (matchId && !matchId(id))) return; out.push(id); used.add(id); });
       return out;
     };
     const leagues={};
     ['BL','BL2','L3','L4'].forEach(id=>{ leagues[id]=take(L[id].size); });
-    // Regionalliga und Oberliga nach dem Ansehen, das die Start-Saison anzeigt.
-    S.seasons=[{name:'2026/27', status:'running'}];
-    S.view=0;
-    resetDerivedIndex();
-    const ranked=Object.keys(TEAMS).sort(byAnsehen);
-    const takeArea=(size, matchId)=>{
-      const out=[];
-      ranked.forEach(id=>{ if(out.length>=size || used.has(id) || !matchId(id)) return; out.push(id); used.add(id); });
-      return out;
-    };
-    RL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).rl===lid); });
-    OL_IDS.forEach(lid=>{ leagues[lid]=takeArea(L[lid].size, id=>gebietOf(id).ol===lid); });
+    RL_IDS.forEach(lid=>{ leagues[lid]=take(L[lid].size, id=>gebietOf(id).rl===lid); });
+    OL_IDS.forEach(lid=>{ leagues[lid]=take(L[lid].size, id=>gebietOf(id).ol===lid); });
     const pools={};
     POOLS.forEach(pp=>{
       pools[pp.id]=ranked.filter(id=>!used.has(id) && gebietOf(id).ol===pp.ol);
       pools[pp.id].forEach(id=>used.add(id));
     });
-    return {leagues, pools, used:used.size, total:ids.length};
+    return {leagues, pools, used:used.size, total:ranked.length};
   });
 }
 function schedulePending(season, lid){
@@ -12435,8 +12429,14 @@ function uiSelfTestBody(fails){
   check('Regionen stimmen', regionBad===0, String(regionBad));
   const again=buildInitialSquads();
   check('Zuteilung ist stabil', squads.leagues.BL.join()===again.leagues.BL.join() && squads.leagues.RLNO.join()===again.leagues.RLNO.join());
-  const ranked=withHistoryOnly(()=>Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de')));
+  const ranked=withHistoryOnly(()=>{
+    S.seasons=[{name:'2026/27', status:'running'}];
+    S.view=0;
+    resetDerivedIndex();
+    return Object.keys(TEAMS).sort((a,b)=>ansehenValue(b)-ansehenValue(a) || TEAMS[a].name.localeCompare(TEAMS[b].name,'de'));
+  });
   check('Bundesliga sind die 20 mit dem höchsten Ansehen', squads.leagues.BL.join()===ranked.slice(0,20).join());
+  check('2. Bundesliga, 3. Liga und 4. Liga folgen im Ansehen', squads.leagues.BL2.join()===ranked.slice(20,40).join() && squads.leagues.L3.join()===ranked.slice(40,60).join() && squads.leagues.L4.join()===ranked.slice(60,80).join());
   check('Spielstand nach der Zuteilung noch derselbe', (S.seasons[0].leagues.BL.teams||[]).join()===snap);
   const pyramidKeep=S;
   try{
