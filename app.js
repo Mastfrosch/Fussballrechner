@@ -1042,6 +1042,10 @@ function ansehenSelfTestBody(fails){
     S.ui.cup='Schleswig-Holstein'; S.ui.cupRound=0;
     const shHtml=viewPokal(seaCup, sh, 'spiele');
     check('genau 128 nennt keine Freilose und keine Vorrunde', sh.entrants.length===128 && byes(sh)===0 && sh.rounds[0].name==='Runde der 128' && shHtml.indexOf('Freilos')<0 && shHtml.indexOf('Vorrunde')<0 && shHtml.indexOf('Los')<0 && shHtml.indexOf('alle Kandidaten')>=0);
+    const qBay=viewPokal(seaCup, bayern, 'qualifikation');
+    const qBre=viewPokal(seaCup, bremen, 'qualifikation');
+    check('Bayern-Qualifikation zeigt Liga, Ansehen und Los', qBay.indexOf('Über die Liga')>=0 && qBay.indexOf('('+bf.liga+')')>=0 && qBay.indexOf('Über das Ansehen')>=0 && qBay.indexOf('('+bf.ansehen+')')>=0 && qBay.indexOf('Ausgelost')>=0 && qBay.indexOf('('+bf.los+')')>=0 && qBay.indexOf(TEAMS[bayern.entrants[0]].name)>=0);
+    check('kleines Land ist ohne Los qualifiziert', qBre.indexOf('Qualifiziert, kein Los nötig')>=0 && qBre.indexOf('('+bremen.entrants.length+')')>=0 && qBre.indexOf('Ausgelost')<0 && qBre.indexOf('Über die Liga')<0 && qBre.indexOf(TEAMS[bremen.entrants[0]].name)>=0);
     S.ui.cup=keepCup.cup; S.ui.cupRound=keepCup.round;
     const poolsB=landClubPools(seaCup, 'Bayern');
     const ranked=poolsB.amateur.slice().sort((a,b)=>landAn(b)-landAn(a) || byRang(a,b));
@@ -4763,6 +4767,42 @@ function cupSelectHTML(key){
   h+='</optgroup></select>';
   return h;
 }
+function landQualGroups(cup){
+  const ids=(cup.entrants||[]).filter(id=>TEAMS[id] && !blockedClubHit(TEAMS[id].name));
+  const ways=cup.ways||{};
+  const fill=cup.landFill;
+  const marked=ids.some(id=>ways[id]==='liga' || ways[id]==='ansehen' || ways[id]==='los');
+  if ((fill && fill.all) || !marked) return [{title:'Qualifiziert, kein Los nötig', ids}];
+  return [
+    {title:'Über die Liga', ids:ids.filter(id=>ways[id]==='liga')},
+    {title:'Über das Ansehen', ids:ids.filter(id=>ways[id]==='ansehen')},
+    {title:'Ausgelost', ids:ids.filter(id=>ways[id]==='los')}
+  ];
+}
+function landQualHTML(season, cup){
+  const groups=landQualGroups(cup);
+  const n=(cup&&cup.entrants||[]).length;
+  let h='<div class="box">';
+  h+='<p class="muted">'+esc((cup&&cup.name)||'Landespokal')+' '+esc(season&&season.name||'')+' · '+n+' Vereine. So kam das Feld zustande.</p>';
+  if (!n) return h+'<p>Das Teilnehmerfeld dieser Saison ist nicht gespeichert.</p></div>';
+  groups.forEach(g=>{
+    h+='<h3>'+esc(g.title)+' <span class="muted">('+g.ids.length+')</span></h3>';
+    if (!g.ids.length){ h+='<p class="muted">Keine Vereine.</p>'; return; }
+    h+='<table class="tbl"><thead><tr><th class="l">Verein</th><th class="l">Liga</th><th class="l">Ansehen</th></tr></thead><tbody>';
+    g.ids.forEach(id=>{
+      const liga=leagueBucket(season, id);
+      let an='–', raw='';
+      try{
+        const v=ansehenValue(id);
+        if (v!=null && isFinite(+v)){ an=deNum(+v, 2); raw=String(+v); }
+      }catch(e){}
+      h+='<tr><td class="l">'+clubHTML(id,{nobl:true})+'</td><td class="l">'+esc(liga)+'</td><td class="l"'+(raw?' data-n="'+raw+'"':'')+'>'+esc(an)+'</td></tr>';
+    });
+    h+='</tbody></table>';
+  });
+  h+='</div>';
+  return h;
+}
 function viewPokal(s, cup, view){
   const ed=isEditable();
   const key=S.ui.cup;
@@ -4782,8 +4822,9 @@ function viewPokal(s, cup, view){
   if (view==='uebersicht') return h+viewCupOverview(s, cup);
   if (view==='rekorde') return h+viewCupRekorde(key);
   if (view==='qualifikation'){
+    if (cup && cup.kind==='land') return h+landQualHTML(s, cup);
     const dfb=s.cups&&s.cups.dfb;
-    return h+(dfb?viewCupSpots(dfb, s):'<div class="box">In dieser Saison gibt es keine Landespokal-Qualifikation.</div>');
+    return h+(dfb?viewCupSpots(dfb, s):'<div class="box">In dieser Saison gibt es keine DFB-Pokal-Qualifikation.</div>');
   }
   return h+viewCupRound(s, cup, ed);
 }
