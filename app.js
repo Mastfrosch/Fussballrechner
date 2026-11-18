@@ -6996,7 +6996,7 @@ function topoOuter(topo, keep){
 }
 function lineHtml(cls, d){
   if (!d) return '';
-  return '<path class="line '+cls+'" d="'+d+'"></path>';
+  return '<path class="line '+cls+'" d="'+d+'" fill="none" stroke-linejoin="round" stroke-linecap="round"></path>';
 }
 function drawPolys(polys, px){
   let d='';
@@ -7049,14 +7049,14 @@ function mapSpec(key, allow){
     const Lspec=M.L&&M.L[ol];
     return {fill:M.fill[ol], outer:Lspec&&Lspec.outer, state:Lspec&&Lspec.state, bez:Lspec&&Lspec.bez};
   }
-  if (allow && allow.length===1 && M.stateFill && M.stateFill[allow[0]]){
-    const s=M.stateFill[allow[0]];
+  if (allow && allow.length===1 && M.S && M.S[allow[0]]){
+    const s=M.S[allow[0]];
     return {fill:s.fill, outer:s.outer, state:[], bez:s.bez};
   }
-  if (allow && allow.length && M.stateFill){
+  if (allow && allow.length && M.S){
     const fill=[], outer=[], bez=[];
     allow.forEach(bl=>{
-      const s=M.stateFill[bl];
+      const s=M.S[bl];
       if (!s) return;
       (s.fill||[]).forEach(p=>fill.push(p));
       (s.outer||[]).forEach(p=>outer.push(p));
@@ -7088,7 +7088,7 @@ function renderGebiete(){
     const px=(lon,lat)=>{ const q=frame.xy(lon,lat); return [(q[0]-frame.minX)*sc+offX, (q[1]-frame.minY)*sc+offY]; };
     OL_IDS.forEach(id=>{
       const d=drawPolys(M.fill&&M.fill[id], px);
-      if (d) svg+='<path class="land" data-ol="'+id+'" d="'+d+'" fill="'+shade[id]+'"><title>'+esc(L[id].name)+'</title></path>';
+      if (d) svg+='<path class="land" data-ol="'+id+'" d="'+d+'" fill="'+shade[id]+'" stroke="'+shade[id]+'" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><title>'+esc(L[id].name)+'</title></path>';
     });
     svg+=lineHtml('line-split', drawLines(M.split, px));
     svg+=lineHtml('line-state', drawLines(M.state, px));
@@ -9593,7 +9593,7 @@ function viewMap(title, ids, allow, key){
   const sc=Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
   const offX=(W-(spanX*sc))/2, offY=(H-(spanY*sc))/2;
   const px=(lon,lat)=>{ const [x,y]=xy(lon,lat); return [(x-minX)*sc+offX, (y-minY)*sc+offY]; };
-  let paths='<path class="land" d="'+drawPolys(spec.fill, px)+'"></path>';
+  let paths='<path class="land" d="'+drawPolys(spec.fill, px)+'" fill="#3c8fd4" stroke="#3c8fd4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>';
   paths+=lineHtml('line-bez', drawLines(spec.bez, px));
   paths+=lineHtml('line-state', drawLines(spec.state, px));
   paths+=lineHtml('line-outer', drawLines(spec.outer, px, true));

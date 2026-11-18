@@ -1048,14 +1048,14 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .ansehen-break .tot{background:#e5f1fa;border-color:#b9d4ea}
 .h2h-nav button.active,.cmp-filters button.active{background:#006ab2;border-color:#006ab2;color:#fff}
 .de-map path{fill:#006ab2;stroke:#08324d}
-.de-map path.land{fill:#3c8fd4;stroke:none}
+.de-map path.land{fill:#3c8fd4;stroke:#3c8fd4;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 .de-map path.line{fill:none;stroke:#fff;stroke-linejoin:round;stroke-linecap:round}
 .de-map path.line-bez{stroke-width:1.05}
 .de-map path.line-state{stroke-width:1.45}
 .de-map path.line-outer{stroke-width:2.5}
-.area-map path.land{stroke:none}
+.area-map path.land{stroke-linejoin:round;stroke-linecap:round;stroke-width:1.6}
 .area-map path.line{fill:none;stroke:#14202b;stroke-linejoin:round;stroke-linecap:round}
-.area-map path.line-split{stroke-width:1.25}
+.area-map path.line-split{stroke-width:1.35}
 .area-map path.line-state,.area-map path.line-outer{stroke-width:1.8}
 .land-matrix tbody th.l{color:var(--text);background:#fff}
 .box,.card{border-color:#d7e0e7}
