@@ -1775,7 +1775,10 @@ function relegationProfile(season, lid){
   if (isFourth(lg)){
     const incoming=l3ToFourth(season, lid);
     const plan=fourthRlPlan(season, lid, incoming.length);
-    const reason='Der Meister steigt fest in die 3. Liga auf. Die Plätze 2 bis 5 spielen die Aufstiegsrelegation, ihr Sieger ist der zweite Aufsteiger. Die Plätze 19 und 20 steigen fest ab. '+arriveText(incoming, 'der 3. Liga')+'. '+plan.need+' Plätze füllen die beiden Regionalligen, zuerst die Meister, dann die Vizemeister. Damit die Staffel bei '+lg.size+' bleibt.';
+    const l3Done=!!(season && leagueFinished(season, 'L3'));
+    const arrive=l3Done?arriveText(incoming, 'der 3. Liga'):'Wer aus der 3. Liga kommt, steht noch nicht fest';
+    const fill=l3Done?(plan.need+' Plätze füllen die beiden Regionalligen, zuerst die Meister, dann die Vizemeister.'):'Wie viele Plätze die beiden Regionalligen füllen, steht noch nicht fest.';
+    const reason='Der Meister steigt fest in die 3. Liga auf. Die Plätze 2 bis 5 spielen die Aufstiegsrelegation, ihr Sieger ist der zweite Aufsteiger. Die Plätze 19 und 20 steigen fest ab. '+arrive+'. '+fill+' Damit die Staffel bei '+lg.size+' bleibt.';
     return {down:2, nominal, incoming, reason, up:2, amateur:0, rlUp:plan.byRl, rlNeed:plan.need};
   }
   if (lg.level===5){
@@ -1791,8 +1794,12 @@ function relegationProfile(season, lid){
     const kids=childLeagues(lid).length;
     const i=incoming.length;
     const down=kids+i-u;
-    const upText=u===0?'Niemand steigt in die '+leagueName(parent)+' auf':u===1?'Der Meister steigt in die '+leagueName(parent)+' auf':'Meister und Vizemeister steigen in die '+leagueName(parent)+' auf';
-    const reason=upText+'. '+kids+' Oberliga-Meister steigen auf. '+arriveText(incoming, 'der '+leagueName(parent))+'. Damit die Staffel bei '+lg.size+' bleibt, '+abText(down)+'.';
+    const l3Done=!!(season && leagueFinished(season, 'L3'));
+    const parentDone=!!(season && leagueFinished(season, parent));
+    const upText=l3Done?(u===0?'Niemand steigt in die '+leagueName(parent)+' auf':u===1?'Der Meister steigt in die '+leagueName(parent)+' auf':'Meister und Vizemeister steigen in die '+leagueName(parent)+' auf'):'Wie viele Mannschaften in die '+leagueName(parent)+' aufsteigen, steht noch nicht fest';
+    const arrive=parentDone?arriveText(incoming, 'der '+leagueName(parent)):'Wer aus der '+leagueName(parent)+' kommt, steht noch nicht fest';
+    const tail=(l3Done && parentDone)?abText(down):'steht die Abstiegszahl noch nicht fest';
+    const reason=upText+'. '+kids+' Oberliga-Meister steigen auf. '+arrive+'. Damit die Staffel bei '+lg.size+' bleibt, '+tail+'.';
     return {down, nominal, incoming, reason, up:u, amateur:0};
   }
   const parent=lg.upTo;
@@ -1805,7 +1812,10 @@ function relegationProfile(season, lid){
   const i=incoming.length;
   const down=nominal+Math.max(0, i-1);
   const amateur=nominal+Math.max(0, 1-i);
-  const reason='Der Meister steigt fest in die '+leagueName(parent)+' auf. Zwei Absteiger sind fest. '+arriveText(incoming, 'der '+leagueName(parent))+'. Aus der Amateurliga rücken '+amateur+' Vereine nach. Damit die Staffel bei '+lg.size+' bleibt, '+abText(down)+'.';
+  const parentDone=!!(season && leagueFinished(season, parent));
+  const arrive=parentDone?arriveText(incoming, 'der '+leagueName(parent)):'Wer aus der '+leagueName(parent)+' kommt, steht noch nicht fest';
+  const follow=parentDone?('Aus der Amateurliga rücken '+amateur+' Vereine nach. Damit die Staffel bei '+lg.size+' bleibt, '+abText(down)+'.'):('Wie viele aus der Amateurliga nachrücken, steht noch nicht fest. Damit die Staffel bei '+lg.size+' bleibt, steht die Abstiegszahl noch nicht fest.');
+  const reason='Der Meister steigt fest in die '+leagueName(parent)+' auf. Zwei Absteiger sind fest. '+arrive+'. '+follow;
   return {down, nominal, incoming, reason, up:1, amateur};
 }
 function leagueReady(season, lid){
@@ -10044,24 +10054,33 @@ function rulesHTML(){
   let h='<div class="box spread"><h3>Ligensystem &amp; Gleichstand</h3><p>Sieg 3 Punkte, Unentschieden 1 Punkt. Die Tabelle sortiert genau so: Punkte, Tordifferenz, geschossene Tore. Sind diese drei gleich, zählt der direkte Vergleich: Punkte, Tordifferenz, geschossene Tore, Auswärtstore in diesen Spielen. Danach die Auswärtstore insgesamt. Ist danach noch alles gleich, entscheidet ein Hin- und Rückspiel, sobald die Saison beendet ist. Die interne Kennung legt nur die Anzeigereihenfolge fest, bis dieses Spiel steht. Sie ist keine sportliche Qualifikation. Eine historische Stärke entscheidet die Tabelle nicht.</p><table class="tbl fit"><thead><tr>'+sortHead('Liga','','l')+sortHead('Teams','size')+sortHead('Auf','up')+sortHead('Ab geplant','plan')+sortHead('Ab jetzt','now')+sortHead('Aufstieg in','','l')+'</tr></thead><tbody>';
   LEAGUES.forEach(l=>{
     const p=relegationProfile(s, l.id);
-    const upNow=isFourth(l)?(l.up||0):promotionCount(s, l.id);
+    const upNow=isFourth(l)?(l.up||2):promotionCount(s, l.id);
     const mark=p.down!==l.down;
     const upMark=!isFourth(l) && upNow!==(l.up||0);
     h+='<tr><td class="l">'+esc(l.name)+'</td>'+sortCell(l.size, l.size)+sortCell(upNow, upNow||'–', upMark?'pts':'')+sortCell(l.down, l.down)+sortCell(p.down, p.down, mark?'pts':'')+'<td class="l">'+(l.upTo?esc(leagueName(l.upTo)):'–')+'</td></tr>';
   });
-  h+='</tbody></table><p>Bundesliga und 2. Bundesliga bleiben unverändert. Die 3. Liga hat 20 Mannschaften, drei Aufsteiger und vier Absteiger. Die vier Absteiger gehen in die 4. Liga der Regionalliga ihres Gebiets. Die 4. Liga hat zwei Staffeln mit je 20 Mannschaften, Südwest und Nordost. Der Meister steigt direkt in die 3. Liga auf. Die Plätze 2 bis 5 spielen Hin- und Rückspiel, im Finale wird das Heimrecht ausgelost, und der Sieger ist der zweite Aufsteiger. Es zählen die Gesamttore, bei Gleichstand das Elfmeterschießen. Jede Staffel hat zwei feste Absteiger, die Plätze 19 und 20. Fehlen nach den Zugängen aus der 3. Liga noch Plätze, füllen sie die beiden Regionalligen unter der Staffel: zuerst beide Meister, dann beide Vizemeister. Bei einem oder drei Plätzen entscheidet unter den beiden gleich Platzierten der Punkteschnitt pro Spiel, dann die Tordifferenz, dann die Tore. Kommen vier aus der 3. Liga, steigt aus diesen Regionalligen niemand auf. Regionalliga Nord umfasst Niedersachsen, Bremen, Hamburg und Schleswig-Holstein und gibt drei ab. Regionalliga Nordost umfasst Mecklenburg-Vorpommern, Berlin, Brandenburg, Sachsen-Anhalt, Sachsen und Thüringen und gibt zwei ab. Regionalliga West umfasst Nordrhein-Westfalen, Hessen, Rheinland-Pfalz und Saarland und gibt drei ab. Regionalliga Süd umfasst Bayern und Baden-Württemberg und gibt drei ab. Jede Regionalliga hat 18 Mannschaften. Wie viele aufsteigen, entscheidet die 4. Liga darüber: niemand, nur der Meister oder Meister und Vizemeister. Kommt von oben mehr oder weniger, steigen entsprechend mehr oder weniger ab, damit wieder 18 dastehen. Darunter liegen elf Oberligen mit je 16 Mannschaften. Der Meister steigt direkt in seine Regionalliga auf, zwei steigen in die Amateurliga desselben Gebiets ab, und zwei rücken von dort nach. Kommen aus der Regionalliga mehr oder weniger als ein Verein, gleicht die Oberliga das aus. Nord, West und Süd tauschen je drei Absteiger gegen drei Oberliga-Meister, Nordost zwei gegen zwei. Niemand wechselt das Gebiet. Feste Plätze sind vollfarbig, Ausgleichsplätze gestreift.</p>';
-  const changed=LEAGUES.filter(l=>l.level>=4 && (relegationProfile(s, l.id).down!==l.down || promotionCount(s, l.id)!==l.up));
+  h+='</tbody></table><p>Bundesliga und 2. Bundesliga bleiben unverändert. Die 3. Liga hat 20 Mannschaften, drei Aufsteiger und vier Absteiger. Die vier Absteiger gehen in die 4. Liga der Regionalliga ihres Gebiets. Die 4. Liga hat zwei Staffeln mit je 20 Mannschaften, Südwest und Nordost. Der Meister steigt direkt in die 3. Liga auf. Die Plätze 2 bis 5 spielen Hin- und Rückspiel, im Finale wird das Heimrecht ausgelost, und der Sieger ist der zweite Aufsteiger. Es zählen die Gesamttore, bei Gleichstand das Elfmeterschießen. Jede Staffel hat zwei feste Absteiger, die Plätze 19 und 20. Fehlen nach den Zugängen aus der 3. Liga noch Plätze, füllen sie die beiden Regionalligen unter der Staffel: zuerst beide Meister, dann beide Vizemeister. Bei einem oder drei Plätzen entscheidet unter den beiden gleich Platzierten der Punkteschnitt pro Spiel, dann die Tordifferenz, dann die Tore. Kommen vier aus der 3. Liga, steigt aus diesen Regionalligen niemand auf. Regionalliga Nord umfasst Niedersachsen, Bremen, Hamburg und Schleswig-Holstein. Regionalliga Nordost umfasst Mecklenburg-Vorpommern, Berlin, Brandenburg, Sachsen-Anhalt, Sachsen und Thüringen. Regionalliga West umfasst Nordrhein-Westfalen, Hessen, Rheinland-Pfalz und Saarland. Regionalliga Süd umfasst Bayern und Baden-Württemberg. Jede Regionalliga hat 18 Mannschaften. Wie viele aufsteigen, entscheidet die 4. Liga darüber: niemand, nur der Meister oder Meister und Vizemeister. Die Abstiegszahl folgt den Zugängen aus der 4. Liga und der eigenen Aufsteigerzahl, damit wieder 18 dastehen. Die Zahlen dieser Saison stehen in der Liste oben. Darunter liegen elf Oberligen mit je 16 Mannschaften. Der Meister steigt direkt in seine Regionalliga auf, zwei steigen in die Amateurliga desselben Gebiets ab, und zwei rücken von dort nach. Kommen aus der Regionalliga mehr oder weniger als ein Verein, gleicht die Oberliga das aus. Niemand wechselt das Gebiet. Feste Plätze sind vollfarbig, Ausgleichsplätze gestreift.</p>';
+  const changed=LEAGUES.filter(l=>{
+    if (l.level<4) return false;
+    const p=relegationProfile(s, l.id);
+    const up=isFourth(l)?(l.up||2):promotionCount(s, l.id);
+    return p.down!==(l.down||0) || up!==(l.up||0);
+  });
   if (changed.length){
-    h+='<p><b>In der Saison '+esc(s.name)+' weicht die Regionalliga vom Normalfall ab:</b></p><ul>';
-    changed.forEach(l=>{ const p=relegationProfile(s, l.id); h+='<li><b>'+esc(l.name)+': '+promotionCount(s, l.id)+' Aufsteiger, '+p.down+' Absteiger.</b> '+esc(p.reason)+'</li>'; });
+    h+='<p><b>In der Saison '+esc(s.name)+' weicht der Auf- und Abstieg vom Normalfall ab:</b></p><ul>';
+    changed.forEach(l=>{
+      const p=relegationProfile(s, l.id);
+      const up=isFourth(l)?(l.up||2):promotionCount(s, l.id);
+      h+='<li><b>'+esc(l.name)+': '+up+' Aufsteiger, '+p.down+' Absteiger.</b> '+esc(p.reason)+'</li>';
+    });
     h+='</ul>';
-  } else h+='<p>In der Saison '+esc(s.name)+' steigt nach dem aktuellen Stand aus jeder Regionalliga und jeder Oberliga nur der Meister auf.</p>';
+  } else h+='<p>In der Saison '+esc(s.name)+' steigt nach dem aktuellen Stand aus jeder Regionalliga und jeder Oberliga nur der Meister auf. Jede 4.-Liga-Staffel hat zwei Aufsteiger und zwei Absteiger.</p>';
   h+='<p>Zu jeder Oberliga gehört eine Amateurliga mit demselben Einzugsgebiet. Sie hat keinen Spielbetrieb. Zum Saisonende wählst du pro Oberliga zwei Aufsteiger, und einen weiteren, wenn von oben niemand kommt. Oberliga-Absteiger bleiben in dieser Amateurliga. Ein Meistertitel unterhalb der Bundesliga gibt kein Ansehen. Ein Aufstiegsplatz ist im Ligawert schon 15 Prozent über dem besten Platz dahinter. Ein Abstiegsplatz liegt 10 Prozent unter dem letzten Nichtabstiegsplatz. Das ist der Tabellenwert, kein zusätzlicher Aufstiegsbonus. Ein Abstiegsplatz ist kein Aufstieg.</p>';
   h+='<p>Ein neues Spiel beginnt mit den Vereinen, die das höchste Ansehen haben: 20 in der Bundesliga, der 2. Bundesliga und der 3. Liga, dann 20 in jeder Staffel der 4. Liga ihres Gebiets, 18 in jeder Regionalliga, 16 in jeder Oberliga. Alle übrigen Vereine liegen in der Amateurliga ihres Gebiets.</p>';
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Wappen und Vereinsname im Spielplan öffnen die Vereinsinfo. Die Anstoßzeiten beginnen mit den Spieltagen 1 bis 6. Danach kommen Blöcke von vier Spieltagen, also 7 bis 10, 11 bis 14 und so weiter. Vor der Hin- und Rückrundengrenze und am Saisonende bleibt der Rest ein kürzerer Block. Kein Spieltag fällt weg, und ein Block überschreitet die Grenze nicht. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
   h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, weitere Sieger, Aufsteiger, Absteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Der DFB-Pokalsieger steht bei den weiteren Siegern, mit Wappen, Name und Liga. Aufsteiger und Absteiger stehen je Liga in einer festen Spalte, die Landespokalsieger in drei festen Spalten. Ist die laufende Saison ausgespielt, stehen diese Ergebnisse schon vor dem Saisonwechsel. Die erste Saison hat keinen Supercup. Gibt es keine Relegation, steht das so da. Die Nachrücker aus der Amateurliga wählst du erst mit „Saison abschließen“. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung und die größte Veränderung des Ansehens gegenüber der Vorsaison. Eine Pokalüberraschung ist ein Sieg mit mindestens doppelt so viel Ansehen auf der Verliererseite oder ein Amateurtopf gegen einen Profitopf. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
   h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Die Spieltage 1 bis 6 bleiben bei 80 Prozent Ansehen und 20 Prozent Sport. Danach wandert der Sportanteil alle vier Spieltage um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
-  h+='<p>Die 4. Liga spielt eine Aufstiegsrelegation: Platz 2 gegen Platz 5 und Platz 3 gegen Platz 4, Hin- und Rückspiel, im Rückspiel mit Heimrecht für den besseren Platz. Die Sieger spielen das Finale, das Heimrecht im Rückspiel wird ausgelost. Es zählen die Gesamttore, bei Gleichstand das Elfmeterschießen. Der Sieger ist der zweite Aufsteiger. Der Reiter Relegation erscheint erst, wenn alle Ligaspiele der Staffel gespielt sind. Jede Regionalliga gibt nur den Meister ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün, die Plätze 2 bis 5 der 4. Liga orange, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
+  h+='<p>Die 4. Liga spielt eine Aufstiegsrelegation: Platz 2 gegen Platz 5 und Platz 3 gegen Platz 4, Hin- und Rückspiel, im Rückspiel mit Heimrecht für den besseren Platz. Die Sieger spielen das Finale, das Heimrecht im Rückspiel wird ausgelost. Es zählen die Gesamttore, bei Gleichstand das Elfmeterschießen. Der Sieger ist der zweite Aufsteiger. Der Reiter Relegation erscheint erst, wenn alle Ligaspiele der Staffel gespielt sind. Jede Regionalliga gibt je nach Saison niemanden, nur den Meister oder Meister und Vizemeister ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün, die Plätze 2 bis 5 der 4. Liga orange, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
 function ansehenParts(info){
@@ -12871,7 +12890,25 @@ function uiSelfTestBody(fails){
     check('3/1: eine Regionalliga gibt nur den Meister ab, die andere Meister und Vizemeister', odd.sizesOk && odd.shape && odd.pile.L4NO===3 && odd.pile.L4SW===1 && odd.fillNO===1 && odd.fillSW===3 && nordUps.join()==='0,1', JSON.stringify({pile:odd.pile, up:odd.up}));
   })();
   const ruleText=rulesHTML();
-  check('Regel nennt die zwei festen Absteiger und die Regionalliga-Aufsteiger', ruleText.indexOf('4. Liga Südwest')>=0 && ruleText.indexOf('Regionalliga Nordost')>=0 && ruleText.indexOf('zwei feste Absteiger')>=0 && ruleText.indexOf('Plätze 19 und 20')>=0 && ruleText.indexOf('vier Absteiger')>=0 && ruleText.indexOf('Vizemeister')>=0 && ruleText.indexOf('5. Liga')<0);
+  check('Regel nennt die zwei festen Absteiger und die Regionalliga-Aufsteiger', ruleText.indexOf('4. Liga Südwest')>=0 && ruleText.indexOf('Regionalliga Nordost')>=0 && ruleText.indexOf('zwei feste Absteiger')>=0 && ruleText.indexOf('Plätze 19 und 20')>=0 && ruleText.indexOf('vier Absteiger')>=0 && ruleText.indexOf('Vizemeister')>=0 && ruleText.indexOf('5. Liga')<0 && ruleText.indexOf('gibt nur den Meister')<0 && ruleText.indexOf('gibt drei ab')<0 && ruleText.indexOf('gibt zwei ab')<0 && ruleText.indexOf('tauschen je drei')<0);
+  (()=>{
+    const keep=S;
+    try{
+      const src=keep.seasons[keep.view];
+      const blank={name:'2099/00', status:'running', leagues:{}, pools:{}};
+      LEAGUES.forEach(l=>{ blank.leagues[l.id]={teams:((src.leagues[l.id]&&src.leagues[l.id].teams)||[]).slice(), md:null}; });
+      const openReason=relegationProfile(blank, 'L4SW').reason;
+      check('Vor Saisonende keine Absteigernamen', openReason.indexOf('steht noch nicht fest')>=0 && openReason.indexOf('(')<0, openReason.slice(0,160));
+      S={seasons:[blank], view:0, ui:keep.ui||{}};
+      const html=rulesHTML();
+      const row=(html.split('4. Liga Südwest')[1]||'').split('</tr>')[0];
+      const nums=row.replace(/<[^>]+>/g,' ').trim().split(/\s+/);
+      check('Saisonliste zählt zwei Aufsteiger und zwei Absteiger', nums[0]==='20' && nums[1]==='2' && nums[2]==='2' && nums[3]==='2' && !/<b>4\. Liga[^<]*<\/b>: 1 Aufsteiger/.test(html), nums.slice(0,5).join(' '));
+      const done=Object.assign({}, blank, {status:'done', compact:true});
+      const doneReason=relegationProfile(done, 'L4SW').reason;
+      check('Nach Saisonende steht die Verteilung fest', doneReason.indexOf('steht noch nicht fest')<0, doneReason.slice(0,160));
+    }finally{ S=keep; }
+  })();
   const openLg={level:5, upShow:1, viceOpen:false, settled:false, down:2};
   const nRl=18;
   check('provisorische Absteiger bleiben schraffiert', zoneOf(openLg, 14, nRl, 4)==='' && zoneOf(openLg, 15, nRl, 4)==='ab-aus' && zoneOf(openLg, 16, nRl, 4)==='ab-aus' && zoneOf(openLg, 17, nRl, 4)==='ab' && zoneOf(openLg, 18, nRl, 4)==='ab');
