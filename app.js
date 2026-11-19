@@ -7154,12 +7154,15 @@ function mapSpec(key, allow){
   const germany=()=>OL_IDS.reduce((acc,id)=>acc.concat(M.fill[id]||[]), []);
   if (key && L[key]){
     const lg=L[key];
-    if (lg.level<=4) return {fill:germany(), outer:M.outer, state:M.state, bez:M.bez||[]};
+    if (lg.level<=4) return {fill:germany(), outer:M.outer, state:M.state, bez:[]};
     if (isFifth(lg)){
       const u=mapBundle((L5_RL[key]||[]).map(rl=>M.L&&M.L[rl]));
-      return {fill:u.fill, outer:[], state:u.outer.concat(u.state), bez:u.bez};
+      return {fill:u.fill, outer:[], state:u.outer.concat(u.state), bez:[]};
     }
-    if (RL_IDS.indexOf(key)>=0 && M.L && M.L[key]) return mapBundle([M.L[key]]);
+    if (RL_IDS.indexOf(key)>=0 && M.L && M.L[key]){
+      const u=mapBundle([M.L[key]]);
+      return {fill:u.fill, outer:u.outer, state:u.state, bez:[]};
+    }
     if (OL_IDS.indexOf(key)>=0 && M.fill[key]){
       const Lspec=M.L&&M.L[key];
       return {fill:M.fill[key], outer:(Lspec&&Lspec.outer)||[], state:(Lspec&&Lspec.state)||[], bez:(Lspec&&Lspec.bez)||[]};
@@ -9731,7 +9734,8 @@ function viewMap(title, ids, allow, key){
   }).join('');
   const scope=(key&&L[key]&&L[key].level>=5)?L[key].name:(allow?allow.join(', '):'Deutschland');
   const gap=missing.length?'<p class="muted">Ohne gespeicherten Standort: '+missing.map(id=>esc(TEAMS[id].name)).join(', ')+'.</p>':'';
-  return '<div class="card map-card"><div class="card-title"><span>'+esc(title)+'</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(key||title)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(title)+'">'+paths+crests+'</svg></div>'+gap+'<p class="map-credit">'+esc(scope)+' · '+marks.length+' von '+unique.length+' Vereinen mit Standort. Mausrad zoomt, Ziehen verschiebt. In der Übersicht sind die Wappen etwas größer; beim Heranzoomen bleiben sie auf dem Bildschirm gleich groß und liegen am Spielort. Außengrenze der Liga, darin Länder- und Bezirksgrenzen.</p></div>';
+  const borders=(spec.bez&&spec.bez.length)?'Länder- und Bezirksgrenzen':'die Ländergrenzen';
+  return '<div class="card map-card"><div class="card-title"><span>'+esc(title)+'</span><span class="map-tools"><button class="btn small" data-act="mapReset">Ansicht zurücksetzen</button></span></div><div class="map-wrap"><svg class="de-map" data-lid="'+esc(key||title)+'" data-w="'+W+'" data-h="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Karte '+esc(title)+'">'+paths+crests+'</svg></div>'+gap+'<p class="map-credit">'+esc(scope)+' · '+marks.length+' von '+unique.length+' Vereinen mit Standort. Mausrad zoomt, Ziehen verschiebt. In der Übersicht sind die Wappen etwas größer; beim Heranzoomen bleiben sie auf dem Bildschirm gleich groß und liegen am Spielort. Außengrenze der Liga, darin '+borders+'.</p></div>';
 }
 function clampMap(W, H){
   const z=mapView.z||1, w=W/z, h=H/z;
@@ -13520,6 +13524,14 @@ function uiSelfTestBody(fails){
     return a>0 && a<deArea*0.85 && html.indexOf(L[id].name)>=0;
   }));
   check('Oberligen zeigen nur die eigene Fläche und geteilte Länder bleiben geteilt', OL_IDS.every(id=>mapArea(mapSpec(id))>0 && mapArea(mapSpec(id))<deArea*0.35) && mapSig(mapSpec('OLNIW'))!==mapSig(mapSpec('OLNIO')) && mapSig(mapSpec('OLBYN'))!==mapSig(mapSpec('OLBYS')));
+  check('Bezirksgrenzen nur auf den Oberligen', ['BL','BL2','L3','L4'].concat(L5_IDS, RL_IDS).every(id=>{
+    const spec=mapSpec(id), html=viewKarte(cur(), id);
+    return spec && !(spec.bez&&spec.bez.length) && html.indexOf('line-bez')<0 && html.indexOf('line-state')>=0 && html.indexOf('Bezirksgrenzen')<0;
+  }) && OL_IDS.every(id=>{
+    const spec=mapSpec(id), html=viewKarte(cur(), id);
+    const has=!!(spec && spec.bez && spec.bez.length);
+    return has===(html.indexOf('line-bez')>=0) && has===(html.indexOf('Bezirksgrenzen')>=0);
+  }));
   (()=>{
     const keep={tab:S.ui.tab, league:S.ui.league, id:S.ui.infoId, sec:S.ui.infoSec};
     S.ui.tab='gebiete'; render();
