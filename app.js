@@ -4798,26 +4798,21 @@ function rlZoneBits(season, lid){
   const kids=childLeagues(lid).length;
   const l3=!!(season && leagueFinished(season, 'L3'));
   const parent=lg.upTo;
-  const parentDone=!!(season && leagueFinished(season, parent));
+  const up=rlUpSpan(season, lid);
+  const arrive=rlArrivalSpan(season, lid);
   let mode='maybe';
-  let uMin=1, uMax=2, iMax=4;
-  if (l3){
-    const x=l3ToFourth(season, parent).length;
-    uMin=1; uMax=x>=2?1:2;
-    iMax=Math.max(2, x);
-    if (x>=2) mode='none';
-    else if (x<=0) mode='auf';
+  if (up.min>=2) mode='auf';
+  else if (!up.open && up.max<=1) mode='none';
+  else if (l3 && l3ToFourth(season, parent).length===1){
+    const w=playoffWinner(season, parent);
+    if (!w) mode='rel';
     else {
-      const w=playoffWinner(season, parent);
-      if (!w) mode='rel';
-      else {
-        let vice=null;
-        try{ vice=(leagueTable(season, lid)||[])[1]; }catch(e){ vice=null; }
-        mode=vice && vice.id===w ? 'auf' : 'none';
-      }
+      let vice=null;
+      try{ vice=(leagueTable(season, lid)||[])[1]; }catch(e){ vice=null; }
+      mode=vice && vice.id===w ? 'auf' : 'none';
     }
   }
-  return {viceMode:mode, downMin:Math.max(0, kids-uMax), downMax:kids+iMax-uMin};
+  return {viceMode:mode, downMin:Math.max(0, kids+arrive.min-up.max), downMax:Math.max(0, kids+arrive.max-up.min)};
 }
 function legendSwatch(zone, label){ return '<span><i class="sw sw-'+zone+'"></i>'+label+'</span>'; }
 function legendHTML(lg, season){
@@ -10223,7 +10218,7 @@ function rulesHTML(){
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Wappen und Vereinsname im Spielplan öffnen die Vereinsinfo. Die Anstoßzeiten beginnen mit den Spieltagen 1 bis 6. Danach kommen Blöcke von vier Spieltagen, also 7 bis 10, 11 bis 14 und so weiter. Vor der Hin- und Rückrundengrenze und am Saisonende bleibt der Rest ein kürzerer Block. Kein Spieltag fällt weg, und ein Block überschreitet die Grenze nicht. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
   h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, weitere Sieger, Aufsteiger, Absteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Der DFB-Pokalsieger steht bei den weiteren Siegern, mit Wappen, Name und Liga. Aufsteiger und Absteiger stehen je Liga in einer festen Spalte, die Landespokalsieger in drei festen Spalten. Ist die laufende Saison ausgespielt, stehen diese Ergebnisse schon vor dem Saisonwechsel. Die erste Saison hat keinen Supercup. Gibt es keine Relegation, steht das so da. Die Nachrücker aus der Amateurliga wählst du erst mit „Saison abschließen“. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung und die größte Veränderung des Ansehens gegenüber der Vorsaison. Eine Pokalüberraschung ist ein Sieg mit mindestens doppelt so viel Ansehen auf der Verliererseite oder ein Amateurtopf gegen einen Profitopf. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
   h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Die Spieltage 1 bis 6 bleiben bei 80 Prozent Ansehen und 20 Prozent Sport. Danach wandert der Sportanteil alle vier Spieltage um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
-  h+='<p>Die 4. Liga hat keine Aufstiegsrelegation. Platz 1 und Platz 2 steigen direkt auf. Der Reiter Relegation erscheint nur, wenn die Vizemeister der beiden Regionalligen um einen freien Platz spielen. Das ist Hin- und Rückspiel, Gesamttore, bei Gleichstand Elfmeterschießen. Jede Regionalliga gibt den Meister immer ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün, die Plätze 2 bis 5 der 4. Liga orange, (Ab) rot, (CL) blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
+  h+='<p>Die 4. Liga hat keine Aufstiegsrelegation. Platz 1 und Platz 2 steigen direkt auf. Der Reiter Relegation erscheint nur, wenn die Vizemeister der beiden Regionalligen um einen freien Platz spielen. Das ist Hin- und Rückspiel, Gesamttore, bei Gleichstand Elfmeterschießen. Jede Regionalliga gibt den Meister immer ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün. In der 4. Liga sind das Platz 1 und Platz 2, und dort gibt es kein Orange. Orange ist nur die Relegation der Regionalliga-Vizemeister, wenn genau ein Platz frei ist. (Ab) ist rot: zwei Plätze sind fest, bis zu zwei weitere sind schraffiert, solange die Zahl offen ist. (CL) ist blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
 function ansehenParts(info){
@@ -13040,7 +13035,7 @@ function uiSelfTestBody(fails){
     check('X=1/3: die Relegation sitzt nur bei einem Zugang', one.sizesOk && one.shape && one.pile.L4NO===1 && one.fillNO===3 && vicePair(one,'RLN','RLNO')==='1,2' && one.pile.L4SW===3 && one.fillSW===2 && one.up.RLW===1 && one.up.RLS===1, JSON.stringify({pile:one.pile, up:one.up}));
   })();
   const ruleText=rulesHTML();
-  check('Regel nennt den direkten Aufstieg und die Vizemeister', ruleText.indexOf('Platz 1 und Platz 2')>=0 && ruleText.indexOf('Mindestens zwei')>=0 && ruleText.indexOf('beide Vizemeister')>=0 && ruleText.indexOf('Aufstiegsrelegation der Plätze 2 bis 5 gibt es nicht')>=0 && ruleText.indexOf('5. Liga')<0);
+  check('Regel nennt den direkten Aufstieg und die Vizemeister', ruleText.indexOf('Platz 1 und Platz 2')>=0 && ruleText.indexOf('Mindestens zwei')>=0 && ruleText.indexOf('beide Vizemeister')>=0 && ruleText.indexOf('Aufstiegsrelegation der Plätze 2 bis 5 gibt es nicht')>=0 && ruleText.indexOf('Plätze 2 bis 5 der 4. Liga orange')<0 && ruleText.indexOf('dort gibt es kein Orange')>=0 && ruleText.indexOf('5. Liga')<0);
   (()=>{
     const keep=S;
     try{
@@ -13072,6 +13067,19 @@ function uiSelfTestBody(fails){
       const a=cells('Regionalliga Nord'), b=cells('Regionalliga Nordost'), c=cells('Regionalliga West'), d=cells('Regionalliga Süd');
       const listed=mid.indexOf('Regionalliga Nord: '+a[1]+' Aufsteiger, '+a[3]+' Absteiger')>=0 && mid.indexOf('Regionalliga Süd: '+c[1]+' Aufsteiger, '+c[3]+' Absteiger')>=0;
       check('Nur die 3. Liga fest: Meisterzahl steht, die Relegation bleibt eine Spanne', a[1]==='1' && b[1]==='1' && c[1]==='1–2' && d[1]==='1–2' && a[3].indexOf('–')>=0 && listed, [a.slice(0,4).join(' '), b[1], c.slice(0,4).join(' '), d[1]].join(' | '));
+      const zero={name:'2097/98', status:'running', leagues:{}, pools:{}};
+      LEAGUES.forEach(l=>{ zero.leagues[l.id]={teams:((src.leagues[l.id]&&src.leagues[l.id].teams)||[]).slice(), md:[[[0,1,null,null]]]}; });
+      const zids=zero.leagues.L3.teams;
+      const zLosers=zids.filter(id=>l4Of(id)==='L4SW').slice(0,4);
+      const zWin=zids.filter(id=>zLosers.indexOf(id)<0);
+      zero.leagues.L3.md=[zLosers.map((id,k)=>[zids.indexOf(zWin[k]), zids.indexOf(id), 9+k, 0])];
+      S={seasons:[zero], view:0, ui:keep.ui||{}};
+      const zHtml=rulesHTML();
+      const zNord=(zHtml.split('Regionalliga Nord')[1]||'').split('</tr>')[0].replace(/<[^>]+>/g,' ').trim().split(/\s+/);
+      const zBits=rlZoneBits(zero, 'RLN');
+      const zLg={level:5, viceMode:zBits.viceMode, downMin:zBits.downMin, downMax:zBits.downMax, settled:false, down:2, upShow:2};
+      const zList=zHtml.indexOf('Regionalliga Nord: '+zNord[1]+' Aufsteiger, '+zNord[3]+' Absteiger')>=0;
+      check('X=0: Aufstieg ist fest 2 und die schraffierte Reihe endet eine Zeile früher', zNord[1]==='2' && zNord[3]==='1–3' && zBits.viceMode==='auf' && zBits.downMin===1 && zBits.downMax===3 && zoneOf(zLg, 2, 18, 2)==='auf' && zoneOf(zLg, 15, 18, 2)==='' && zoneOf(zLg, 16, 18, 2)==='ab-aus' && zoneOf(zLg, 18, 18, 2)==='ab' && zList, zNord.slice(0,4).join(' ')+' bits '+zBits.downMin+'-'+zBits.downMax);
       const done=Object.assign({}, blank, {status:'done', compact:true});
       const doneReason=relegationProfile(done, 'L4SW').reason;
       S={seasons:[done], view:0, ui:keep.ui||{}};
