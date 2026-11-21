@@ -1046,6 +1046,24 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .staffel-bar .staffel-line{flex:0 0 3px;align-self:stretch;width:3px;height:28px;margin:0 8px;background:#fff}
 .staffel-bar a.active{background:rgba(255,255,255,.22);color:#fff;font-weight:700}
 .staffel-bar a:hover{background:rgba(255,255,255,.12);color:#fff}
+#leagueNav .nav-link,
+#leagueNav .nav-link *,
+#leagueNav .nav-menu-btn,
+#leagueNav .nav-menu-btn *,
+.top-tools>.nav-menu-btn,
+#staffelBar a,
+#staffelBar a *,
+#tabs .tab:not(.disabled),
+#tabs .tab:not(.disabled) *,
+#tabs .staffel-pick,
+#tabs .staffel-pick select,
+#mobileLeague,
+.bfv-tabs button,
+.bfv-tabs button *,
+.bfv-subtabs button,
+.bfv-subtabs button *,
+.toggle button,
+.toggle button *{cursor:pointer;user-select:none;-webkit-user-select:none}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
 .tab{border-bottom:0;font-weight:700;color:#234}
 .tab.active{background:#006ab2;color:#fff;border-bottom-color:transparent}
