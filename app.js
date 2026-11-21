@@ -1271,13 +1271,13 @@ function ansehenSelfTestBody(fails){
   S.ui.league='RLNO'; S.ui.tab='tabelle'; render();
   const rlLink=$('#leagueNav a.nav-link.active[data-league="RLNO"]');
   const rlBar=[...document.querySelectorAll('#staffelBar a')];
-  check('aktive Regionalliga Nordost', !!rlLink && rlLink.textContent==='Regionalliga' && rlLink.title==='Regionalliga' && !$('#staffelSelect') && rlBar.length===4 && rlBar.map(a=>a.textContent).join(',')==='West,Süd,Nord,Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='RLNO' && !document.querySelector('#staffelBar[hidden]'));
+  check('aktive Regionalliga Nordost', !!rlLink && rlLink.textContent==='Regionalliga' && rlLink.title==='Regionalliga' && !$('#staffelSelect') && rlBar.length===4 && rlBar.map(a=>a.textContent).join(',')==='Regionalliga West,Regionalliga Süd,Regionalliga Nord,Regionalliga Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='RLNO' && !document.querySelector('#staffelBar[hidden]'));
   S.ui.league='OLBYN'; render();
   const olBar=[...document.querySelectorAll('#staffelBar a')];
-  check('Oberliga-Staffeln stehen in der Unterleiste', !$('#staffelSelect') && olBar.length===11 && olBar.map(a=>a.dataset.league).join(',')==='OLRH,OLWN,OLSW,OLBYN,OLBYS,OLBW,OLN,OLNIW,OLNIO,OLNON,OLNOS' && document.querySelector('#staffelBar a.active').dataset.league==='OLBYN' && !document.querySelector('#staffelBar[hidden]'));
+  check('Oberliga-Staffeln stehen in der Unterleiste', !$('#staffelSelect') && olBar.length===11 && olBar.map(a=>a.dataset.league).join(',')==='OLRH,OLWN,OLSW,OLBYN,OLBYS,OLBW,OLN,OLNIW,OLNIO,OLNON,OLNOS' && olBar.map(a=>a.textContent).join('|')===olBar.map(a=>L[a.dataset.league].name.replace(/^Oberliga /,'')).join('|') && olBar.every(a=>a.textContent.indexOf('NI ')<0 && a.textContent!=='BW') && document.querySelector('#staffelBar a.active').dataset.league==='OLBYN' && !document.querySelector('#staffelBar[hidden]'));
   S.ui.league='L4NO'; render();
   const l4Bar=[...document.querySelectorAll('#staffelBar a')];
-  check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='Südwest,Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
+  check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='4. Liga Südwest,4. Liga Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
   S.ui.league='BL'; render();
   check('Bundesliga hat keine Staffel-Unterleiste', !!document.querySelector('#staffelBar[hidden]'));
   S.ui.tab='pokal'; render();
@@ -4927,12 +4927,7 @@ function renderNav(){
   if (bar){
     if (!family || special){ bar.hidden=true; bar.innerHTML=''; }
     else {
-      const label=id=>{
-        const name=L[id].name;
-        if (L[id].level===4) return name.replace('4. Liga ','');
-        if (L[id].level===5) return name.replace('Regionalliga ','');
-        return L[id].short.replace(/^OL /,'');
-      };
+      const label=id=>L[id].level===6?L[id].name.replace(/^Oberliga /,''):L[id].name;
       const gapAt={RLS:1, RLN:1, RLNO:1, OLBYN:1, OLN:1, OLNON:1};
       bar.hidden=false;
       bar.innerHTML=family.map(id=>'<a class="'+(S.ui.league===id?'active':'')+(gapAt[id]?' staffel-gap':'')+'" data-league="'+id+'" title="'+esc(L[id].name)+'">'+esc(label(id))+'</a>').join('');
