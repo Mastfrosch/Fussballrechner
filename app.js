@@ -1271,13 +1271,13 @@ function ansehenSelfTestBody(fails){
   S.ui.league='RLNO'; S.ui.tab='tabelle'; render();
   const rlLink=$('#leagueNav a.nav-link.active[data-league="RLNO"]');
   const rlBar=[...document.querySelectorAll('#staffelBar a')];
-  check('aktive Regionalliga Nordost', !!rlLink && rlLink.textContent==='Regionalliga' && rlLink.title==='Regionalliga' && !$('#staffelSelect') && rlBar.length===4 && rlBar.map(a=>a.textContent).join(',')==='Regionalliga West,Regionalliga Süd,Regionalliga Nord,Regionalliga Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='RLNO' && !document.querySelector('#staffelBar[hidden]'));
+  check('aktive Regionalliga Nordost', !!rlLink && rlLink.textContent==='Regionalliga' && rlLink.title==='Regionalliga' && !$('#staffelSelect') && rlBar.length===4 && rlBar.map(a=>a.textContent).join(',')==='Regionalliga West,Regionalliga Süd,Regionalliga Nord,Regionalliga Nordost' && document.querySelectorAll('#staffelBar .staffel-line').length===3 && document.querySelector('#staffelBar a.active').dataset.league==='RLNO' && !document.querySelector('#staffelBar[hidden]'));
   S.ui.league='OLBYN'; render();
   const olBar=[...document.querySelectorAll('#staffelBar a')];
-  check('Oberliga-Staffeln stehen in der Unterleiste', !$('#staffelSelect') && olBar.length===11 && olBar.map(a=>a.dataset.league).join(',')==='OLRH,OLWN,OLSW,OLBYN,OLBYS,OLBW,OLN,OLNIW,OLNIO,OLNON,OLNOS' && olBar.map(a=>a.textContent).join('|')===olBar.map(a=>L[a.dataset.league].name.replace(/^Oberliga /,'')).join('|') && olBar.every(a=>a.textContent.indexOf('NI ')<0 && a.textContent!=='BW') && document.querySelector('#staffelBar a.active').dataset.league==='OLBYN' && !document.querySelector('#staffelBar[hidden]'));
+  check('Oberliga-Staffeln stehen in der Unterleiste', !$('#staffelSelect') && olBar.length===11 && olBar.map(a=>a.dataset.league).join(',')==='OLRH,OLWN,OLSW,OLBYN,OLBYS,OLBW,OLN,OLNIW,OLNIO,OLNON,OLNOS' && olBar.map(a=>a.textContent).join('|')===olBar.map(a=>L[a.dataset.league].name.replace(/^Oberliga /,'')).join('|') && olBar.every(a=>a.textContent.indexOf('NI ')<0 && a.textContent!=='BW') && document.querySelectorAll('#staffelBar .staffel-line').length===3 && document.querySelector('#staffelBar a.active').dataset.league==='OLBYN' && !document.querySelector('#staffelBar[hidden]'));
   S.ui.league='L4NO'; render();
   const l4Bar=[...document.querySelectorAll('#staffelBar a')];
-  check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='4. Liga Südwest,4. Liga Nordost' && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
+  check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='4. Liga Südwest,4. Liga Nordost' && document.querySelectorAll('#staffelBar .staffel-line').length===1 && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
   S.ui.league='BL'; render();
   check('Bundesliga hat keine Staffel-Unterleiste', !!document.querySelector('#staffelBar[hidden]'));
   S.ui.tab='pokal'; render();
@@ -4928,9 +4928,10 @@ function renderNav(){
     if (!family || special){ bar.hidden=true; bar.innerHTML=''; }
     else {
       const label=id=>L[id].level===6?L[id].name.replace(/^Oberliga /,''):L[id].name;
-      const gapAt={RLS:1, RLN:1, RLNO:1, OLBYN:1, OLN:1, OLNON:1};
+      const splitAt=isFourth(L[S.ui.league])?{L4NO:1}:(RL_IDS.indexOf(S.ui.league)>=0?{RLS:1, RLN:1, RLNO:1}:{OLBYN:1, OLN:1, OLNON:1});
+      const line='<span class="staffel-line" aria-hidden="true"></span>';
       bar.hidden=false;
-      bar.innerHTML=family.map(id=>'<a class="'+(S.ui.league===id?'active':'')+(gapAt[id]?' staffel-gap':'')+'" data-league="'+id+'" title="'+esc(L[id].name)+'">'+esc(label(id))+'</a>').join('');
+      bar.innerHTML=family.map(id=>(splitAt[id]?line:'')+'<a class="'+(S.ui.league===id?'active':'')+'" data-league="'+id+'" title="'+esc(L[id].name)+'">'+esc(label(id))+'</a>').join('');
     }
   }
   const opt=(value, label, on)=>'<option value="'+value+'"'+(on?' selected':'')+'>'+esc(label)+'</option>';

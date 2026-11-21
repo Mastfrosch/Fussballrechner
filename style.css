@@ -1043,7 +1043,7 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 .staffel-bar{order:8;flex:1 0 100%;display:flex;flex-wrap:nowrap;align-items:stretch;gap:0;height:28px;min-height:28px;max-height:28px;background:#084e82;margin:0;padding:0 4px;overflow:visible}
 .staffel-bar[hidden]{display:none}
 .staffel-bar a{display:flex;align-items:center;padding:4px 8px;color:rgba(255,255,255,.9);font-size:12.5px;font-weight:650;line-height:20px;white-space:nowrap;text-decoration:none}
-.staffel-bar a.staffel-gap{margin-left:6px;border-left:1px solid rgba(255,255,255,.35);padding-left:10px}
+.staffel-bar .staffel-line{flex:0 0 3px;align-self:stretch;width:3px;height:28px;margin:0 8px;background:#fff}
 .staffel-bar a.active{background:rgba(255,255,255,.22);color:#fff;font-weight:700}
 .staffel-bar a:hover{background:rgba(255,255,255,.12);color:#fff}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
