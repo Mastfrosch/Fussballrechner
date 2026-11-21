@@ -1040,6 +1040,12 @@ tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 #topbar .top-sim{align-self:stretch;display:flex;align-items:center;margin:0;background:transparent;color:#fff;border-color:rgba(255,255,255,.7);white-space:nowrap;padding:3px 10px;font-size:13px}
 #topbar .top-sim:hover{background:rgba(255,255,255,.14)}
 #topbar .top-sim:disabled{opacity:.45}
+.staffel-bar{order:8;flex:1 0 100%;display:flex;align-items:stretch;gap:0;min-height:28px;background:#084e82;margin:0;padding:0 4px}
+.staffel-bar[hidden]{display:none}
+.staffel-bar a{display:flex;align-items:center;padding:4px 10px;color:rgba(255,255,255,.9);font-size:13px;font-weight:650;line-height:20px;white-space:nowrap;text-decoration:none}
+.staffel-bar a.staffel-gap{margin-left:8px;border-left:1px solid rgba(255,255,255,.35);padding-left:12px}
+.staffel-bar a.active{background:rgba(255,255,255,.22);color:#fff;font-weight:700}
+.staffel-bar a:hover{background:rgba(255,255,255,.12);color:#fff}
 .tabs{background:#e7eef3;border-bottom:0;padding:0}
 .tab{border-bottom:0;font-weight:700;color:#234}
 .tab.active{background:#006ab2;color:#fff;border-bottom-color:transparent}
