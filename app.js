@@ -1255,7 +1255,7 @@ function ansehenSelfTestBody(fails){
   const fourthZone={id:'L4SW', fourth:true, level:4, up:2, down:2, size:20, upTo:'L3', settled:true};
   check('4. Liga markiert Platz 1 und 2 und die Abstiegsplätze', zoneOf(fourthZone,1,20,3)==='auf' && zoneOf(fourthZone,2,20,3)==='auf' && zoneOf(fourthZone,3,20,3)==='' && zoneOf(fourthZone,18,20,3)==='ab' && zoneOf(fourthZone,17,20,3)==='');
   const openFourth={id:'L4SW', fourth:true, level:4, up:2, down:2, size:20, settled:false};
-  check('4. Liga zeigt einen sicheren und zwei mögliche Absteiger', zoneOf(openFourth,2,20,4)==='auf' && zoneOf(openFourth,20,20,4)==='ab' && zoneOf(openFourth,19,20,4)==='ab-aus' && zoneOf(openFourth,18,20,4)==='ab-aus' && zoneOf(openFourth,17,20,4)==='');
+  check('4. Liga zeigt vier mögliche Absteiger, solange keiner fest ist', zoneOf(openFourth,2,20,4)==='auf' && zoneOf(openFourth,16,20,4)==='' && zoneOf(openFourth,17,20,4)==='ab-aus' && zoneOf(openFourth,18,20,4)==='ab-aus' && zoneOf(openFourth,19,20,4)==='ab-aus' && zoneOf(openFourth,20,20,4)==='ab-aus');
   check('Regionalliga-Namen bleiben', L.RLN.name==='Regionalliga Nord' && L.RLNO.name==='Regionalliga Nordost' && L.RLW.name==='Regionalliga West' && L.RLS.name==='Regionalliga Süd' && RL_IDS.length===4 && OL_IDS.length===11);
   check('Startstaffeln folgen dem Gebiet', RL_IDS.every(lid=>squad.leagues[lid].every(id=>gebietOf(id).rl===lid)) && OL_IDS.every(lid=>squad.leagues[lid].every(id=>gebietOf(id).ol===lid)));
   const hb=Object.keys(TEAMS).filter(id=>TEAMS[id].bl==='Bremen');
@@ -1777,7 +1777,7 @@ function fourthRlPlan(season, lid){
   rls.forEach(rl=>{ byRl[rl]=1; });
   return {need:0, byRl, x:l3ToFourth(season, lid).length};
 }
-function corridorIds(season, lid, count){
+function relegationIds(season, lid, count){
   const lg=L[lid];
   if (!lg) return [];
   return lastIds(season, lid, count);
@@ -1814,15 +1814,15 @@ function relegationWindow(season, lid){
 function relegationMarks(season, lid){
   const w=relegationWindow(season, lid);
   if (!w) return {sure:[], maybe:[]};
-  const maxIds=corridorIds(season, lid, w.max);
-  const minIds=w.min===w.max ? maxIds : corridorIds(season, lid, w.min);
+  const maxIds=relegationIds(season, lid, w.max);
+  const minIds=w.min===w.max ? maxIds : relegationIds(season, lid, w.min);
   const sure={};
   minIds.forEach(id=>{ sure[id]=1; });
   return {sure:minIds, maybe:maxIds.filter(id=>!sure[id])};
 }
 function relegatedIds(season, lid){
   const down=relegationProfile(season, lid).down|0;
-  return corridorIds(season, lid, down);
+  return relegationIds(season, lid, down);
 }
 function childLeagues(lid){ return LEAGUES.filter(l=>l.upTo===lid); }
 function relegationProfile(season, lid){
@@ -12655,7 +12655,7 @@ function releaseSim(){
   simHold=null;
   return true;
 }
-function corridorSample(n){
+function relegationSample(n){
   const backup=S, random=Math.random;
   const hist={}, bad=[];
   const bump=(id, down)=>{ const bag=hist[id]||(hist[id]={}); bag[down]=(bag[down]||0)+1; };
@@ -16047,5 +16047,5 @@ function rlShrinkProbe(){
   const ok=sized && !dup && seen.size===Object.keys(TEAMS).length && piled;
   return {ok, detail:sizes.join(' ')+' ab '+L4_IDS.map(id=>id+':'+downs[id]).join(' ')+' dup '+(dup?1:0)+' n '+seen.size};
 }
-window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, L4_IDS, L4_RL, RL_IDS, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, ensureLeagueSchedule, schedulePending, scheduleSelfTest, scheduleMassTest, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, corridorSample, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, completeRunningSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
+window.FR = {computeTransition, syncRelay, relayHTML, relayWinner, relayHistNote, L4_IDS, L4_RL, RL_IDS, get state(){return S;}, render, L, LEAGUES, POOLS, TEAMS, BL_ORDER, computeTable, leagueTable, tableHTML, simLeague, simSeason, simBlock, simAllCups, simDecide, syncDecide, fixedPlaces, firstLegLine, scheduleMirrorHolds, repairOpenReturns, ageBand, landRoundPoints, decideSettled, twoLegWinner, homeLeague, BL_RL, BL_L5, validateFixtures, makeSchedule, ensureLeagueSchedule, schedulePending, scheduleSelfTest, scheduleMassTest, relegationProfile, scheduleNextBlock, slotTally, topKind, ansehenInfo, ansehenValue, ansehenLedger, ansehenParts, ansehenSelfTest, uiSelfTest, navEventSelfTest, titleAudit, titleRegisterHTML, simulateIsolated, relegationSample, releaseSim, buildInitialSquads, ageWeight, titleFactor, placePoints, seasonFactor, ANSEHEN, pairScore, powerSnapshot, matchValue, phaseWeights, terminSelfTest, viewTerminierung, certaintyFromEnv, certaintyMap, suggestPicks, finalizeSeason, completeRunningSeason, rollSimulatedSeason, compactSeason, migrateArchive, packForDisk, unpackState, recomputePokalPoints, blLoyalSet, buildSupercup, supercupWinner, supercupPending, stadionName, pointsEnvelope, relegationBattle, isClosingDay, lateSeason, finalSaturdaySlot, buildCups, drawCupRound, cupWinner, cupFinalists, maybeAutoFinal, standingOf, planLandRounds, winRank, richRank, DFB_ROUNDS, whenSaved, save};
 })();
