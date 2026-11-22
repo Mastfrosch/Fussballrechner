@@ -1279,9 +1279,12 @@ function ansehenSelfTestBody(fails){
   const l4Bar=[...document.querySelectorAll('#staffelBar a')];
   check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='4. Liga Südwest,4. Liga Nordost' && document.querySelectorAll('#staffelBar .staffel-line').length===1 && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
   S.ui.league='BL'; render();
-  check('Bundesliga hat keine Staffel-Unterleiste', !!document.querySelector('#staffelBar[hidden]'));
+  const blBar=$('#staffelBar');
+  check('Bundesliga zeigt die leere Unterleiste', !!blBar && !blBar.hidden && !blBar.querySelector('a') && blBar.offsetHeight===28);
   S.ui.tab='pokal'; render();
+  const pokalBar=$('#staffelBar');
   check('aktiver Pokal', !!$('#leagueNav a.nav-link.active[data-tab="pokal"]'));
+  check('Pokal lässt die leere Unterleiste stehen', !!pokalBar && !pokalBar.hidden && !pokalBar.querySelector('a') && pokalBar.offsetHeight===28);
   S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; render();
   let reformFalse=0;
   Object.keys(TEAMS).forEach(id=>{
@@ -4925,12 +4928,13 @@ function renderNav(){
   const bar=$('#staffelBar');
   const family=isFourth(L[S.ui.league])?L4_IDS:(RL_IDS.indexOf(S.ui.league)>=0?['RLW','RLS','RLN','RLNO']:(OL_IDS.indexOf(S.ui.league)>=0?['OLRH','OLWN','OLSW','OLBYN','OLBYS','OLBW','OLN','OLNIW','OLNIO','OLNON','OLNOS']:null));
   if (bar){
-    if (!family || special){ bar.hidden=true; bar.innerHTML=''; }
+    bar.hidden=false;
+    if (!family || special){ bar.innerHTML=''; bar.setAttribute('aria-hidden','true'); }
     else {
       const label=id=>L[id].level===6?L[id].name.replace(/^Oberliga /,''):L[id].name;
       const splitAt=isFourth(L[S.ui.league])?{L4NO:1}:(RL_IDS.indexOf(S.ui.league)>=0?{RLS:1, RLN:1, RLNO:1}:{OLBYN:1, OLN:1, OLNON:1});
       const line='<span class="staffel-line" aria-hidden="true"></span>';
-      bar.hidden=false;
+      bar.removeAttribute('aria-hidden');
       bar.innerHTML=family.map(id=>(splitAt[id]?line:'')+'<a class="'+(S.ui.league===id?'active':'')+'" data-league="'+id+'" title="'+esc(L[id].name)+'">'+esc(label(id))+'</a>').join('');
     }
   }
@@ -10233,7 +10237,7 @@ function rulesHTML(){
   h+='<p>Der Spielplan entsteht erst mit dem Knopf „Spielplan erstellen“. Danach stehen die Paarungen fest. Wappen und Vereinsname im Spielplan öffnen die Vereinsinfo. Die Anstoßzeiten beginnen mit den Spieltagen 1 bis 6. Danach kommen Blöcke von vier Spieltagen, also 7 bis 10, 11 bis 14 und so weiter. Vor der Hin- und Rückrundengrenze und am Saisonende bleibt der Rest ein kürzerer Block. Kein Spieltag fällt weg, und ein Block überschreitet die Grenze nicht. In einer Liga mit 16, 20 oder 22 Vereinen hat jeder Verein genau drei Breaks in der Saison: einen in der Hinrunde, nicht am ersten und nicht am letzten Spieltag, gespiegelt in der Rückrunde, und alle wechseln zwischen den Hälften die Seite. Mehr als zwei Heim- oder Auswärtsspiele hintereinander gibt es nicht. An der Naht zwischen Hin- und Rückrunde haben alle einen Break. Das ist unvermeidbar.</p>';
   h+='<p>Der Reiter Rückblick zeigt die gewählte Saison: Meister, weitere Sieger, Aufsteiger, Absteiger, Landespokalsieger, Absteiger mit hohem Ansehen und Aufsteiger mit niedrigem Ansehen. Der DFB-Pokalsieger steht bei den weiteren Siegern, mit Wappen, Name und Liga. Aufsteiger und Absteiger stehen je Liga in einer festen Spalte, die Landespokalsieger in drei festen Spalten. Ist die laufende Saison ausgespielt, stehen diese Ergebnisse schon vor dem Saisonwechsel. Die erste Saison hat keinen Supercup. Gibt es keine Relegation, steht das so da. Die Nachrücker aus der Amateurliga wählst du erst mit „Saison abschließen“. Dazu kommen der höchste Sieg, die beste Offensive, die beste Defensive, eine Pokalüberraschung und die größte Veränderung des Ansehens gegenüber der Vorsaison. Eine Pokalüberraschung ist ein Sieg mit mindestens doppelt so viel Ansehen auf der Verliererseite oder ein Amateurtopf gegen einen Profitopf. Alles stammt aus den gespeicherten Spielen. Zweite Mannschaften zählen dort nicht. In den Ligarekorden stehen unter „Wenigste Punkte“ der torreichste und der torärmste Spieltag, sobald jedes Spiel dieses Spieltags eingetragen ist.</p>';
   h+='<p>Der Topspielwert bleibt auf der Skala von 0 bis 100. Die Spieltage 1 bis 6 bleiben bei 80 Prozent Ansehen und 20 Prozent Sport. Danach wandert der Sportanteil alle vier Spieltage um 10 Prozent nach oben, ab Spieltag 27 stehen 20 Prozent Ansehen und 80 Prozent Sport. Ab der Rückrunde liegt der Wert vor allem bei den Topvereinen: in der Bundesliga die Plätze 1 bis 7, darunter die Vereine um den letzten Aufstiegsplatz, schwächer je größer der Punkterückstand. Ein Verein hinter dieser Linie liegt klar unter dem letzten Platz darin. Ein Abstiegsduell zählt vor den letzten acht Spieltagen kaum und kann in diesen acht Spieltagen wieder ein Topspiel sein. Regionale Spiele nehmen die kurzen Strecken. Die späteste Sonntagszeit, Bundesliga 17:30 und 3. und 4. Liga 19:30, bleibt bei höchstens 300 km. Hat ein Spieltag keine solche Paarung, nimmt sie die kürzere Hälfte. In Bundesliga bis 4. Liga bekommen Vereine, die schon deutlich öfter regional spielten als der Schnitt, einen leichten Abzug. Jeder Verein spielt jede Anstoßzeit mindestens zweimal. Die Konferenzquote ist 40 Prozent der Spieltage, kaufmännisch gerundet.</p>';
-  h+='<p>Die 4. Liga hat keine Aufstiegsrelegation. Platz 1 und Platz 2 steigen direkt auf. Der Reiter Relegation erscheint nur, wenn die Vizemeister der beiden Regionalligen um einen freien Platz spielen. Das ist Hin- und Rückspiel, Gesamttore, bei Gleichstand Elfmeterschießen. Jede Regionalliga gibt den Meister immer ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün. In der 4. Liga sind das Platz 1 und Platz 2, und dort gibt es kein Orange. Orange ist nur die Relegation der Regionalliga-Vizemeister, wenn genau ein Platz frei ist. (Ab) ist rot: zwei Plätze sind fest, bis zu zwei weitere sind schraffiert, solange die Zahl offen ist. (CL) ist blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
+  h+='<p>Die 4. Liga hat keine Aufstiegsrelegation. Platz 1 und Platz 2 steigen direkt auf. Der Reiter Relegation erscheint nur, wenn die Vizemeister der beiden Regionalligen um einen freien Platz spielen. Das ist Hin- und Rückspiel, Gesamttore, bei Gleichstand Elfmeterschießen. Jede Regionalliga gibt den Meister immer ab. Ein Entscheidungsspiel gibt es nur bei völliger Gleichheit in der Tabelle. (Auf) ist grün. In der 4. Liga sind das Platz 1 und Platz 2, und dort gibt es kein Orange. Orange ist nur die Relegation der Regionalliga-Vizemeister, wenn genau ein Platz frei ist. (Ab) ist rot: zwei Plätze sind fest, bis zu zwei weitere sind hellrot, solange die Zahl offen ist. (CL) ist blau, (EL) orange, (UECL) grün, passend zu den Tabellenfarben. Die Tabelle zeichnet keine Linie und kein Wort für den Profitopf oder die Pokalgrenze der 3. Liga. Die Töpfe gelten nur bei der Auslosung. In der Historie steht der Abschnitt Rechner oben. Überall, wo Jahre gemischt aus Historie und Spielstand stehen, markiert eine Zeile „Rechner“ den Beginn der simulierten Saisons.</p></div>';
   return h;
 }
 function ansehenParts(info){
