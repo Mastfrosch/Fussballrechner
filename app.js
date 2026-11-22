@@ -1279,9 +1279,12 @@ function ansehenSelfTestBody(fails){
   const l4Bar=[...document.querySelectorAll('#staffelBar a')];
   check('4. Liga steht nebeneinander in der Unterleiste', l4Bar.length===2 && l4Bar.map(a=>a.textContent).join(',')==='4. Liga Südwest,4. Liga Nordost' && document.querySelectorAll('#staffelBar .staffel-line').length===1 && document.querySelector('#staffelBar a.active').dataset.league==='L4NO');
   S.ui.league='BL'; render();
-  check('Bundesliga hat keine Staffel-Unterleiste', !!document.querySelector('#staffelBar[hidden]'));
+  const blBar=$('#staffelBar');
+  check('Bundesliga zeigt die leere Unterleiste', !!blBar && !blBar.hidden && !blBar.querySelector('a') && blBar.offsetHeight===28);
   S.ui.tab='pokal'; render();
+  const pokalBar=$('#staffelBar');
   check('aktiver Pokal', !!$('#leagueNav a.nav-link.active[data-tab="pokal"]'));
+  check('Pokal lässt die leere Unterleiste stehen', !!pokalBar && !pokalBar.hidden && !pokalBar.querySelector('a') && pokalBar.offsetHeight===28);
   S.ui.league=navWas.league; S.ui.tab=navWas.tab; S.ui.ansehenSec=navWas.sec; render();
   let reformFalse=0;
   Object.keys(TEAMS).forEach(id=>{
@@ -4925,12 +4928,13 @@ function renderNav(){
   const bar=$('#staffelBar');
   const family=isFourth(L[S.ui.league])?L4_IDS:(RL_IDS.indexOf(S.ui.league)>=0?['RLW','RLS','RLN','RLNO']:(OL_IDS.indexOf(S.ui.league)>=0?['OLRH','OLWN','OLSW','OLBYN','OLBYS','OLBW','OLN','OLNIW','OLNIO','OLNON','OLNOS']:null));
   if (bar){
-    if (!family || special){ bar.hidden=true; bar.innerHTML=''; }
+    bar.hidden=false;
+    if (!family || special){ bar.innerHTML=''; bar.setAttribute('aria-hidden','true'); }
     else {
       const label=id=>L[id].level===6?L[id].name.replace(/^Oberliga /,''):L[id].name;
       const splitAt=isFourth(L[S.ui.league])?{L4NO:1}:(RL_IDS.indexOf(S.ui.league)>=0?{RLS:1, RLN:1, RLNO:1}:{OLBYN:1, OLN:1, OLNON:1});
       const line='<span class="staffel-line" aria-hidden="true"></span>';
-      bar.hidden=false;
+      bar.removeAttribute('aria-hidden');
       bar.innerHTML=family.map(id=>(splitAt[id]?line:'')+'<a class="'+(S.ui.league===id?'active':'')+'" data-league="'+id+'" title="'+esc(L[id].name)+'">'+esc(label(id))+'</a>').join('');
     }
   }
