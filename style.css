@@ -345,6 +345,7 @@ tr.band-floor td:first-child{box-shadow:inset 3px 0 #8a8f96}
 .amateur-list .club{align-items:center;break-inside:avoid;padding:3px 0}
 .amateur-list .club .txt{display:flex;flex-direction:column;justify-content:center;gap:1px}
 .amateur-list .am-rang{display:block;margin:0;font-size:11px;line-height:1.15;color:var(--muted)}
+.am-up{margin-left:6px;font-size:11px;font-weight:700;color:#1d6b45}
 .amateur-list .nm:has(.neu-badge){display:flex;align-items:center;gap:6px}
 .neu-badge{flex:none;display:inline-block;padding:0 4px;border-radius:3px;background:#1f6b4a;color:#fff;font-size:10px;font-weight:700;line-height:1.45;letter-spacing:.02em}
 .alike-list{display:flex;flex-direction:column;gap:8px;margin:0 0 16px}
