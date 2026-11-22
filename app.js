@@ -2627,7 +2627,7 @@ function packSeason(s){
     if (lg.downN!=null) leagues[id].downN=lg.downN;
   }
   let end=null;
-  if (s.endData) end={moves:s.endData.moves, notes:s.endData.notes, need:s.endData.need, picks:s.endData.picks, step:s.endData.step, downOf:s.endData.downOf, pending:s.endData.pending};
+  if (s.endData) end={moves:s.endData.moves, notes:s.endData.notes, need:s.endData.need, picks:s.endData.picks, step:s.endData.step, downOf:s.endData.downOf, pending:s.endData.pending, amateurOrder:s.endData.amateurOrder};
   const out={name:s.name, status:s.status, compact:true, absorbed:!!s.absorbed, leagues, pools:s.pools, markers:s.markers, endData:end, cups:packCups(s.cups), supercup:s.supercup};
   if (s.slim) out.slim=s.slim;
   if (s.lgStat) out.lgStat=1;
@@ -4028,6 +4028,8 @@ function finalizeSeason(opts){
   for (const ol in e.picks) e.picks[ol].forEach(id=>mk(id,'Auf'));
   const euroMarks=seasonEuroMarks(e.tables.BL||[], dfbWinnerOf(s));
   Object.keys(euroMarks).forEach(id=>euroMarks[id].forEach(x=>mk(id, x)));
+  e.amateurOrder={};
+  POOLS.forEach(p=>{ e.amateurOrder[p.id]=(e.pools[p.id]||s.pools[p.id]||[]).slice().sort(byAnsehen); });
   e.step=3; s.status='done';
   if (!S.chronicle) S.chronicle=[];
   LEAGUES.forEach(l=>{
@@ -7413,6 +7415,26 @@ function regionLadderHTML(id){
     return '<section class="region-step'+on+'"><h3>'+esc(step.title)+(on?' · aktuelle Liga':'')+'</h3><p>'+esc(step.text)+'</p></section>';
   }).join('<div class="region-arrow">↓ Aufstieg nach oben · Abstieg nach unten ↓</div>')+'</div>';
 }
+function amateurList(season, pid){
+  const ids=(season&&season.pools&&season.pools[pid]||[]).slice();
+  const frozen=season&&season.status==='done'&&season.endData&&season.endData.amateurOrder&&season.endData.amateurOrder[pid];
+  if (frozen){
+    const have={};
+    ids.forEach(id=>{ have[id]=1; });
+    const out=frozen.filter(id=>have[id]);
+    ids.forEach(id=>{ if (out.indexOf(id)<0) out.push(id); });
+    return out;
+  }
+  ids.sort(byAnsehen);
+  return ids;
+}
+function amateurMarks(season, pid){
+  const pool=P[pid];
+  const list=amateurList(season, pid);
+  const picks=pool&&season&&season.status==='done'&&season.endData&&season.endData.picks&&season.endData.picks[pool.ol];
+  if (picks) return {meister:picks[0]||'', vize:picks[1]||''};
+  return {meister:list[0]||'', vize:list[1]||''};
+}
 function renderAmateur(){
   const s=cur();
   const counts={};
@@ -7427,10 +7449,10 @@ function renderAmateur(){
   $('#subline').innerHTML='';
   setActions(seasonActions(s));
   const on=v=>view===v?' active':'';
-  const note=view==='aehnlich'?'Prüfung der Namenszuordnung 2026/27.':(pool?esc(pool.desc)+'. ':'')+'Kein Spielbetrieb. Meister und Vizemeister, die beiden ersten dieser Liste, steigen in die zugehörige Oberliga auf.';
+  const done=s.status==='done' && s.endData && s.endData.picks && pool && s.endData.picks[pool.ol];
+  const note=view==='aehnlich'?'Prüfung der Namenszuordnung 2026/27.':(pool?esc(pool.desc)+'. ':'')+(done?'Kein Spielbetrieb. Meister und Vizemeister dieser Saison sind markiert, in der Reihenfolge zum Saisonende.':'Kein Spielbetrieb. Meister und Vizemeister, die beiden ersten dieser Liste, steigen in die zugehörige Oberliga auf.');
   $('#tabs').innerHTML=staffelSelect('amateurSelect', POOLS.map(p=>p.id), pid, id=>P[id].name)+'<a class="tab'+on('')+'" data-act="amateurList">Vereine</a><a class="tab'+on('karte')+'" data-act="amateurMap">Karte</a><a class="tab'+on('aehnlich')+'" data-act="amateurAlike">Ähnliche Vereine</a>';
-  const list=(s.pools[pid]||[]).slice();
-  list.sort(byAnsehen);
+  const list=amateurList(s, pid);
   if (view==='aehnlich'){
     $('#view').innerHTML='<p class="muted">'+note+'</p>'+viewAlike();
     return;
@@ -7441,8 +7463,9 @@ function renderAmateur(){
     return;
   }
   let h='<div class="box"><input class="searchbox" id="poolSearch" placeholder="Verein suchen …"><p class="muted">'+list.length+' Vereine. '+note+'</p><div class="amateur-list">'+
-    list.map((id,i)=>{
-      const role=i===0?'Meister':i===1?'Vizemeister':'';
+    list.map(id=>{
+      const picks=done?s.endData.picks[pool.ol]:null;
+      const role=picks?(id===picks[0]?'Meister':id===picks[1]?'Vizemeister':''):(list[0]===id?'Meister':list[1]===id?'Vizemeister':'');
       const tag=role?'<span class="am-up">'+role+'</span>':'';
       return '<div class="am-row'+(role?' am-prom':'')+'" data-name="'+esc(TEAMS[id].name.toLowerCase())+'">'+clubHTML(id,{nobl:true, tail:neuMark(id)+tag, under:'<span class="am-rang">'+(TEAMS[id].rang?'Rang '+TEAMS[id].rang:'ohne Wertung')+'</span>'})+'</div>';
     }).join('')+
@@ -12956,6 +12979,11 @@ function uiSelfTestBody(fails){
         const marked=paint.sure.concat(paint.maybe).slice().sort().join();
         const real=sea.endData.moves.filter(m=>m.type==='ab' && m.from===lid).map(m=>m.id).sort().join();
         if (marked!==real) sizeWrong.push(sea.name+' Markierung '+lid);
+      });
+      POOLS.forEach(p=>{
+        const picks=(sea.endData.picks&&sea.endData.picks[p.ol])||[];
+        const shown=amateurMarks(sea, p.id);
+        if (picks.length>=2 && (shown.meister!==picks[0] || shown.vize!==picks[1])) sizeWrong.push(sea.name+' Amateur '+p.id);
       });
       L4_IDS.forEach(sid=>{
         const sum=(L4_RL[sid]||[]).reduce((s,rl)=>s+sea.endData.moves.filter(m=>m.type==='auf' && m.from===rl).length, 0);
