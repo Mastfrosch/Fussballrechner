@@ -881,7 +881,7 @@ t879,SC Dortelweil,original-vor-pr125,64x64,256x256,verbessert,"fupa, raster, SC
 t880,FV Hunsrückhöhe Morbach,https://www.fussball.de/export.media/-/action/getLogo/format/2/id/02BALF6F5S000000VS5489B6VVQQR67I,64x59,99x95,verbessert,"fussball.de, raster, FV Hunsrückhöhe Morbach / Burgen | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt"
 t881,VfL Primstal,https://image.fupa.net/club/5SzP8ua4OTkN/800x800.png,62x64,248x256,verbessert,"fupa, raster, VfL Primstal"
 t882,SG Schneifel,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
-t883,SV Laubach,https://image.fupa.net/club/yreR1fulG5Db/800x800.png,64x64,256x250,verbessert,"fupa, raster, SV Laubach | Aussenflaeche transparent, Innenweiss bleibt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
+t883,SV Laubach,https://image.fupa.net/club/yreR1fulG5Db/800x800.png,256x250,256x250,nicht ersetzt,"weiter das Wappen der SG Vordereifel; kein eigenes Wappen des SV Laubach 1921 aus Laubach in der Eifel gefunden"
 t884,FC Waldbrunn,https://image.fupa.net/club/KJWEd6N84PRy/800x800.png,55x64,219x254,verbessert,"fupa, raster, FC Waldbrunn"
 t885,FSV Trier-Tarforst,https://image.fupa.net/club/DedzcZ4Qpodw/800x800.png,64x57,198x176,verbessert,"fupa, raster, FSV Trier-Tarforst | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
 t886,SG Viktoria Bronnzell,,62x64,62x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
@@ -934,7 +934,7 @@ t932,MTV Ahrensbök,https://image.fupa.net/club/e2C3KAtBx06m/800x800.png,64x64,2
 t933,MTV Dänischenhagen,https://image.fupa.net/club/a8ZzT37yx2LE/800x800.png,64x64,210x256,verbessert,"fupa, raster, MTV Dänischenhagen"
 t934,Osterrönfelder TSV,https://image.fupa.net/club/NHlWH8PmZRjp/800x800.png,64x64,256x256,verbessert,"fupa, raster, Osterrönfelder TSV"
 t936,Preetzer TSV,https://image.fupa.net/club/EJVajL705b9A/800x800.png,64x64,256x256,verbessert,"fupa, raster, Preetzer TSV | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet"
-t937,Probsteier SG 2012,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
+t937,Probsteier SG 2012,https://tsvschoenberg.de/wp-content/uploads/2023/08/tsv.png,64x64,194x243,unsicher,"SG ohne eigenes Wappen; Wappen des federführenden TSV Schönberg von 1863 in Schönberg Holstein"
 t938,Ratzeburger SV,https://image.fupa.net/club/0J7zI20gzVJp/800x800.png,64x64,256x256,verbessert,"fupa, raster, Ratzeburger SV | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt"
 t939,RB Obere Treene,https://image.fupa.net/club/b56CTIuWItRb/800x800.png,64x64,186x240,verbessert,"fupa, raster, RB Obere Treene"
 t940,Schleswiger SV 06,https://image.fupa.net/club/dcBoP9YrSoEM/800x800.png,64x64,233x256,verbessert,"fupa, raster, Schleswiger SV 06"
@@ -979,7 +979,7 @@ t979,Dulsberger SC Hanseat,https://image.fupa.net/club/eicpuak3oiSr/800x800.png,
 t980,Duvenstedter SV,https://image.fupa.net/club/o6nFv0wJlHcQ/800x800.png,64x64,256x256,verbessert,"fupa, raster, Duvenstedter SV"
 t981,Escheburger SV,https://image.fupa.net/club/q3xDZyVVoF5O/800x800.png,64x64,220x256,verbessert,"fupa, raster, Escheburger SV"
 t982,FC Bingöl 12,https://image.fupa.net/club/tQV0Jnf419i1/800x800.png,64x64,256x256,verbessert,"fupa, raster, FC Bingöl 12"
-t983,FFC 08 Finkenwerder,https://image.fupa.net/club/vRY0sl5jPOlo/800x800.png,64x64,256x256,verbessert,"fupa, raster, FFC 08 Finkenwerder | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
+t983,FFC 08 Finkenwerder,https://image.fupa.net/club/vRY0sl5jPOlo/800x800.png,256x256,256x256,nicht ersetzt,"Rechtsname Finkenwerder Fussballclub von 2008 Osman Bey e.V. in Hamburg-Finkenwerder; das Wappen ist das eigene und kein Namensvetter"
 t985,Groß Flottbeker SpVgg,https://image.fupa.net/club/dvjLf7KgVDpq/800x800.png,64x64,256x256,verbessert,"fupa, raster, Groß Flottbeker SpVgg"
 t986,Harburger Sportclub,https://image.fupa.net/club/AGdrsrOMGaTs/800x800.png,64x64,256x256,verbessert,"fupa, raster, Harburger Sportclub"
 t987,Harburger TB,https://image.fupa.net/club/OlZWK1BgA0Et/800x800.png,64x64,238x256,verbessert,"fupa, raster, Harburger TB"
@@ -1207,7 +1207,7 @@ t1214,TB Hilligsfeld,https://image.fupa.net/club/mfpLsm9agzx1/800x800.png,64x64,
 t1215,TB Uphusen,https://www.fussball.de/export.media/-/action/getLogo/format/2/id/00ES8GN7SS00008KVV0AG08LVUPGND5I,64x64,99x84,verbessert,"fussball.de, raster, TB Uphusen / Niedersachsen"
 t1216,TSC Vahdet Braunschweig,https://image.fupa.net/club/M4fdiKW1ZkuF/800x800.png,64x64,198x238,verbessert,"fupa, raster, TSC Vahdet Braunschweig"
 t1217,TSG Seckenhausen-Fahrenhorst,https://image.fupa.net/club/21gfFudG6HOu/800x800.png,64x64,256x256,verbessert,"fupa, raster, TSG Seckenhausen-Fahrenhorst"
-t1218,TSKV Goslar,https://image.fupa.net/club/HOqI8WXL6wyp/800x800.png,64x64,256x256,verbessert,"fupa, raster, TSKV Goslar | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet"
+t1218,TSKV Goslar,https://image.fupa.net/club/HOqI8WXL6wyp/800x800.png,256x256,256x256,nicht ersetzt,"Datei zeigt das Fusionswappen VfL Oker/TSKV; nach der Trennung 2026 kein eigenes veröffentlichtes TSKV-Wappen gefunden"
 t1219,TSV Adendorf,https://image.fupa.net/club/rF0NHcilCp75/800x800.png,64x64,246x256,verbessert,"fupa, raster, TSV Adendorf"
 t1220,TSV Altenwalde,https://image.fupa.net/club/HNhkNz3tVXfo/800x800.png,64x64,221x256,verbessert,"fupa, raster, TSV Altenwalde"
 t1221,TSV Apensen,https://image.fupa.net/club/VFUoZQrogFUX/800x800.png,64x64,217x256,verbessert,"fupa, raster, TSV Apensen"
@@ -1816,7 +1816,7 @@ t1843,HSV Neuwied,https://image.fupa.net/club/dfnGeWlhW6CY/800x800.png,64x64,210
 t1844,SC Hauenstein,https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/SC_Hauenstein.svg/330px-SC_Hauenstein.svg.png,64x64,237x238,verbessert,"wikimedia, raster, Ort im Artikel (hauenstein)"
 t1846,SF Höhr-Grenzhausen,https://www.fussball.de/export.media/-/action/getLogo/format/2/id/00ES8GNB8G0000C6VV0AG08LVUPGND5I,64x64,99x42,verbessert,"fussball.de, raster, SF Höhr-Grenzhausen / Höhr-Grenzhausen | Aussenflaeche transparent, Innenweiss bleibt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
 t1847,SG Augst Eitelborn,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
-t1848,SG Berod-Wahlrod,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
+t1848,SG Berod-Wahlrod,https://tmssl.akamaized.net/images/wappen/big/92408.png,64x64,187x188,verbessert,"eigenes SG-Wappen; Transfermarkt 92408; der Ring nennt Berod-Wahlrod und Lautzert-Oberdreis"
 t1849,SG Daleiden,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet
 t1850,SG Ellscheid,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet
 t1851,SG Guckheim,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
@@ -1844,7 +1844,7 @@ t1873,SV Blau Weiß Binningen 1921 e. V.,https://image.fupa.net/club/BtSi5JbedS2
 t1874,SV Eintracht Mendig,https://image.fupa.net/club/Lb0s05NBKrsC/800x800.png,64x64,228x256,verbessert,"fupa, raster, Eintracht Mendig | Aussenflaeche transparent, Innenweiss bleibt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
 t1875,SV Eintracht Windhagen,https://image.fupa.net/club/qqXFExbDbCcS/800x800.png,64x64,192x253,verbessert,"fupa, raster, SV Eintracht Windhagen"
 t1876,SV Gimbsheim,https://image.fupa.net/club/aqEv6gTdcaR2/800x800.png,64x64,224x247,verbessert,"fupa, raster, SV Gimbsheim"
-t1877,SV Grünewald 1928 Lüxem,https://image.fupa.net/club/GBoXqdN5Thmx/800x800.png,64x64,206x256,verbessert,"fupa, raster, SV Grünewald 1928 Lüxem"
+t1877,SV Grünewald 1928 Lüxem,https://image.fupa.net/club/GBoXqdN5Thmx/800x800.png,206x256,206x256,nicht ersetzt,"Datei zeigt SLV 1928; der Verein kürzt sich SVL; auf svluexem.de kein anderes Wappen gefunden"
 t1878,SV Hermersberg,https://image.fupa.net/club/WL0jbSz8mT7Q/800x800.png,64x64,253x253,verbessert,"fupa, raster, SV Hermersberg"
 t1879,SV Kirchheimbolanden,https://image.fupa.net/club/qT9tnhYt9N1P/800x800.png,64x64,197x256,verbessert,"fupa, raster, SV Kirchheimbolanden"
 t1880,SV Morlautern,https://image.fupa.net/club/cQeyj3W3FKTc/800x800.png,64x64,202x254,verbessert,"fupa, raster, SV Morlautern"
@@ -1971,7 +1971,7 @@ t2004,SG Schorndorf,https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/SG_
 t2005,SG Stupferich,https://image.fupa.net/club/9MMvqcZVz93S/800x800.png,64x64,241x241,verbessert,"fupa, raster, SG Stupferich"
 t2006,SG Weinstadt,https://image.fupa.net/club/fkv5GZjpBHR6/800x800.png,64x64,256x256,verbessert,"fupa, raster, SG Weinstadt"
 t2007,SG-SV Lobbach,https://image.fupa.net/club/qXqNFyakSH27/800x800.png,64x64,190x118,verbessert,"fupa, raster, SG-SV Lobbach"
-t2008,SGM Dettingen/Glems ,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de: kein Treffer mit gleichem Namen und passendem Ort
+t2008,SGM Dettingen/Glems ,https://www.tsv-dettingen-fussball.de/s/misc/logo.png,64x64,153x163,unsicher,"SGM ohne eigenes Wappen; Wappen der Fussballabteilung des federführenden TSV Dettingen/Erms"
 t2009,Sport-Union Neckarsulm,https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Logo_Neckarsulm.svg/330px-Logo_Neckarsulm.svg.png,64x64,192x256,verbessert,"wikimedia, raster, Bundesland im Artikel | Hintergrund bleibt: Innenflächen haengen am Rand oder keine transparente Vorlage"
 t2010,Sportfreunde Gechingen,https://image.fupa.net/club/9kqstJNG6iZz/800x800.png,64x64,172x256,verbessert,"fupa, raster, Sportfreunde Gechingen"
 t2011,SpVgg 06 Ketsch,https://image.fupa.net/club/qnDpzUrSYPZt/800x800.png,64x64,214x256,verbessert,"fupa, raster, SpVgg 06 Ketsch"
@@ -2163,7 +2163,7 @@ t2198,SpVgg Plattling,https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/S
 t2199,SpVgg Ramspau,https://image.fupa.net/club/84aYIaw7a6Av/800x800.png,64x64,256x253,verbessert,"fupa, raster, SpVgg Ramspau"
 t2200,SpVgg Rattelsdorf,https://image.fupa.net/club/j5L2A1e8RACP/800x800.png,64x64,254x253,verbessert,"fupa, raster, SpVgg Rattelsdorf"
 t2201,SpVgg Ruhmannsfelden,https://image.fupa.net/club/HQVGAdLkYMhd/800x800.png,64x64,244x256,verbessert,"fupa, raster, SpVgg Ruhmannsfelden"
-t2202,SpVgg Saalestadt,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de nicht größer oder Platzhalter
+t2202,SpVgg Saalestadt,https://spvgg-saalestadt.de/wp-content/uploads/2024/05/cropped-logoneu.jpg,64x64,256x254,verbessert,"Vereinsseite der SpVgg Saalestadt 2021 in Schwarzenbach a.d. Saale; Aussengrund entfernt; Innenweiss bleibt"
 t2203,SpVgg Vohenstrauß,https://image.fupa.net/club/pikcL11TbTzQ/800x800.png,64x64,207x249,verbessert,"fupa, raster, SpVgg Vohenstrauß"
 t2204,SpVgg Weißenohe,https://image.fupa.net/club/ev4iYo2UUpkg/800x800.png,64x64,194x256,verbessert,"fupa, raster, SpVgg Weißenohe"
 t2205,SpVgg Zeckern,https://image.fupa.net/club/kNGIMUJ9O4Ln/800x800.png,64x64,236x256,verbessert,"fupa, raster, SpVgg Zeckern | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet"
@@ -2220,7 +2220,7 @@ t2255,TSV 1910 Uettingen,https://image.fupa.net/club/nWWPEOXIoq1A/800x800.png,64
 t2256,TSV Allershausen,https://image.fupa.net/club/IAT4GAAJxNZF/800x800.png,64x64,256x241,verbessert,"fupa, raster, TSV Allershausen | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet"
 t2257,TSV Ampfing,https://image.fupa.net/club/yMTzHkiYmK0L/800x800.png,64x64,256x256,verbessert,"fupa, raster, TSV Ampfing"
 t2258,TSV Bergrheinfeld,https://image.fupa.net/club/ZJk563ztjtWC/800x800.png,64x64,256x193,verbessert,"fupa, raster, TSV Bergrheinfeld | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent | rechteckiger Aussengrund ausserhalb der Kontur entfernt | Kante geglaettet | Weisse Karte aus der FuPa-Vorlage uebernommen"
-t2259,TSV Dinkelscherben,,64x64,64x64,nicht verbessert,kein exakter Wikipedia-Artikel; fussball.de nicht größer oder Platzhalter
+t2259,TSV Dinkelscherben,http://tsv-dinkelscherben.net/wp-content/uploads/2016/11/logo_tsv_big.jpg,64x64,153x163,verbessert,"Vereinsseite tsv-dinkelscherben.net; das dort geführte blaue Zeichen"
 t2260,TSV Dorfen,https://image.fupa.net/club/XWUMQouPJVG9/800x800.png,64x64,256x256,verbessert,"fupa, raster, TSV Dorfen"
 t2261,TSV Eintracht Karlsfeld,https://image.fupa.net/club/34fFzyawIyYe/800x800.png,64x64,208x256,verbessert,"fupa, raster, TSV Eintracht Karlsfeld | Hintergrund vom Rand entfernt | Hintergrund vom Rand entfernt | Innenweiss innerhalb der Kontur wiederhergestellt - nur der aeussere Hintergrund ist transparent"
 t2262,TSV Ettleben,https://image.fupa.net/club/SvKKSL0c1pwt/800x800.png,64x64,236x255,verbessert,"fupa, raster, TSV Ettleben"
