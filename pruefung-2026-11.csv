@@ -55,13 +55,10 @@ t1497,FC Teutonia Weiden,Koordinaten,"50.82246,6.14156","50.820897,6.145185","Op
 t1550,SC Kreuzau,Koordinaten,"50.74552,6.4904","50.742462,6.497028","OpenStreetMap „Kurt-Hoesch-Kampfbahn“. Gesuchter Platz: Kurt-Hoesch-Kampfbahn. Alter Pin 577 m daneben, neuer Punkt ist der OSM-Treffer."
 t1561,SC Werden-Heidhausen,Koordinaten,"51.38632,6.99845","51.383247,6.996477","OpenStreetMap „Im Löwental, Werden, Stadtbezirk IX, Essen, Nordrhein-Westfalen, 45239, Deutschl“. Gesuchter Platz: Sportplatz Im Löwental. Alter Pin 368 m daneben, neuer Punkt ist der OSM-Treffer."
 t1627,SV Rot-Weiß Merl,Koordinaten,"50.63352,7.04504","50.635801,7.04023","OpenStreetMap „Alfred-Engel-Sportanlage“. Gesuchter Platz: Alfred-Engel Sportanlage. Alter Pin 424 m daneben, neuer Punkt ist der OSM-Treffer."
-t1650,TSV Solingen,Koordinaten,"51.13885,7.00858","51.140657,7.002723","OpenStreetMap „Höher Heide“. Gesuchter Platz: Höher Heide. Alter Pin 455 m daneben, neuer Punkt ist der OSM-Treffer."
 t1660,TuS Eichlinghofen,Koordinaten,"51.47785,7.40315","51.473991,7.403611","OpenStreetMap „Stadion an der Hövel“. Gesuchter Platz: Stadion an der Hövel. Alter Pin 430 m daneben, neuer Punkt ist der OSM-Treffer."
 t1733,FSC 1924 Lohfelden,Koordinaten,"51.27761,9.54343","51.281457,9.541991","OpenStreetMap „Nordhessenstadion“. Gesuchter Platz: Nordhessenstadion. Alter Pin 439 m daneben, neuer Punkt ist der OSM-Treffer."
-t1742,FSV Schröck,Koordinaten,"50.79056,8.81823","50.794335,8.818757","OpenStreetMap „FSV Schröck“. Gesuchter Platz: FSV 1921 Schröck. Alter Pin 421 m daneben, neuer Punkt ist der OSM-Treffer."
 t1744,FV Breidenbach,Koordinaten,"50.87993,8.46717","50.879418,8.471134","OpenStreetMap „Sportanlage Gunterstal“. Gesuchter Platz: Stadion Gunterstal. Alter Pin 284 m daneben, neuer Punkt ist der OSM-Treffer."
 t1747,Melsunger FV 08,Koordinaten,"51.14439,9.55922","51.138477,9.542333","OpenStreetMap „Freundschaftsinsel“. Gesuchter Platz: ""Freundschaftsinsel"". Alter Pin 1349 m daneben, neuer Punkt ist der OSM-Treffer."
-t1793,SSV Sand 1910,Koordinaten,"51.24301,9.25326","51.243351,9.247258","OpenStreetMap „Sander Höhe“. Gesuchter Platz: Sander Höhe. Alter Pin 420 m daneben, neuer Punkt ist der OSM-Treffer."
 t1844,SC Hauenstein,Koordinaten,"49.19663,7.85738","49.196067,7.850909","OpenStreetMap „Stadion am Neding“. Gesuchter Platz: Stadion Neding. Alter Pin 474 m daneben, neuer Punkt ist der OSM-Treffer."
 t1868,SG Westerburg,Koordinaten,"50.55797,7.97711","50.556179,7.977447","OpenStreetMap „Schulstadion“. Gesuchter Platz: Schulstadion. Alter Pin 201 m daneben, neuer Punkt ist der OSM-Treffer."
 t1934,VfB Theley,Koordinaten,"49.50095,7.02291","49.503922,7.015235","OpenStreetMap „Schaumbergstadion“. Gesuchter Platz: Schaumbergstadion. Alter Pin 645 m daneben, neuer Punkt ist der OSM-Treffer."
@@ -75,7 +72,6 @@ t2091,VfR Stockach,Koordinaten,"47.85113,9.0205","47.850061,9.023829","OpenStree
 t2115,BSC Saas Bayreuth,Koordinaten,"49.92753,11.56015","49.924561,11.556401","OpenStreetMap „Harry-Kolb-Sportanlage“. Gesuchter Platz: Harry-Kolb-Sportanlage. Alter Pin 425 m daneben, neuer Punkt ist der OSM-Treffer."
 t2153,FC Türk S. Garching,Koordinaten,"48.25722,11.64145","48.259881,11.643395","OpenStreetMap „GARMIN Stadion am See“. Gesuchter Platz: Garmin-Stadion am See. Alter Pin 329 m daneben, neuer Punkt ist der OSM-Treffer."
 t2162,FSV Bayreuth,Koordinaten,"49.94802,11.58376","49.941903,11.595785","OpenStreetMap „FSV Bayreuth - Sportplatz 1. FC Bayreuth“. Gesuchter Platz: FC Bayreuth. Alter Pin 1097 m daneben, neuer Punkt ist der OSM-Treffer."
-t2301,TSV-DJK Oberdiendorf,Koordinaten,"48.62686,13.58353","48.631726,13.586262","OpenStreetMap „Sportplatz“. Gesuchter Platz: Sportplatz Oberdiendorf. Alter Pin 577 m daneben, neuer Punkt ist der OSM-Treffer."
 t2319,VfR Garching,Koordinaten,"48.25722,11.64145","48.259881,11.643395","OpenStreetMap „GARMIN Stadion am See“. Gesuchter Platz: Garmin-Stadion am See. Alter Pin 329 m daneben, neuer Punkt ist der OSM-Treffer."
 t321,SV Hemelingen,Koordinaten,"53.04523,8.89851","53.039687,8.903371","OpenStreetMap „Bezirkssportanlage Hemelingen“. Gesuchter Platz: Bezirkssportanlage Hemelingen (Platz 1). Alter Pin 697 m daneben, neuer Punkt ist der OSM-Treffer."
 t1147,SV Alemannia Salzbergen,Koordinaten,"52.33299,7.32759","52.327184,7.326856","OpenStreetMap „Sportplatz „Ahlder Damm““. Gesuchter Platz: Sportplatz ""Ahlder Damm"". Alter Pin 648 m daneben, neuer Punkt ist der OSM-Treffer."
@@ -85,7 +81,7 @@ t559,SV Eintracht Eisenberg,Spielort,Sportplatz Schortental,unsicher,"2 Großfel
 t591,Leipziger SC,Spielort,Sportanlage Pistorisstraße,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t691,FC Wendelstein 2017,Spielort,Sportanlage Am Schießhaus,unsicher,"5 Großfelder, keines eindeutig"
 t695,SV Türk Gücü Straubing,Spielort,Donausportzentrum Peterswöhrd / Uferstraße,unsicher,"4 Großfelder, keines eindeutig"
-t751,SC St. Tönis 1911/20,Spielort,YAYLA-Sportpark,unsicher,"5 Großfelder, keines eindeutig"
+t751,SC St. Tönis 1911/20,Spielort,YAYLA-Sportpark,falscher Ort,falscher Ort: Pin liegt 4.0 km von St. Tönis (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t815,FC Hanau 93,Spielort,Heinrich-Sonnrein-Sportanlage,unsicher,"Adresse nicht gefunden: Heinrich-Sonnrein-Sportanlage, Kastanienallee"
 t897,FC Britannia Eichenzell 1911,Spielort,Sportanlage Tannenhof,unsicher,"2 Großfelder, keines eindeutig"
 t912,FC Hellas Marpingen,Spielort,Alstal-Stadion,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
@@ -117,7 +113,6 @@ t1057,BV Germania Wolfenbüttel,Spielort,,unsicher,keine Adresse der Heimspielst
 t1061,Eintracht Munster,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1063,FC Blau Gelb Asse,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1070,FC Heidetal,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t1071,FC Hevesen,Spielort,,unsicher,Geokodierung liegt nicht in Bückeburg:  Achumer Wiese Seggebruch Achum  Landkreis Schaumburg
 t1078,FC Schwülper,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1079,FC SF Rautheim,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1080,FC Springe,Spielort,,unsicher,keine Adresse der Heimspielstätte
@@ -162,11 +157,11 @@ t1158,SV Brigitta-Elwerath Steimbke,Spielort,,unsicher,keine Adresse der Heimspi
 t1162,SV Concordia Ihrhove,Spielort,Stadion am Sportzentrum Ihrhove,unsicher,Geokodierung liegt nicht in Westoverledingen: Kinnerkram Christiane-Schröter-Straße Ihrhove Ihrhove  Landkreis Leer
 t1167,SV Falke Steinfeld,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1171,SV Germania Helstorf,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t1172,SV Gifhorn,Spielort,,unsicher,keine Adresse der Heimspielstätte
+t1172,SV Gifhorn,Spielort,,falscher Ort,falscher Ort: Pin liegt 12.7 km von Gifhorn (Niedersachsen). Kein eindeutiger Platz gesetzt.
 t1174,SV Grün-Weiß Stöckse,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1177,SV Holdenstedt,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1183,SV Küsten,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t1184,SV Langen,Spielort,SV Langen e.V.,unsicher,"2 Großfelder, keines eindeutig"
+t1184,SV Langen,Spielort,SV Langen e.V.,falscher Ort,falscher Ort: Pin liegt 36.9 km von Langen (Niedersachsen). Kein eindeutiger Platz gesetzt.
 t1185,SV Lauingen-Bornum,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1186,SV Lemgow-Dangenstorf,Spielort,Sportplatz Dangenstorf,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1190,SV Molbergen,Spielort,Sportpark Molbergen,unsicher,"3 Großfelder, keines eindeutig"
@@ -242,7 +237,7 @@ t1465,DJK Sportfreunde Katernberg 13/19,Spielort,Sportplatz Meerbruchstraße,uns
 t1469,DSC 99 Düsseldorf,Spielort,Bezirkssportanlage Düsseltal,unsicher,"2 Großfelder, keines eindeutig"
 t1471,DV Solingen,Spielort,Zietenplatz,unsicher,Geokodierung liegt nicht in Solingen: Zietenplatz Anton-Wilhelm-Amo-Straße Berlin Mitte Friedrichstadt 
 t1482,FC Brünninghausen,Spielort,Garandus-Arena Am Hombuchsfeld,unsicher,Geokodierung liegt nicht in Dortmund-Renninghausen: Am Hombruchsfeld  Dortmund Renninghausen Kleinholthausen 
-t1485,FC Eschweiler 2020,Spielort,Sportplatz Laurenzberg,unsicher,"5 Großfelder, keines eindeutig"
+t1485,FC Eschweiler 2020,Spielort,Sportplatz Laurenzberg,falscher Ort,falscher Ort: Pin liegt 3.5 km von Eschweiler (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t1487,FC Kosova Düsseldorf,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1506,Germania Hilfarth,Spielort,Sportplatz Hilfarth,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t1524,Lohausener SV,Spielort,,unsicher,keine Adresse der Heimspielstätte
@@ -255,9 +250,9 @@ t1570,SG Türkischer SV Düren,Spielort,Rasenplatz Malteserstraße,unsicher,Adre
 t1571,SG Union Würm-Lindern,Spielort,Wilhelm Dohmen Sportplatz,unsicher,"5 Großfelder, keines eindeutig"
 t1578,Sportfreunde Niederwenigern,Spielort,Glückauf-Sportplatz,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1600,SV 08/29 Friedrichsfeld,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t1605,SV Bergheim 1937,Spielort,Krausacker,unsicher,Geokodierung liegt nicht in 53844 Troisdorf: Am Krausacker  Troisdorf Bergheim  Rhein-Sieg-Kreis
+t1605,SV Bergheim 1937,Spielort,Krausacker,falscher Ort,falscher Ort: Pin liegt 37.3 km von Bergheim (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t1611,SV Dorsten-Hardt,Spielort,Hermann-Grefer-Sportpark,unsicher,"2 Großfelder, keines eindeutig"
-t1618,SV Helpenstein,Spielort,Axels Soulkitchen Arena,unsicher,"2 Großfelder, keines eindeutig"
+t1618,SV Helpenstein,Spielort,Axels Soulkitchen Arena,falscher Ort,falscher Ort: Pin liegt 32.6 km von Helpenstein (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t1620,SV Hösel,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1633,SV Solingen 08/10,Spielort,Sportplatz Bavert,unsicher,"2 Großfelder, keines eindeutig"
 t1635,SV Wachtberg,Spielort,Waldstadion,unsicher,Geokodierung liegt nicht in Wachtberg: Bauhof & Sachgebiet 37 Fraunhoferstraße Villiprott Berkum  Rhein-Sieg-Kreis
@@ -287,10 +282,10 @@ t1728,FC Tempo Frankfurt,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1737,FSG Weidelsburg,Spielort,Stadion an der Hardt,unsicher,Geokodierung liegt nicht in Wolfhagen: Vor dem Busche  Ippinghausen   Landkreis Kassel
 t1741,FSV Friedrichsdorf,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1745,FV Stierstadt,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t1751,SC Offheim,Spielort,,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
+t1751,SC Offheim,Spielort,,falscher Ort,falscher Ort: Pin liegt 3.0 km von Offheim (Hessen). Kein eindeutiger Platz gesetzt.
 t1754,SC Willingen,Spielort,Rattlarer Alm,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1761,SG Dittlofrod/Körnbach,Spielort,Sportplatz Dittlofrod,unsicher,Geokodierung liegt nicht in Eiterfeld: Körnbacher Straße  Dittlofrod   Landkreis Fulda
-t1762,SG Eiterfeld/Leimbach,Spielort,,unsicher,keine Adresse der Heimspielstätte
+t1762,SG Eiterfeld/Leimbach,Spielort,,falscher Ort,falscher Ort: Pin liegt 4.0 km von Leimbach (Hessen). Kein eindeutiger Platz gesetzt.
 t1763,SG Elters/Eckweisbach/Schwarzbach,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1764,SG Freiensteinau 1947,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1765,SG Germania Wiesbaden,Spielort,Sportplatz Waldstraße,unsicher,Geokodierung liegt nicht in Teutonenstraße: Sportplatz Waldstraße Blumenweg Hattingen Obereichholz  Ennepe-Ruhr-Kreis
@@ -298,7 +293,7 @@ t1766,SG Hombressen/Udenhausen,Spielort,TSV Hombressen,unsicher,kein Fußballpla
 t1769,SG Kinzenbach,Spielort,Stadion Kinzenbach,unsicher,Geokodierung liegt nicht in Heuchelhiem: Heuchelheim an der Lahn     Landkreis Gießen
 t1771,SG Nassau Diedenbergen,Spielort,Am Galgenkippel,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1773,SG Neukirchen / Röllshausen,Spielort,Sportplatz Röllshausen,unsicher,"2 Großfelder, keines eindeutig"
-t1774,SG Niederaula/Kerspenhausen,Spielort,,unsicher,keine Adresse der Heimspielstätte
+t1774,SG Niederaula/Kerspenhausen,Spielort,,falscher Ort,falscher Ort: Pin liegt 5.0 km von Kerspenhausen (Hessen). Kein eindeutiger Platz gesetzt.
 t1776,SG Oberlahn,Spielort,Sportplatz Kirschhofen,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t1777,SG Oberzell/Züntersbach,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1779,SG Reinhardshagen,Spielort,Ahlesportplatz,unsicher,Geokodierung liegt nicht in Friedrich-Ludwig-Jahn-Straße: Friedrich-Ludwig-Jahn-Sportpark Schwedter Straße Berlin Prenzlauer Berg Gleimvie
@@ -339,7 +334,7 @@ t1860,SG Müschenbach / Hachenburg,Spielort,,unsicher,keine Adresse der Heimspie
 t1861,SG Rennerod,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1862,SG Rieschweiler,Spielort,"Stadion ""An der Dicken Eiche"" Rieschweiler",unsicher,"Adresse nicht gefunden: An der Dicken Eiche,  Rieschweiler-Mühlbach"
 t1863,SG Ruwertal/Gutweiler,Spielort,Sportplatz SV Gutweiler,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
-t1865,SG Walsdorf,Spielort,Sportplatz Berndorf,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
+t1865,SG Walsdorf,Spielort,Sportplatz Berndorf,falscher Ort,falscher Ort: Pin liegt 3.3 km von Walsdorf (Rheinland-Pfalz). Kein eindeutiger Platz gesetzt.
 t1866,SG Weinsheim,Spielort,Am Palmstein-Rasenplatz1,unsicher,"2 Großfelder, keines eindeutig"
 t1873,SV Blau Weiß Binningen 1921 e. V.,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t1874,SV Eintracht Mendig,Spielort,,unsicher,keine Adresse der Heimspielstätte
@@ -371,9 +366,9 @@ t1976,FV 1918 Brühl,Spielort,"Sportpark Süd, FV 1918 Brühl",unsicher,"Adresse
 t1980,FV Lörrach-Brombach,Spielort,Grüttpark - Platz 2,unsicher,"3 Großfelder, keines eindeutig"
 t1983,FV Nußloch,Spielort,Max-Berk-Stadion Rasen,unsicher,"2 Großfelder, keines eindeutig"
 t1988,FV Ötigheim,Spielort,Sportplatz Ötigheim,unsicher,"3 Großfelder, keines eindeutig"
-t1990,Hegauer FV,Spielort,,unsicher,keine Adresse der Heimspielstätte
+t1990,Hegauer FV,Spielort,,falscher Ort,falscher Ort: Pin liegt 4.3 km von Hegauer Kegelbergland (Baden-Württemberg). Kein eindeutiger Platz gesetzt.
 t1995,SC Geislingen,Spielort,Stadion im Eybacher Tal,unsicher,"Adresse nicht gefunden: J?rgen Klinsmann Weg 1,  Geislingen"
-t1996,SC Gottmadingen-Bietingen,Spielort,Sportplatz-Katzental,unsicher,kein Fußballplatz im Umkreis von 500 m
+t1996,SC Gottmadingen-Bietingen,Spielort,Sportplatz-Katzental,falscher Ort,falscher Ort: Pin liegt 4.3 km von Bietingen (Baden-Württemberg). Kein eindeutiger Platz gesetzt.
 t1999,SG Deißlingen/Lauffen,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t2004,SG Schorndorf,Spielort,,unsicher,kein Fußballplatz im Umkreis von 500 m
 t2007,SG-SV Lobbach,Spielort,Sportplatz Waldwimmersbach,unsicher,kein Fußballplatz im Umkreis von 500 m
@@ -395,7 +390,7 @@ t2098,1. FC Penzberg,Spielort,Karl-Wald-Stadion,unsicher,"4 Großfelder, keines 
 t2104,1. FC Viktoria Untererthal,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t2107,ASV Dachau,Spielort,Sepp-Helfer-Stadion,unsicher,kein Fußballplatz im Umkreis von 500 m
 t2109,ASV Vach,Spielort,Sportanlage Mannhof,unsicher,"Geokodierung liegt nicht in Fürth/Mannhof:  Am Sportplatz Fürth Nord-Ost Stadeln, Herboldshof, Mannhof Fürth"
-t2113,BSC Asch.-Schweinheim,Spielort,,unsicher,keine Adresse der Heimspielstätte
+t2113,BSC Asch.-Schweinheim,Spielort,,falscher Ort,falscher Ort: Pin liegt 254.4 km von Schweinheim (Bayern). Kein eindeutiger Platz gesetzt.
 t2114,BSC Regensburg,Spielort,Sportpark am Brandlberg,unsicher,"2 Großfelder, keines eindeutig"
 t2119,DJK Stopfenheim,Spielort,Sportanlage DJK Stopfenheim,unsicher,"2 Großfelder, keines eindeutig"
 t2120,DJK-SC Oesdorf,Spielort,Waldstadion_B-Platz,unsicher,"2 Großfelder, keines eindeutig"
@@ -404,19 +399,18 @@ t2124,FC Aschheim,Spielort,Aschheim Stadion,unsicher,"8 Großfelder, keines eind
 t2128,FC Ezelsdorf,Spielort,FC Ezelsdorf A-Platz,unsicher,Geokodierung liegt nicht in Burgthann-Ezelsdorf: Sportheim FC Ezelsdorf Bucher Straße Burgthann Ezelsdorf  Landkreis Nürnberger L
 t2135,FC Kosova München,Spielort,BSA Freiham,unsicher,"kein Großfeld, nur Kleinfelder"
 t2140,FC Oberhinkofen,Spielort,,unsicher,"3 Großfelder, keines eindeutig"
-t2141,FC Obernzell-Erlau,Spielort,Hauptplatz Obernzell,unsicher,kein Fußballplatz im Umkreis von 500 m
+t2141,FC Obernzell-Erlau,Spielort,Hauptplatz Obernzell,falscher Ort,falscher Ort: Pin liegt 3.7 km von Erlau (Bayern). Kein eindeutiger Platz gesetzt.
 t2155,FC Viktoria Mömlingen,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t2159,FC Wiggensbach,Spielort,Max Swoboda Stadion,unsicher,"2 Großfelder, keines eindeutig"
 t2165,FSV VfB Straubing,Spielort,FSV VfB Straubing - Stadion Süd,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t2167,FV Fortuna Neuses,Spielort,Hauff Sportpark,unsicher,"2 Großfelder, keines eindeutig"
 t2171,Peterskirchen,Spielort,Mörntal-Stadion,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
-t2182,SG Niedersont./Martinsz.,Spielort,Kunstrasen Gemeindeplatz,unsicher,Geokodierung liegt nicht in Waltenhofen-Niedersonthofen: Niedersonthofen Sonnenstraße Waltenhofen Linsen  Landkreis Oberallgäu
 t2183,SG Regnitzlosau,Spielort,,unsicher,keine Adresse der Heimspielstätte
 t2188,SpVgg Giebelstadt,Spielort,Stadion Am Güßgraben,unsicher,Geokodierung liegt nicht in Giebelstadt:  Am Güssgraben Sachsen bei Ansbach Rutzenmühle  Landkreis Ansbach
 t2202,SpVgg Saalestadt,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t2207,SV 08 Auerbach,Spielort,Sportplatz am Sand,unsicher,Geokodierung liegt nicht in Auerbach i.d.OPf.:  Sandstraße Berg b.Neumarkt i.d.OPf. Berg bei Neumarkt in der Oberpfalz  Landkre
-t2214,SV Birkenfeld,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t2222,SV Friesen,Spielort,,unsicher,"3 Großfelder, keines eindeutig"
+t2207,SV 08 Auerbach,Spielort,Sportplatz am Sand,falscher Ort,falscher Ort: Pin liegt 95.7 km von Auerbach (Bayern). Kein eindeutiger Platz gesetzt.
+t2214,SV Birkenfeld,Spielort,,falscher Ort,falscher Ort: Pin liegt 69.4 km von Birkenfeld (Bayern). Kein eindeutiger Platz gesetzt.
+t2222,SV Friesen,Spielort,,falscher Ort,falscher Ort: Pin liegt 4.0 km von Friesen (Bayern). Kein eindeutiger Platz gesetzt.
 t2232,SV Miesbach,Spielort,Sportanlage Windfeld,unsicher,"3 Großfelder, keines eindeutig"
 t2243,SV Sportfreunde Dinkelsbühl,Spielort,Mutschachstadion,unsicher,kein Fußballplatz im Umkreis von 500 m
 t2248,SV Wörnitzstein-Berg,Spielort,Sportgelände Wörnitzstein,unsicher,"4 Großfelder, keines eindeutig"
@@ -428,7 +422,7 @@ t2278,TSV Langquaid,Spielort,,unsicher,Geokodierung liegt nicht in Langquaid: Au
 t2279,TSV Legau,Spielort,Sportplatz Legau,unsicher,kein Fußballplatz im Umkreis von 500 m
 t2280,TSV Lohr am Main,Spielort,Sportplatz an der Jahnstraße,unsicher,"3 Großfelder, keines eindeutig"
 t2283,TSV Meeder,Spielort,,unsicher,keine Adresse der Heimspielstätte
-t2290,TSV Obernsees,Spielort,,unsicher,"2 Großfelder, keines eindeutig"
+t2290,TSV Obernsees,Spielort,,falscher Ort,falscher Ort: Pin liegt 5.8 km von Obernsees (Bayern). Kein eindeutiger Platz gesetzt.
 t2297,TSV Unterpleichfeld,Spielort,,unsicher,"2 Großfelder, keines eindeutig"
 t2303,TuS Prien am Chiemsee,Spielort,Stadion Prien,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t2304,TuS Raubling,Spielort,Inntalstadion,unsicher,kein Fußballplatz im Umkreis von 500 m
@@ -460,8 +454,8 @@ t259,TSV Landsberg,Spielort,Sportzentrum Landsberg,unsicher,Adresse oder Platz l
 t271,Sportfreunde Dorfmerkingen,Spielort,Ingenieurbeton Röser Arena,unsicher,"Adresse nicht gefunden: Ingenieurbeton Röser Arena, Felsenstraße"
 t274,SV Linx,Spielort,Hans-Weber Stadion,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t280,SV Westfalia Rhynern,Spielort,Kümpel+Hellmeister-Arena,unsicher,"4 Großfelder, keines eindeutig"
-t283,Ratingen 04/19,Spielort,Stadion Ratingen,unsicher,Geokodierung liegt nicht in West: Stadion Stadionring Ratingen Zentrum Süd Kreis Mettmann
-t285,FC Hennef 05,Spielort,Stadion im Anton-Klein-Sportpark,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
+t283,Ratingen 04/19,Spielort,Stadion Ratingen,falscher Ort,falscher Ort: Pin liegt 3.1 km von Ratingen (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
+t285,FC Hennef 05,Spielort,Stadion im Anton-Klein-Sportpark,falscher Ort,falscher Ort: Pin liegt 3.1 km von Hennef (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t299,Buchonia Flieden,Spielort,Stadion Im Weiher,unsicher,"5 Großfelder, keines eindeutig"
 t301,SV Rot-Weiß Hadamar,Spielort,Sportanlage An der dicken Eiche,unsicher,kein Fußballplatz im Umkreis von 500 m
 t302,OSC Vellmar,Spielort,Stadion an der Heckershäuser Straße,unsicher,"3 Großfelder, keines eindeutig"
@@ -506,7 +500,6 @@ t444,SSC Hagen-Ahrensburg,Spielort,Sportplatz am Hagen,unsicher,kein Fußballpla
 t450,TSV Rantrum,Spielort,Lagedeich-Stadion,unsicher,"2 Großfelder, keines eindeutig"
 t457,Rahlstedter SC,Spielort,Sportpark Rahlstedt (Platz 2),unsicher,"Adresse nicht gefunden: Sportpark Rahlstedt (Platz 2), Scharbeutzer Straße"
 t458,Türk Birlikspor Pinneberg,Spielort,Sportanlage Müßentwiete,unsicher,"2 Großfelder, keines eindeutig"
-t463,SC Nienstedten,Spielort,Sportplatz Quellental,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t465,FC Förderkader René Schneider,Spielort,Lok-Platz 2 Damerower Weg,unsicher,"12 Großfelder, keines eindeutig"
 t474,SC Rönnau,Spielort,Sportanlage Ton Hus,unsicher,"2 Großfelder, keines eindeutig"
 t475,TSV Hattstedt,Spielort,Waldstadion im Sportpark,unsicher,kein Fußballplatz im Umkreis von 500 m
@@ -541,7 +534,7 @@ t618,TSV 1880 Wasserburg,Spielort,Stadion an der Landwehrstraße,unsicher,kein F
 t626,FC Eintracht Münchberg,Spielort,Fortuna-Arena,unsicher,Geokodierung liegt nicht in Schlegel: Fortuna Arena U Slavie Prag Prag 10 Werschowitz 
 t632,TSV Grünwald,Spielort,Sportplatz Keltenstraße,unsicher,"3 Großfelder, keines eindeutig"
 t636,FC Coburg,Spielort,Dr. Eugen-Stocke-Stadion,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
-t640,FSV Pfaffenhofen,Spielort,Städtisches Stadion im Sportpark Pfaffenhofen,unsicher,"4 Großfelder, keines eindeutig"
+t640,FSV Pfaffenhofen,Spielort,Städtisches Stadion im Sportpark Pfaffenhofen,falscher Ort,falscher Ort: Pin liegt 85.6 km von Pfaffenhofen (Bayern). Kein eindeutiger Platz gesetzt.
 t642,SC Ettmannsdorf,Spielort,Sportplätze an der Hindenburg-Kampfbahn,unsicher,"Adresse nicht gefunden: Sportplätze an der Hindenburg-Kampfbahn, Hirtenweg"
 t646,ASV Weisendorf,Spielort,Neumüller Elektronik Arena,unsicher,"Adresse nicht gefunden: Neumüller Elektronik Arena, Reuther Weg"
 t648,DJK Schwebenried/Schwemmelsbach,Spielort,Weißenberger Arena,unsicher,"2 Großfelder, keines eindeutig"
@@ -555,14 +548,14 @@ t692,SV 05 Froschbachtal,Spielort,Sportanlage Bobengrün,unsicher,kein Fußballp
 t701,Türkspor Neckarsulm,Spielort,Stadion im Sportzentrum Pichterich,unsicher,"Adresse nicht gefunden: Stadion im Sportzentrum Pichterich, Pichterichstraße"
 t723,SGK Heidelberg,Spielort,Stadion im Sportzentrum Süd,unsicher,kein Fußballplatz im Umkreis von 500 m
 t724,SF Schwäbisch Hall,Spielort,OPTIMA Sportpark,unsicher,"3 Großfelder, keines eindeutig"
-t729,VfR Hausen,Spielort,Sportanlage an der Möhlin,unsicher,"3 Großfelder, keines eindeutig"
+t729,VfR Hausen,Spielort,Sportanlage an der Möhlin,falscher Ort,falscher Ort: Pin liegt 71.0 km von Hausen (Baden-Württemberg). Kein eindeutiger Platz gesetzt.
 t732,VfR Gommersdorf,Spielort,Sportanlage Stichele,unsicher,"Adresse nicht gefunden: Sportanlage Stichele, Gommersdorf"
 t733,Türkspor Mosbach,Spielort,Elzstadion Nebenplatz 2,unsicher,"Adresse nicht gefunden: Elzstadion Nebenplatz 2, Neckarelz"
 t736,SC Hofstetten,Spielort,Sportanlage Waldseeweg,unsicher,"2 Großfelder, keines eindeutig"
 t745,Siegburger SV 04,Spielort,Walter-Mundorf-Stadion,unsicher,kein Fußballplatz im Umkreis von 500 m
 t779,Holzheimer Sportgemeinschaft von 1920 e.V.,Spielort,Johann-Dahmen-Sportanlage Platz 2,unsicher,"Adresse nicht gefunden: Johann-Dahmen-Sportanlage Platz 2, Eppinghoven"
 t780,SV Scherpenberg,Spielort,Volksbank Niederrhein Arena Nebenplatz,unsicher,"3 Großfelder, keines eindeutig"
-t781,VfL Viktoria Jüchen-Garzweiler 08/09,Spielort,Bezirkssportanlage Stadionstraße,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
+t781,VfL Viktoria Jüchen-Garzweiler 08/09,Spielort,Bezirkssportanlage Stadionstraße,falscher Ort,falscher Ort: Pin liegt 7.9 km von Garzweiler (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t792,SV Mesum,Spielort,Heyden-Securit Hassenbrockstadion,unsicher,Geokodierung liegt nicht in Rheine-Mesum: Alexander-von-Humboldt-Schule Hassenbrockweg Rheine Mesum  Kreis Steinfurt
 t793,SC Rot-Weiß Maaslingen,Spielort,Ösper-Sport-Park,unsicher,Geokodierung liegt nicht in Maaslinger Straße: Parkplatz Sportanlage Schönwies Tiroler Straße Schönwies Saurs  Bezirk Landeck
 t801,DJK Grün-Weiß Nottuln,Spielort,Baumberge-Stadion,unsicher,kein Fußballplatz im Umkreis von 500 m
@@ -574,10 +567,9 @@ t811,SV Germania Salchendorf,Spielort,Sportplatz Wüstefeld,unsicher,Geokodierun
 t816,Türk Gücü Friedberg,Spielort,Burgfeldstadion,unsicher,"2 Großfelder, keines eindeutig"
 t819,DJK Sportfreunde Bad Homburg,Spielort,Sportanlage am Wiesenborn Platz 2,unsicher,"Adresse nicht gefunden: Sportanlage am Wiesenborn Platz 2, Landgrafenstraße"
 t820,1. FC Germania Ober-Roden,Spielort,Sportplatz Frankfurter Straße,unsicher,Geokodierung liegt nicht in Rödermark-Ober-Roden: 1. FC Germania 08 e.V. Ober-Roden Außerhalb Rödermark Ober-Roden Breidert Landkr
-t821,1. FC Schwalmstadt,Spielort,Herbert-Battenfeld-Stadion,unsicher,Geokodierung liegt nicht in Schwalmstadt-Treysa: Zwalmstraße  Treysa   Schwalm-Eder-Kreis
+t821,1. FC Schwalmstadt,Spielort,Herbert-Battenfeld-Stadion,falscher Ort,falscher Ort: Pin liegt 3.9 km von Schwalmstadt (Hessen). Kein eindeutiger Platz gesetzt.
 t822,Eisbachtaler Sportfreunde,Spielort,Eisbachtalstadion,unsicher,"Adresse nicht gefunden: Eisbachtalstadion, Nentershausen"
 t824,FC Cosmos Koblenz,Spielort,Stadion Oberwerth,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
-t827,SV Hummetroth,Spielort,Erbacher Sportpark,unsicher,Adresse oder Platz liegt außerhalb des Orts bzw. weiter als 3 km vom bisherigen Pin. Nicht verschoben.
 t833,VfB Unterliederbach,Spielort,Sportanlage Hans-Böckler-Straße,unsicher,"2 Großfelder, keines eindeutig"
 t835,Rot-Weiß Hasborn,Spielort,Waldstadion,unsicher,"2 Großfelder, keines eindeutig"
 t838,SC Halberg Brebach,Spielort,Stadion an der Turnhalle,unsicher,Geokodierung liegt nicht in Saarbrücken-Brebach: SC Halberg Brebach 1907 e.V. Brückwiesstraße Saarbrücken Fechingen Neufechingen 
@@ -609,7 +601,7 @@ t916,SV Untermosel Kobern,Spielort,Sportplatz unter dem Rosenberg,unsicher,Adres
 t957,SV Grün-Weiß Todenbüttel,Spielort,A-Platz Todenbüttel,unsicher,"3 Großfelder, keines eindeutig"
 t990,Heidgrabener SV,Spielort,Heidgraben Platz 1 (Uetersener Str. 1a),unsicher,"3 Großfelder, keines eindeutig"
 t1017,TuS Holstein Quickborn,Spielort,Sportzentrum Ziegenweg,unsicher,kein Fußballplatz im Umkreis von 500 m
-t1073,FC Jesteburg-Bendestorf,Spielort,Am Alten Moor,unsicher,"2 Großfelder, keines eindeutig"
+t1073,FC Jesteburg-Bendestorf,Spielort,Am Alten Moor,falscher Ort,falscher Ort: Pin liegt 4.3 km von Bendestorf (Niedersachsen). Kein eindeutiger Platz gesetzt.
 t1086,FC Wörpetal,Spielort,Tiefbau-Gieschen Arena,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1093,GW Brockdorf,Spielort,Sportanlage Langweger Straße,unsicher,kein Fußballplatz im Umkreis von 500 m
 t1236,TSV Holtensen,Spielort,,unsicher,keine Adresse der Heimspielstätte
@@ -623,10 +615,8 @@ t1404,Eurotrink Kickers FCL Gera,Spielort,Sportplatz Leumnitz,unsicher,Adresse o
 t1473,ESC Rellinghausen,Spielort,Sportplatz Rellinghauserstraße,unsicher,"Adresse nicht gefunden: Rellinghauserstr.,  Essen"
 t1500,FSV Duisburg,Spielort,Bezirkssportanlage Warbruckstraße II,unsicher,Geokodierung liegt nicht in Duisburg-Marxloh: Warbruckstraße  Duisburg Marxloh  
 t1509,GSV Moers,Spielort,Sportanlage Filder Benden Hauptplatz,unsicher,"3 Großfelder, keines eindeutig"
-t1510,Hammer SpVg,Spielort,Betten Kutz Stadion,unsicher,"5 Großfelder, keines eindeutig"
+t1510,Hammer SpVg,Spielort,Betten Kutz Stadion,falscher Ort,falscher Ort: Pin liegt 66.6 km von Hammer (Nordrhein-Westfalen). Kein eindeutiger Platz gesetzt.
 t1526,MSV Düsseldorf,Spielort,Bezirkssportanlage Heidelberger Straße,unsicher,"2 Großfelder, keines eindeutig"
-t1568,SG Hackenberg,Spielort,Sportplatz Hackenberger Straße,unsicher,kein Fußballplatz im Umkreis von 500 m
-t1573,Spielvereinigung 1920 Köln-Flittard,Spielort,Spielvereinigung Blau-Gelb Schwerin e.V.,unsicher,Geokodierung liegt nicht in K?ln: Л.Н.Гумилев атындағы Еуразия ұлттық университеті Қажымұқан көшесі Astana Алматы 
 t1574,Sportfreunde 97/30 Lowick,Spielort,Hauptplatz Eichenallee,unsicher,"3 Großfelder, keines eindeutig"
 t1615,SV Germania Grefrath 1926,Spielort,Bezirkssportanlage Grefrath,unsicher,"2 Großfelder, keines eindeutig"
 t1628,SV Rot-Weiß Wülfrath,Spielort,Erbacher Berg,unsicher,Geokodierung liegt nicht in W?lfrath: L-Flat大宮アヴィニティー 旧中山道 Saitama Stadtbezirke Omiya 宮町三丁目 
@@ -644,7 +634,7 @@ t2225,SV Hahnbach,Spielort,A-Platz,unsicher,"3 Großfelder, keines eindeutig"
 t2231,SV Mering,Spielort,Sportanlage Mering Stadion,unsicher,"8 Großfelder, keines eindeutig"
 t2235,SV München West,Spielort,BZA Siegenburgerstr.,unsicher,"kein Großfeld, nur Kleinfelder"
 t2270,TSV Heimbuchenthal,Spielort,Sportplatz am Buchrain,unsicher,"2 Großfelder, keines eindeutig"
-t2323,SV Schwaig b. Nbg.,Spielort,Sportpark Pegnitztal,unsicher,"4 Großfelder, keines eindeutig"
+t2323,SV Schwaig b. Nbg.,Spielort,Sportpark Pegnitztal,falscher Ort,falscher Ort: Pin liegt 86.6 km von Schwaig (Bayern). Kein eindeutiger Platz gesetzt.
 t942,SG Eiderstedt,Koordinaten,"54.32362,8.95006","54.321662,8.947893","Adresse Friedrichstädter Chaussee,  Tönning. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 259 m vom alten Pin, unter 500 m von der Adresse."
 t963,TSV Altenholz,Koordinaten,"54.39696,10.11157","54.398982,10.119985","Adresse Klausdorfer Stra?e 78 e ,  Altenholz. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 589 m vom alten Pin, unter 500 m von der Adresse."
 t966,TSV Friedrichskoog,Koordinaten,"54.00162,8.88148","54.002616,8.884788","Adresse Seeschwalbenweg,  Friedrichskoog. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 243 m vom alten Pin, unter 500 m von der Adresse."
@@ -660,9 +650,7 @@ t1198,SV Suddendorf-Samern,Koordinaten,"52.30122,7.2166","52.298638,7.215719","A
 t1208,SV Wendisch Evern,Koordinaten,"53.20756,10.48265","53.210008,10.480424","Adresse Niendorfer Weg,  Wendisch Evern. Nächster Fußball-Großfeldplatz in OpenStreetMap (Sportplatz, ein Großfeld) 310 m vom alten Pin, unter 500 m von der Adresse."
 t1262,TuS Jahn Lindhorst,Koordinaten,"52.35796,9.28414","52.361367,9.293416","Adresse Am Sportplatz 20,  Lindhorst. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, größtes Feld) 735 m vom alten Pin, unter 500 m von der Adresse."
 t1283,TV Sottrum,Koordinaten,"53.11675,9.21841","53.116191,9.213227","Adresse Alte Dorfstraße,  Sottrum. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, einziges Flutlicht) 351 m vom alten Pin, unter 500 m von der Adresse."
-t1308,Berlin Hilalspor,Koordinaten,"52.50081,13.39737","52.497186,13.436839","Adresse Wiener Straße 59,  Berlin. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 2702 m vom alten Pin, unter 500 m von der Adresse."
 t1352,VfB Hohenleipisch 1912,Koordinaten,"51.49759,13.5746","51.498025,13.570659","Adresse Bahnhofstraße,  Hohenleipisch. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, einziges Flutlicht) 277 m vom alten Pin, unter 500 m von der Adresse."
-t1357,MSV Eisleben,Koordinaten,"51.52074,11.54764","51.529945,11.566095","Adresse Zum Sportplatz 11,  Lutherstadt Eisleben. Nächster Fußball-Großfeldplatz in OpenStreetMap (SSV Eisleben, größtes Feld) 1636 m vom alten Pin, unter 500 m von der Adresse."
 t1368,SV Rot-Weiß Kemberg,Koordinaten,"51.78386,12.6178","51.779583,12.628681","Adresse Bergwitzer Str.,  Kemberg. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 887 m vom alten Pin, unter 500 m von der Adresse."
 t1391,SV Aufbau Deutschbaselitz,Koordinaten,"51.28901,14.14819","51.291807,14.149127","Adresse Sportplatzstr. 13/15,  Kamenz. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 318 m vom alten Pin, unter 500 m von der Adresse."
 t1398,TSV IFA Chemnitz,Koordinaten,"50.83323,12.97282","50.834275,12.973399","Adresse Eubaer Straße 71, 09127 Chemnitz. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, größtes Feld) 123 m vom alten Pin, unter 500 m von der Adresse."
@@ -698,7 +686,6 @@ t1899,TuS Asbach,Koordinaten,"50.66367,7.42986","50.659813,7.429699","Adresse Fl
 t1914,SG Körprich-Bilsdorf,Koordinaten,"49.39102,6.83542","49.391041,6.831932","Adresse Uferstr.,  Nalbach. Nächster Fußball-Großfeldplatz in OpenStreetMap (Sportplatz Körprich, ein Großfeld) 252 m vom alten Pin, unter 500 m von der Adresse."
 t1927,SV Kirrberg,Koordinaten,"49.30663,7.37086","49.308352,7.368539","Adresse Eckstr. 133,  Homburg. Nächster Fußball-Großfeldplatz in OpenStreetMap (Sportplatz SV Kirrberg, ein Großfeld) 255 m vom alten Pin, unter 500 m von der Adresse."
 t1945,FC 1932 Pfaffenweiler,Koordinaten,"48.03996,8.423955","48.040314,8.426958","Adresse An der Gierhalde,  Villingen-Schwenningen. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, einziges Flutlicht) 227 m vom alten Pin, unter 500 m von der Adresse."
-t1994,SC Durbachtal,Koordinaten,"48.48571,8.03067","48.494356,8.013488","Adresse Almstra?e,  Durbach. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, ein Großfeld) 1590 m vom alten Pin, unter 500 m von der Adresse."
 t2022,SV Croatia Reutlingen,Koordinaten,"48.51309,9.21138","48.51304,9.214141","Adresse Carl-Diemstr.140,  Reutlingen. Nächster Fußball-Großfeldplatz in OpenStreetMap (Carl-Diem-Stadion, größtes Feld) 203 m vom alten Pin, unter 500 m von der Adresse."
 t2040,SV Rust,Koordinaten,"48.26985,7.72165","48.271574,7.719606","Adresse Rheinweg 2,  Rust. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, einziges Flutlicht) 244 m vom alten Pin, unter 500 m von der Adresse."
 t2077,VfB Bretten,Koordinaten,"49.03183,8.72101","49.028618,8.722717","Adresse Willi-Hesselbacher-Weg 3,  Bretten. Nächster Fußball-Großfeldplatz in OpenStreetMap (namenlos, einziges Flutlicht) 378 m vom alten Pin, unter 500 m von der Adresse."
@@ -757,3 +744,18 @@ t098,VfB Auerbach 1906,Koordinaten,"50.5062,12.38675","50.506196,12.38675","Adre
 t764,FC Iserlohn 46/49,Koordinaten,"51.39031,7.70355","51.39031,7.703553","Adresse Immermannstraße 20,  Iserlohn. Nächster Fußball-Großfeldplatz in OpenStreetMap (Hembergstadion, größtes Feld) 0 m vom alten Pin, unter 500 m von der Adresse."
 t851,Ahrweiler BC,Koordinaten,"50.54362,7.15124","50.543624,7.151241","Adresse Kreuzstrasse,  Bad Neuenahr. Nächster Fußball-Großfeldplatz in OpenStreetMap (Apollinarisstadion, größtes Feld) 0 m vom alten Pin, unter 500 m von der Adresse."
 t1389,SG Rotation Leipzig,Koordinaten,"51.3803,12.38153","51.38043,12.381526","Adresse Delitzscher Strasse 131, 04129 Leipzig. Nächster Fußball-Großfeldplatz in OpenStreetMap (Friedrich-Ludwig-Jahn-Kampfbahn, größtes Feld) 14 m vom alten Pin, unter 500 m von der Adresse."
+t2301,TSV-DJK Oberdiendorf,Koordinaten,"48.62686,13.58353","48.62741,13.58045","OpenStreetMap: größeres Großfeld 117×87 m, 234 m vom alten Pin. Der bisherige neue Punkt ist ein Weg namens Sportplatz in Hauzenberg-Perling. FuPa: Sportplatz Oberdiendorf, Redling 34, Hauzenberg."
+t1994,SC Durbachtal,Koordinaten,"48.48571,8.03067","48.500352,7.989179","OpenStreetMap: AXA Stadion, Durbachtalweg, Durbach, neben dem Platz SC Durbachtal, etwa 1,9 km westlich des bisherigen Punkts."
+t1994,SC Durbachtal,Stadion,Graf-Metternich Stadion,AXA Stadion,"OpenStreetMap: AXA Stadion, Durbachtalweg, Durbach, neben dem Platz SC Durbachtal, etwa 1,9 km westlich des bisherigen Punkts."
+t1357,MSV Eisleben,Spielort,MSV Eisleben,unsicher,"Zurück auf alt. Zum Sportplatz 11 in Eisleben liegen drei beleuchtete Großfelder, keines ist eindeutig der Hauptplatz. Der bisherige neue Punkt ist die Otto-Helm-Kampfbahn des SSV Eisleben."
+t1742,FSV Schröck,Koordinaten,"50.79056,8.81823","50.79498,8.81923","OpenStreetMap: Großfeld 109×79 m, 81 m neben dem 32×31-Fleck, an dem der Pin lag. Adresse FuPa: Zum Elisabethbrunnen 110, Marburg."
+t1793,SSV Sand 1910,Koordinaten,"51.24301,9.25326","51.243,9.24919","OpenStreetMap: beleuchtetes Großfeld 141×123 m. Der bisherige Pin liegt auf der Straße, der Platzrand ist rund 80 m entfernt."
+t1308,Berlin Hilalspor,Spielort,Berlin Hilalspor,unsicher,"Zurück auf alt und unsicher. FuPa nennt Sportplatz Wiener Straße, Wiener Straße 59, Berlin. OpenStreetMap hat dort kein 90×60-Großfeld."
+t1071,FC Hevesen,Koordinaten,"52.32122,9.74548","52.28879,9.0902","FuPa-Heimspiel 2026/27: A-Platz, Achumer Wiese 34, Bückeburg. OpenStreetMap: Großfeld 119×97 m dort. Der alte Pin lag in Hemmingen, Region Hannover, 45 km entfernt."
+t1071,FC Hevesen,Stadion,,Achumer Wiese,"FuPa-Heimspiel 2026/27: A-Platz, Achumer Wiese 34, Bückeburg. OpenStreetMap: Großfeld 119×97 m dort. Der alte Pin lag in Hemmingen, Region Hannover, 45 km entfernt."
+t2182,SG Niedersont./Martinsz.,Koordinaten,"47.67444,10.30869","47.63184,10.23836","FuPa-Heimspiel 2026/27: Sportplatz Niedersonthofen, Sonnenstraße, Waltenhofen-Niedersonthofen. OpenStreetMap: Großfeld 121×109 m dort. Der alte Pin lag in einem anderen Ortsteil von Waltenhofen."
+t2182,SG Niedersont./Martinsz.,Stadion,Kunstrasen Gemeindeplatz,Sportplatz Niedersonthofen,"FuPa-Heimspiel 2026/27: Sportplatz Niedersonthofen, Sonnenstraße, Waltenhofen-Niedersonthofen. OpenStreetMap: Großfeld 121×109 m dort. Der alte Pin lag in einem anderen Ortsteil von Waltenhofen."
+t1573,Spielvereinigung 1920 Köln-Flittard,Koordinaten,"51.54308,7.34035","51.00216,6.98651",Pin lag 65 km von Köln-Flittard. OpenStreetMap: einziges Großfeld 113×95 m bei Flittard.
+t827,SV Hummetroth,Koordinaten,"49.66385,8.99848","49.77564,8.94268",Pin lag 14 km von Hummetroth. OpenStreetMap: einziges Großfeld 132×120 m am Ort.
+t1568,SG Hackenberg,Koordinaten,"51.19975,7.27626","51.15213,7.4449","Pin lag 13 km von Hackenberg. OpenStreetMap: einziges Fußball-Großfeld, Sportplatz Kreuzberg."
+t463,SC Nienstedten,Koordinaten,"53.56188,10.06284","53.55187,9.86015",Pin lag 15 km von Hamburg-Nienstedten. OpenStreetMap: einziges Fußball-Großfeld mit Flutlicht im Ortsteil.
