@@ -1,11 +1,11 @@
 Fußballrechner
 ==============
-Starten: Ordner öffnen und index.html im Browser laden.
+Starten: index.html im Browser öffnen.
 
-Die Leiste nennt die realen Ligenebenen von der Bundesliga bis zur 8. Liga. Darunter wählt man die Staffel. In der Liste stehen die Vereine dieser Staffel mit Wappen, Bundesland und Stadion, in der Reihenfolge der hinterlegten Zuordnung 2026/27.
+Die Leiste nennt Bundesliga, 2., 3. und 4. Bundesliga, 5. Liga, Regionalliga, Unterbau, Ansehen, Pokal und Auf/Abstieg. Staffeln stehen in der Leiste darunter.
 
-Ein Klick auf einen Verein öffnet seine Seite: aktuelle Liga, Standort, Titel und Ligahistorie. Zurück geht es über „Zurück zur Liga“.
+„Saison simulieren“ spielt die Saison und die Pokale. Danach zeigt Auf/Abstieg, wer nach der Tabelle auf- und absteigt. Es gibt keine Relegation und keine Entscheidungsspiele. „Nächste Saison“ übernimmt das Ergebnis.
 
-RB Leipzig erscheint nicht. Zweite Mannschaften erscheinen nicht, außer SSV Jeddeloh II. Der Verein aus Fürth heißt SpVgg Fürth. Die Wappen bleiben die hinterlegten Dateien.
+Die Regionalliga bleibt bei 18 Vereinen. Jede Staffel hat einen festen Absteiger und zusätzlich so viele, wie aus ihrem Gebiet von der 5. Liga kommen. Damit die Zahl bleibt, steigen je Regionalliga zwei Vereine aus dem Unterbau auf: die beiden besten Meister der zugeordneten Ligen nach Punkten pro Spiel. Gibt es nur einen Meister, rückt der beste Zweite nach. Gleichstand: mehr Tore, dann Ansehen, dann der Name.
 
-Gespeichert wird nichts. Es gibt keine Saison, keinen Spielplan und keine Wertung.
+Ansehen nutzt die bisherige Skala aus Platzpunkten, Alter und Titeln. RB Leipzig erscheint nicht. Zweite Mannschaften erscheinen nicht, außer SSV Jeddeloh II. SpVgg Fürth behält diesen Namen.
