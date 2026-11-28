@@ -6,6 +6,6 @@ Die Leiste nennt Bundesliga, 2., 3. und 4. Bundesliga, 5. Liga, Regionalliga, Un
 
 „Saison simulieren“ spielt die Saison und die Pokale. Danach zeigt Auf/Abstieg, wer nach der Tabelle auf- und absteigt. Es gibt keine Relegation und keine Entscheidungsspiele. „Nächste Saison“ übernimmt das Ergebnis.
 
-Die Regionalliga bleibt bei 18 Vereinen: Absteiger sind die Zugänge aus der 5. Liga des eigenen Gebiets. Kommt niemand, steigt niemand ab. Aus dem Unterbau steigt je Regionalliga genau ein Meister auf, der mit den meisten Punkten pro Spiel.
+Die Regionalliga bleibt bei 18 Vereinen. Jede Staffel hat einen festen Absteiger und zusätzlich so viele, wie aus ihrem Gebiet von der 5. Liga kommen. Damit die Zahl bleibt, steigen je Regionalliga zwei Vereine aus dem Unterbau auf: die beiden besten Meister der zugeordneten Ligen nach Punkten pro Spiel. Gibt es nur einen Meister, rückt der beste Zweite nach. Gleichstand: mehr Tore, dann Ansehen, dann der Name.
 
 Ansehen nutzt die bisherige Skala aus Platzpunkten, Alter und Titeln. RB Leipzig erscheint nicht. Zweite Mannschaften erscheinen nicht, außer SSV Jeddeloh II. SpVgg Fürth behält diesen Namen.
